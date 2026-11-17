@@ -236,6 +236,6 @@ object Library {
             val t = if (v[0].dir.isNotEmpty()) v[0].dir.substringAfterLast('/') else k.substringAfterLast('/')
             Group(k, t, "${v.size} bài · ${v[0].sourceName}", sorted(v))
         }
-        Tab.SONG, Tab.FAV -> emptyList()
+        Tab.SONG, Tab.FAV, Tab.HABIT -> emptyList()
     }.sortedBy { it.title.lowercase() }
 }

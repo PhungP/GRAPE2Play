@@ -2,8 +2,11 @@ package com.grape.play
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,7 +21,8 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 fun DlnaBrowser(s: Source, onNav: (Screen) -> Unit) {
-    var stack by remember(s.id) { mutableStateOf(listOf<Pair<String, String>>()) } // (id, tên) từ gốc đến thư mục hiện tại
+    val stackState = remember(s.id) { LibNav.dlna.getOrPut(s.id) { mutableStateOf(listOf<Pair<String, String>>()) } }
+    var stack by stackState // (id, tên) từ gốc đến thư mục hiện tại; nhớ lại khi quay về Thư viện
     var entries by remember(s.id) { mutableStateOf<List<DEntry>>(emptyList()) }
     var loading by remember(s.id) { mutableStateOf(true) }
     var err by remember(s.id) { mutableStateOf("") }
@@ -56,7 +60,8 @@ fun DlnaBrowser(s: Source, onNav: (Screen) -> Unit) {
             if (stack.isNotEmpty()) Focusable({ stack = stack.dropLast(1) }) { T("◂ Lên một cấp", 18, C.Text, Modifier.padding(16.dp, 8.dp)) }
             if (tracks.isNotEmpty()) {
                 Focusable({ Playback.play(tracks, 0, false); onNav(Screen.NOW) }) { T("▶ Phát các bài ở đây", 18, C.Gold, Modifier.padding(16.dp, 8.dp)) }
-                Focusable({ Playback.playShuffled(tracks); onNav(Screen.NOW) }) { T("⤮ Ngẫu nhiên", 18, C.Gold, Modifier.padding(16.dp, 8.dp)) }
+                Focusable({ Playback.playMixed(tracks); onNav(Screen.NOW) }) { T("⤮ Trộn", 18, C.Gold, Modifier.padding(16.dp, 8.dp)) }
+                Focusable({ Playback.playShuffled(tracks); onNav(Screen.NOW) }) { T("🎲 Ngẫu nhiên", 18, C.Gold, Modifier.padding(16.dp, 8.dp)) }
             }
         }
         if (loading) T("Đang mở thư mục… ${entries.size} mục", 18, C.Muted)
@@ -65,17 +70,13 @@ fun DlnaBrowser(s: Source, onNav: (Screen) -> Unit) {
             Focusable({ retry++ }) { T("Thử lại", 18, C.Gold, Modifier.padding(16.dp, 8.dp)) }
         }
         if (!loading && err.isEmpty() && entries.isEmpty()) T("Thư mục trống (hoặc không có nhạc).", 18, C.Muted)
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            itemsIndexed(conts) { _, d ->
-                Focusable({ stack = stack + (d.id to d.title) }, Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(16.dp, 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        T("▸", 22, C.Gold)
-                        T(d.title, 22, C.Text, Modifier.weight(1f))
-                        if (d.childCount >= 0) T("${d.childCount} mục", 16, C.Muted)
-                    }
-                }
-            }
-            itemsIndexed(tracks) { i, t -> TrackRow(i, t, t.path == cur?.path) { Playback.play(tracks, i, false); onNav(Screen.NOW) } }
+        val compact = LocalCompact.current
+        LazyVerticalGrid(
+            if (compact) GridCells.Adaptive(130.dp) else GridCells.Fixed(6),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 18.dp), verticalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 18.dp),
+        ) {
+            items(conts, key = { "c:" + it.id }) { d -> FolderTile(d.title, d.childCount, null, "mục") { stack = stack + (d.id to d.title) } }
+            itemsIndexed(tracks, span = { _, _ -> GridItemSpan(maxLineSpan) }) { i, t -> TrackRow(i, t, t.path == cur?.path) { Playback.play(tracks, i, false); onNav(Screen.NOW) } }
         }
     }
 }

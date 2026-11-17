@@ -401,7 +401,10 @@ private fun QueuePanel(queue: List<Track>, idx: Int, alu: Boolean) {
     Column(Modifier.width(460.dp).fillMaxHeight().background(if (alu) Color(0xFF0C0C0D) else C.Side).padding(horizontal = 24.dp, vertical = 26.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             T("Danh sách phát", 30, if (alu) Color.White else C.Text, serif = true)
-            T("${queue.size} bài · ${fmt(total)}", 13, if (alu) Color(0xA6FFFFFF) else C.Muted)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Focusable({ Playback.shuffleQueue() }) { T("⤮ Trộn", 13, if (alu) Color.White else C.Gold, Modifier.padding(10.dp, 4.dp)) }
+                T("${queue.size} bài · ${fmt(total)}", 13, if (alu) Color(0xA6FFFFFF) else C.Muted)
+            }
         }
         Spacer(Modifier.height(10.dp))
         if (queue.isEmpty()) T("Danh sách đang trống", 18, C.Muted)

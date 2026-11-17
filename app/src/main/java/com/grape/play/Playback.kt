@@ -196,7 +196,7 @@ object Playback {
         Themes.init(appCtx)
         Covers.init(appCtx)
         Favorites.init(appCtx)
-        Recents.init(appCtx)
+        Recents.init(appCtx); UsageStats.init(appCtx); LibNav.init(appCtx); SourceOrder.init(appCtx)
         TvHome.init(appCtx)
         BackgroundAccess.init(appCtx)
         exo = build()
@@ -289,7 +289,7 @@ object Playback {
     /** Bài [t] bắt đầu được nghe: ghi vào "phát gần đây", làm mới hàng trên trang chủ TV và đọc thông số kỹ thuật của file ở luồng nền. */
     private fun startProbe(t: Track) {
         info.value = null
-        Recents.add(t.path); TvHome.schedule(appCtx, 30_000)
+        Recents.add(t.path); UsageStats.played(t.path); TvHome.schedule(appCtx, 30_000)
         probeJob?.cancel()
         probeJob = ioScope.launch { info.value = Probe.probe(t) }
     }
@@ -311,6 +311,22 @@ object Playback {
         if (rc != null) { sync(); loadRemote(start) } else { exo.prepare(); exo.play(); sync() }
     }
     fun playShuffled(tracks: List<Track>) = play(tracks, tracks.indices.random(), true)
+    /** Trộn bài: xáo thứ tự cả danh sách rồi phát từ đầu (danh sách hiện đúng thứ tự mới). */
+    fun playMixed(tracks: List<Track>) = play(tracks.shuffled(), 0, false)
+    /** Trộn danh sách đang phát: giữ bài đang nghe ở đầu, xáo các bài còn lại, không ngắt tiếng. */
+    fun shuffleQueue() {
+        val q = queue.value; if (q.size < 2) return
+        val i = index.value.coerceIn(0, q.lastIndex)
+        val rest = q.filterIndexed { k, _ -> k != i }.shuffled()
+        runCatching {
+            if (exo.mediaItemCount > i + 1) exo.removeMediaItems(i + 1, exo.mediaItemCount)
+            if (i > 0) exo.removeMediaItems(0, i)
+            exo.addMediaItems(rest.map { MediaItem.fromUri(Remote.toUri(it)) })
+        }
+        queue.value = listOf(q[i]) + rest
+        index.value = 0; updateNext()
+        AppLog.i("Player", "Trộn danh sách phát ${q.size} bài")
+    }
     fun jump(i: Int) { markSwitch(); clearFailure(); if (rc != null) loadRemote(i) else { ensureReady(); exo.seekTo(i, 0L); exo.play() } }
     fun toggle() {
         val c = rc

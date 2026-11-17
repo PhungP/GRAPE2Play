@@ -198,10 +198,12 @@ private fun MobileLibrary(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen)
     val queue by Playback.queue.collectAsState()
     val idx by Playback.index.collectAsState()
     val ctx = LocalContext.current.applicationContext
-    var tab by remember { mutableStateOf(Tab.ALBUM) }
+    var tab by LibNav.tab
     var sel by remember { mutableStateOf<Group?>(null) }
-    var srcFilter by remember { mutableStateOf<String?>(null) }
-    var live by remember { mutableStateOf(false) }
+    var srcFilter by LibNav.src
+    var live by LibNav.live
+    val order by SourceOrder.order
+    DisposableEffect(Unit) { onDispose { LibNav.persist() } }
     var showVis by remember { mutableStateOf(false) }
     LaunchedEffect(hidden) { if (srcFilter != null && srcFilter in hidden) { srcFilter = null; sel = null; live = false } }
     val srcSource = srcFilter?.let { SourceStore.get(it) }
@@ -223,9 +225,8 @@ private fun MobileLibrary(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen)
         }
         if (showVis) SourceVisibilityDialog(sources) { showVis = false }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            item { MChip("Tất cả", srcFilter == null) { srcFilter = null; sel = null; live = false } }
-            if ("local" !in hidden) item { MChip(if (Device.tv) "Bộ nhớ TV & USB" else "Bộ nhớ máy & USB", srcFilter == "local") { srcFilter = "local"; sel = null; live = false } }
-            items(sources.filter { it.id !in hidden }, key = { it.id }) { s -> MChip(s.name, srcFilter == s.id) { srcFilter = s.id; sel = null; live = s.type == "dlna" } }
+            item { MChip("Tất cả", srcFilter == null) { LibNav.pickSource(null); sel = null } }
+            items(SourceOrder.chips(sources, hidden).also { order.size }, key = { it.first }) { (id, label) -> MChip(label, srcFilter == id) { LibNav.pickSource(id); sel = null } }
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
             items(Tab.values().toList()) { tb ->
@@ -240,6 +241,10 @@ private fun MobileLibrary(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen)
             }
         }
         T(if (status.isNotEmpty()) "${all.size} bài · $status" else "${all.size} bài", 13, C.Muted, lines = 2)
+        if (all.isNotEmpty() && tab != Tab.HABIT) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            MButton("⤮ Trộn & phát", Modifier.weight(1f)) { Playback.playMixed(all); onNav(Screen.NOW) }
+            MButton("🎲 Ngẫu nhiên", Modifier.weight(1f)) { Playback.playShuffled(all); onNav(Screen.NOW) }
+        }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 dlnaLive -> DlnaBrowser(srcSource!!, onNav)
@@ -249,6 +254,7 @@ private fun MobileLibrary(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen)
                     T("Hoặc bấm dấu + để dùng nhạc từ NAS / đám mây.", 15, C.Muted, lines = 2)
                 }
                 tab == Tab.FAV -> MFavorites(allTracks, cur, onNav)
+                tab == Tab.HABIT -> HabitView(allTracks, onNav)
                 all.isEmpty() -> T(if (scanning) "Đang quét nhạc…" else "Không tìm thấy nhạc. Bấm làm mới để quét lại, hoặc thêm nguồn NAS bằng dấu +.", 18, C.Muted, lines = 4)
                 tab == Tab.FOLDER -> FolderBrowser(all, onNav)
                 sel != null -> MDetail(sel!!, cur, onNav)
@@ -270,7 +276,8 @@ private fun MobileLibrary(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen)
 private fun PlayButtons(tracks: List<Track>, onNav: (Screen) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         MButton("▶ Phát", Modifier.weight(1f)) { Playback.play(tracks, 0, false); onNav(Screen.NOW) }
-        MButton("⤮ Ngẫu nhiên", Modifier.weight(1f)) { Playback.playShuffled(tracks); onNav(Screen.NOW) }
+        MButton("⤮ Trộn", Modifier.weight(1f)) { Playback.playMixed(tracks); onNav(Screen.NOW) }
+        MButton("🎲 Ngẫu nhiên", Modifier.weight(1f)) { Playback.playShuffled(tracks); onNav(Screen.NOW) }
     }
 }
 
@@ -419,7 +426,10 @@ fun QueueDialog(onClose: () -> Unit) {
         Column(Modifier.dlgW(900).dlgH(900).clip(RoundedCornerShape(16.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(16.dp)).padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 T("Danh sách phát (${queue.size})", 24, serif = true)
-                IconBtn(Icons.Filled.Close, "Đóng") { onClose() }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MButton("⤮ Trộn") { Playback.shuffleQueue() }
+                    IconBtn(Icons.Filled.Close, "Đóng") { onClose() }
+                }
             }
             LazyColumn(Modifier.weight(1f, fill = false), state = st, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 itemsIndexed(queue) { i, t -> TrackRow(i, t, i == idx, compact = true) { Playback.jump(i); onClose() } }

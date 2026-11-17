@@ -307,3 +307,10 @@ Lưu ý: bản 0.8.1 phải cài thủ công một lần; từ đó trở đi c�
 
 ## Bản 1.6.2
 - Nhật ký cho thấy file DSD từ thư viện WiiM bị coi là đuôi "dsd" (đã sửa ở 1.6.1). Thêm: nếu WiiM vẫn từ chối URL của chính nó (714), app tự thử lại qua TV làm trung gian với MIME audio/x-dsf.
+
+## Bản 1.7.0 — Thư viện thông minh
+- Thư viện nhớ chỗ đứng (tab, nguồn, thư mục, thư mục DLNA): từ Đang phát bấm Thư viện sẽ về đúng thư mục vừa mở. Tab mặc định là Thư mục.
+- Thứ tự ưu tiên nguồn: Thư viện → ⚙ Nguồn hiển thị → ▲ ▼ (áp cho chip nguồn và thư mục gốc).
+- Thư mục hiện dạng ô thư mục (khung có tai, ảnh bìa hoặc biểu tượng thư mục), khác ô Album; duyệt thiết bị DLNA cũng dạng lưới thư mục.
+- Tab "Thói quen": thời gian nghe hôm nay + 7 ngày, Nhạc hay phát (kèm nút thêm vào Yêu thích), Nhạc ít phát, Chưa nghe bao giờ (kèm thư mục chưa nghe để mở). Gợi ý 💡 ở thư mục gốc.
+- Trộn bài (xáo thứ tự rồi phát) và Phát ngẫu nhiên: ở Thư viện, thư mục, thư mục DLNA, Thói quen; nút ⤮ Trộn trên danh sách phát đang nghe (mọi giao diện, cả điện thoại).

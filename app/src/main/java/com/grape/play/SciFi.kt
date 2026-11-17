@@ -431,7 +431,10 @@ internal fun SciFiNow(onNav: (Screen) -> Unit, onOut: () -> Unit) {
                     val st = rememberLazyListState()
                     LaunchedEffect(idx, queue.size) { if (queue.isNotEmpty()) st.animateScrollToItem(idx.coerceIn(0, queue.lastIndex)) }
                     S("Danh sách phát", 18, C.Text, bold = true, spaced = true, caps = true)
-                    S("${queue.size} TRACKS // ${fmt(queue.sumOf { it.durationMs })}", 11, C.Muted, Modifier.padding(top = 2.dp, bottom = 10.dp), spaced = true)
+                    Row(Modifier.padding(top = 2.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        S("${queue.size} TRACKS // ${fmt(queue.sumOf { it.durationMs })}", 11, C.Muted, spaced = true)
+                        Focusable({ Playback.shuffleQueue() }, shape = ChamferShape(5.dp)) { S("⤮ MIX", 11, C.Gold, Modifier.padding(10.dp, 3.dp), bold = true, spaced = true) }
+                    }
                     if (queue.isEmpty()) S("Danh sách đang trống", 14, C.Muted)
                     LazyColumn(state = st) {
                         itemsIndexed(queue) { i, tr -> SfQueueRow(i, tr, i == idx) { Playback.jump(i) } }

@@ -18,7 +18,7 @@ data class Track(
 
 data class AudioInfo(val sampleRate: Int, val bits: Int, val channels: Int, val bitrateKbps: Int)
 data class Group(val key: String, val title: String, val subtitle: String, val tracks: List<Track>)
-enum class Tab(val label: String) { ALBUM("Album"), ARTIST("Nghệ sĩ"), GENRE("Thể loại"), FOLDER("Thư mục"), SONG("Bài hát"), FAV("Yêu thích") }
+enum class Tab(val label: String) { FOLDER("Thư mục"), ALBUM("Album"), ARTIST("Nghệ sĩ"), GENRE("Thể loại"), SONG("Bài hát"), FAV("Yêu thích"), HABIT("Thói quen") }
 /** Thiết bị đang chạy: TV hay điện thoại/máy tính bảng (đặt ở MainActivity). */
 object Device { @Volatile var tv = true }
 enum class Screen { NOW, LIB, SOUND, SOURCES, OUTPUT }

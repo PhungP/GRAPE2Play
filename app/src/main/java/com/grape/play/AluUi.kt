@@ -276,7 +276,10 @@ internal fun AluQueue(queue: List<Track>, idx: Int, remoteActive: Boolean, onOut
     Column(Modifier.fillMaxWidth().height(AluScreensH).aluScreen().padding(horizontal = 20.dp, vertical = 16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             T("Danh sách phát", 28, AluAmberInk, serif = true)
-            T("${queue.size} bài · ${fmt(total)}", 13, AluTheme.g.muted)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Focusable({ Playback.shuffleQueue() }, ring = AluLit) { T("⤮ Trộn", 13, AluAmberInk, Modifier.padding(10.dp, 4.dp), bold = true) }
+                T("${queue.size} bài · ${fmt(total)}", 13, AluTheme.g.muted)
+            }
         }
         Spacer(Modifier.height(10.dp))
         if (queue.isEmpty()) T("Danh sách đang trống", 18, AluTheme.g.muted)

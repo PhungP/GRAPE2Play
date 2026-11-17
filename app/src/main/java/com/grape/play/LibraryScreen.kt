@@ -32,10 +32,12 @@ fun LibraryScreen(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen) -> Unit
     val idx by Playback.index.collectAsState()
     val playing by Playback.playing.collectAsState()
     val ctx = LocalContext.current.applicationContext
-    var tab by remember { mutableStateOf(Tab.ALBUM) }
+    var tab by LibNav.tab
     var sel by remember { mutableStateOf<Group?>(null) }
-    var srcFilter by remember { mutableStateOf<String?>(null) }
-    var live by remember { mutableStateOf(false) } // duyệt trực tiếp máy chủ DLNA
+    var srcFilter by LibNav.src
+    var live by LibNav.live // duyệt trực tiếp máy chủ DLNA
+    val order by SourceOrder.order
+    DisposableEffect(Unit) { onDispose { LibNav.persist() } }
     var showVis by remember { mutableStateOf(false) }
     LaunchedEffect(hidden) { if (srcFilter != null && srcFilter in hidden) { srcFilter = null; sel = null; live = false } }
     val srcSource = srcFilter?.let { SourceStore.get(it) }
@@ -52,9 +54,8 @@ fun LibraryScreen(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen) -> Unit
             // ---- đầu trang: tên app + lọc theo nguồn (mỗi tài khoản đám mây là một nguồn)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    item { Chip("Tất cả", srcFilter == null) { srcFilter = null; sel = null; live = false } }
-                    if ("local" !in hidden) item { Chip("Bộ nhớ TV & USB", srcFilter == "local") { srcFilter = "local"; sel = null; live = false } }
-                    items(sources.filter { it.id !in hidden }, key = { it.id }) { s -> Chip(s.name, srcFilter == s.id) { srcFilter = s.id; sel = null; live = s.type == "dlna" } }
+                    item { Chip("Tất cả", srcFilter == null) { LibNav.pickSource(null); sel = null } }
+                    items(SourceOrder.chips(sources, hidden).also { order.size }, key = { it.first }) { (id, label) -> Chip(label, srcFilter == id) { LibNav.pickSource(id); sel = null } }
                     item { Focusable({ showVis = true }) { T("⚙ Nguồn hiển thị", 16, C.Gold, Modifier.padding(12.dp, 7.dp)) } }
                     item { Focusable(onAdd) { T("+ Thêm nguồn", 16, C.Gold, Modifier.padding(12.dp, 7.dp)) } }
                 }
@@ -67,6 +68,10 @@ fun LibraryScreen(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen) -> Unit
                 }
                 if (srcSource?.type == "dlna") Focusable({ live = !live }, selected = live) { T(if (live) "Xem thư viện đã quét" else "📂 Duyệt thiết bị", 16, C.Gold, Modifier.padding(12.dp, 7.dp)) }
                 Spacer(Modifier.weight(1f))
+                if (all.isNotEmpty() && tab != Tab.HABIT) {
+                    Focusable({ Playback.playMixed(all); onNav(Screen.NOW) }) { T("⤮ Trộn & phát", 15, C.Gold, Modifier.padding(12.dp, 6.dp)) }
+                    Focusable({ Playback.playShuffled(all); onNav(Screen.NOW) }) { T("🎲 Ngẫu nhiên", 15, C.Gold, Modifier.padding(12.dp, 6.dp)) }
+                }
                 T(if (status.isNotEmpty()) "${all.size} bài · $status" else "${all.size} bài", 15, C.Muted, Modifier.widthIn(max = 620.dp), lines = 2)
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -78,6 +83,7 @@ fun LibraryScreen(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen) -> Unit
                         T("Hoặc bấm “+ Thêm nguồn” để dùng nhạc từ NAS.", 18, C.Muted)
                     }
                     tab == Tab.FAV -> FavoritesView(allTracks, cur, onNav)
+                    tab == Tab.HABIT -> HabitView(allTracks, onNav)
                     all.isEmpty() -> T(if (scanning) "Đang quét nhạc…" else "Không tìm thấy nhạc. Cắm USB rồi bấm “Quét lại”, hoặc thêm nguồn NAS.", 24, C.Muted)
                     tab == Tab.FOLDER -> FolderBrowser(all, onNav)
                     sel != null -> Detail(sel!!, onNav)

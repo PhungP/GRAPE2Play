@@ -39,20 +39,24 @@ private fun build(all: List<Track>): Node {
     return root
 }
 
-/** Ô thư mục: ảnh bìa (nếu có; không có thì bìa tạo sẵn) + dấu thư mục + số bài + tên, giống ô Album. */
+/** Ô thư mục: khung hình thư mục (có tai ở góc trên) bao quanh ảnh bìa (không có ảnh thì hiện biểu tượng thư mục) + số bài + tên. Khác hẳn ô Album. */
 @Composable
-private fun FolderTile(name: String, count: Int, cover: Track?, onClick: () -> Unit) {
+internal fun FolderTile(name: String, count: Int, cover: Track?, unit: String = "bài", onClick: () -> Unit) {
     Focusable(onClick, Modifier.fillMaxWidth(), RoundedCornerShape(12.dp)) {
         Column(Modifier.padding(8.dp)) {
-            Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
-                CoverImage(cover, Modifier.fillMaxSize(), 8)
-                Box(
+            Box(Modifier.padding(start = 6.dp).width(56.dp).height(12.dp).clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)).background(C.Gold.copy(alpha = 0.6f)))
+            Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(topEnd = 12.dp, bottomStart = 12.dp, bottomEnd = 12.dp)).background(C.Gold.copy(alpha = 0.6f)).padding(5.dp)) {
+                if (cover != null) CoverImage(cover, Modifier.fillMaxSize(), 8)
+                else Box(Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.Panel, C.Side))), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Folder, null, tint = C.Gold.copy(alpha = 0.7f), modifier = Modifier.fillMaxSize(0.5f))
+                }
+                if (count >= 0) Box(
                     Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(4.dp)).background(C.Bg.copy(alpha = 0.8f))
                         .border(1.dp, C.Gold, RoundedCornerShape(4.dp)).padding(6.dp, 2.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         Icon(Icons.Filled.Folder, null, tint = C.Gold, modifier = Modifier.size(15.dp))
-                        T("$count bài", 12, C.Gold, bold = true)
+                        T("$count $unit", 12, C.Gold, bold = true)
                     }
                 }
             }
@@ -67,12 +71,12 @@ private fun FolderTile(name: String, count: Int, cover: Track?, onClick: () -> U
 fun FolderBrowser(all: List<Track>, onNav: (Screen) -> Unit) {
     val compact = LocalCompact.current
     val root = remember(all) { build(all) }
-    var crumbs by remember { mutableStateOf(listOf<String>()) }
+    var crumbs by LibNav.crumbs
     var node = root
     for (c in crumbs) node = node.dirs[c] ?: break
     BackHandler(enabled = crumbs.isNotEmpty()) { crumbs = crumbs.dropLast(1) }
     val direct = remember(node) { node.tracks.sortedWith(compareBy({ if (it.no > 0) it.no else Int.MAX_VALUE }, { it.path.lowercase() })) }
-    val dirs = remember(node) { node.dirs.values.toList() }
+    val dirs = remember(node, crumbs, SourceOrder.order.value) { if (crumbs.isEmpty()) node.dirs.values.sortedBy { SourceOrder.rankOfName(it.name) } else node.dirs.values.toList() }
     val cur = Playback.queue.collectAsState().value.getOrNull(Playback.index.collectAsState().value)
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -81,9 +85,11 @@ fun FolderBrowser(all: List<Track>, onNav: (Screen) -> Unit) {
             if (crumbs.isNotEmpty()) Focusable({ crumbs = crumbs.dropLast(1) }) { T("◂ Lên một cấp", if (compact) 15 else 18, C.Text, Modifier.padding(16.dp, 8.dp)) }
             if (node.count > 0 && crumbs.isNotEmpty()) {
                 Focusable({ Playback.play(node.all(), 0, false); onNav(Screen.NOW) }) { T("▶ Phát cả thư mục", if (compact) 15 else 18, C.Gold, Modifier.padding(16.dp, 8.dp)) }
-                if (!compact) Focusable({ Playback.playShuffled(node.all()); onNav(Screen.NOW) }) { T("⤮ Ngẫu nhiên", 18, C.Gold, Modifier.padding(16.dp, 8.dp)) }
+                Focusable({ Playback.playMixed(node.all()); onNav(Screen.NOW) }) { T("⤮ Trộn", if (compact) 15 else 18, C.Gold, Modifier.padding(16.dp, 8.dp)) }
+                if (!compact) Focusable({ Playback.playShuffled(node.all()); onNav(Screen.NOW) }) { T("🎲 Ngẫu nhiên", 18, C.Gold, Modifier.padding(16.dp, 8.dp)) }
             }
         }
+        if (crumbs.isEmpty()) UnplayedHint(all)
         LazyVerticalGrid(
             if (compact) GridCells.Adaptive(130.dp) else GridCells.Fixed(6),
             horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 18.dp),
