@@ -31,14 +31,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun SoundScreen(onNav: (Screen) -> Unit, onSources: () -> Unit, onOut: () -> Unit) {
     var showAbout by remember { mutableStateOf(false) }
-    Row(Modifier.fillMaxSize().background(C.Bg)) {
+    Row(Modifier.fillMaxSize().pageBg()) {
         Rail(Screen.SOUND, onNav, onSources, onOut)
         Row(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 40.dp, vertical = 28.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
             Column(Modifier.weight(0.85f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 T("Cài đặt", 44, serif = true)
                 T("DSD, đầu ra và tinh chỉnh chỉ dùng cho Sony Bravia", 16, C.Muted)
-                ThemeCard()
-                StyleCard()
+                AppearanceCards()
                 DisplayCard()
                 BurnInCard()
                 DsdCard()
@@ -61,18 +60,27 @@ fun SoundScreen(onNav: (Screen) -> Unit, onSources: () -> Unit, onOut: () -> Uni
 }
 
 @Composable
-fun Card(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) =
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(12.dp)).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
+fun Card(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    val st = Themes.style.value
+    val base = modifier.fillMaxWidth()
+    val m = when (st) {
+        5, 6, 7, 8, 9, 10 -> base.sfPanel(12.dp)
+        4 -> base.clip(RoundedCornerShape(4.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.Panel, C.Side))).border(1.dp, C.Line, RoundedCornerShape(4.dp))
+        1 -> base.clip(RoundedCornerShape(22.dp)).background(C.Panel)
+        else -> base.clip(RoundedCornerShape(12.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(12.dp))
+    }
+    Column(m.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
+}
 
 @Composable
 fun Opt(text: String, sel: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) =
-    Focusable(onClick, modifier, RoundedCornerShape(8.dp), selected = sel) { T((if (sel) "● " else "○ ") + text, 18, if (sel) C.Gold else C.Text, Modifier.padding(14.dp, 9.dp)) }
+    Focusable(onClick, modifier, RoundedCornerShape(8.dp), selected = sel) { T((if (Themes.style.value == 5) (if (sel) "◆ " else "◇ ") else if (sel) "● " else "○ ") + text, 18, if (sel) C.Gold else C.Text, Modifier.padding(14.dp, 9.dp)) }
 
 @Composable
 fun ThemeCard() {
     val cur by Themes.cur
     Card {
-        T("GIAO DIỆN", 13, C.Muted, spaced = true)
+        T(if (Themes.style.value == 1) "CỔ ĐIỂN — TUỲ BIẾN MÀU" else "MẶC ĐỊNH — TUỲ BIẾN MÀU", 13, C.Muted, spaced = true)
         Themes.ALL.chunked(3).forEach { row ->
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 row.forEach { p -> ThemeOpt(p, cur.id == p.id) { Themes.set(p.id) } }
@@ -82,16 +90,31 @@ fun ThemeCard() {
     }
 }
 
+/** Một nơi duy nhất chọn giao diện (Mặc định, Nhôm phay xước, Robot / Sci-Fi, Cổ điển) + thẻ tuỳ biến riêng của giao diện đó. */
+@Composable
+fun AppearanceCards() {
+    StyleCard()
+    when (Themes.style.value) {
+        4 -> AluStyleCard()
+        5 -> SciFiStyleCard()
+        in 6..15 -> { ThemeNone(); BrandStyleCard() }
+        else -> ThemeCard()
+    }
+}
+
+@Composable
+private fun ThemeNone() {}
+
 @Composable
 fun StyleCard() {
     val cur by Themes.style
-    val styles = listOf(0 to "Mặc định", 4 to "Nhôm phay xước", 1 to "Cổ điển", 3 to "Nền màu")   // chỉ số 2 (Toàn ảnh) đã bỏ
+    val styles = listOf(0 to "Mặc định", 4 to "Nhôm phay xước", 5 to "Robot / Sci-Fi", 1 to "Cổ điển")
     Card {
-        T("BỐ CỤC MÀN ĐANG PHÁT", 13, C.Muted, spaced = true)
+        T("GIAO DIỆN", 13, C.Muted, spaced = true)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             styles.forEach { (i, nm) -> Opt(nm, cur == i) { Themes.setStyle(i) } }
         }
-        T("Nhôm phay xước: tấm nhôm sáng, ô đen, đồng hồ VU nền vàng (chỉ TV; điện thoại dùng bố cục mặc định). Cổ điển và Nền màu lấy cảm hứng từ Symfonium, dùng được trên điện thoại, máy tính bảng và TV. TV: OK = phát/dừng · Menu = yêu thích · Back = về Thư viện.", 14, C.Muted, lines = 4)
+        T("Mỗi giao diện là một bộ đồng bộ cho toàn ứng dụng: màn Đang phát, menu, Thư viện, Nguồn, Đầu ra, Cài đặt, nút bấm, hộp thoại. Thẻ ngay bên dưới là phần tuỳ biến màu của giao diện đang chọn. TV: OK = phát/dừng · Menu = yêu thích · Back = về Thư viện.", 14, C.Muted, lines = 4)
     }
 }
 
@@ -396,7 +419,7 @@ fun AboutDialog(onClose: () -> Unit) {
 private fun AboutBrand(ver: String, modifier: Modifier, horizontal: Boolean) {
     @Composable fun pill() { if (ver.isNotEmpty()) Box(Modifier.clip(RoundedCornerShape(50)).border(1.dp, C.Gold, RoundedCornerShape(50)).padding(horizontal = if (horizontal) 16.dp else 10.dp, vertical = if (horizontal) 6.dp else 4.dp)) { T("Phiên bản $ver", if (horizontal) 14 else 12, C.Gold, bold = !horizontal) } }
     if (horizontal) Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        GrapeLogo(Modifier.size(64.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) { GrapeLogo(Modifier.size(64.dp)); LimitedMini(11) }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Wordmark(30)
             T("Trình phát nhạc hi-end cho Android", 15, C.Muted, lines = 2)
@@ -405,6 +428,7 @@ private fun AboutBrand(ver: String, modifier: Modifier, horizontal: Boolean) {
     } else Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)) {
         GrapeLogo(Modifier.size(56.dp))
         Wordmark(22)
+        LimitedMini(12)
         T(if (Device.tv) "Trình phát nhạc hi-end cho Android TV" else "Trình phát nhạc hi-end cho Android", 12, C.Muted, lines = 3)
         if (ver.isNotEmpty()) { Spacer(Modifier.height(2.dp)); pill() }
     }

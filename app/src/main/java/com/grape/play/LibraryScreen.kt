@@ -46,12 +46,11 @@ fun LibraryScreen(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen) -> Unit
 
     BackHandler { if (sel != null) sel = null else if (live) live = false else onNav(Screen.NOW) }
 
-    Row(Modifier.fillMaxSize().background(C.Bg)) {
+    Row(Modifier.fillMaxSize().pageBg()) {
         Rail(Screen.LIB, onNav, onAdd, onOut)
         Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 40.dp, vertical = 28.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             // ---- đầu trang: tên app + lọc theo nguồn (mỗi tài khoản đám mây là một nguồn)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Wordmark(34, Modifier.padding(end = 18.dp))
                 LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     item { Chip("Tất cả", srcFilter == null) { srcFilter = null; sel = null; live = false } }
                     if ("local" !in hidden) item { Chip("Bộ nhớ TV & USB", srcFilter == "local") { srcFilter = "local"; sel = null; live = false } }

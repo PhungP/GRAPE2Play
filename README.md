@@ -238,3 +238,72 @@ Lưu ý: bản 0.8.1 phải cài thủ công một lần; từ đó trở đi c�
 - Hộp "Thiết bị nhận": thêm thanh âm lượng loa (RenderingControl GetVolume, hỏi ~4 giây/lần; loa không hỗ trợ thì ẩn).
 - Hộp "Kết nối & phát liên tục": thanh đệm của loa (giây nhạc TV đã gửi trước, ước tính), phản hồi/mất kết nối/trạng thái/bài kế, đồ thị tốc độ TV gửi nhạc (kbit/s). Ẩn phần đo khi loa kéo thẳng từ nguồn hoặc dùng Cast.
 - Giao diện mới "Nhôm phay xước" (Cài đặt → Bố cục màn Đang phát): tấm nhôm vân xước, ô đen, đồng hồ VU nền vàng kim đen, nút Phát đen viền vàng, bốn con ốc. Điện thoại dùng bố cục mặc định.
+
+## Bản 1.0.1 — giao diện Nhôm phay xước hoàn chỉnh
+- Mặt nhôm bao trọn màn hình (4 ốc ở góc); menu trái là màn hình đen lõm chỉ gồm Đang phát → Quét lại.
+- Logo cáo–chùm nho và huy hiệu Limited Edition khắc laser chìm trên mặt nhôm.
+- Nút xáo trộn / lùi / Play-Pause / tới / lặp là nút nhôm tròn nổi khối (đèn vàng khi bật); nút Thoát thành nút Bật/Tắt nổi khối.
+- Danh sách phát, ảnh bìa, thông tin, VU, sóng nhạc là màn hình đen lõm trong khối nhôm.
+
+## Bản 1.0.2 — Nhôm phay xước: kính hổ phách
+- Cửa sổ VU liền khối kiểu máy thật (một tấm kính hổ phách chứa hai đồng hồ L/R, thang dB, vạch đỏ, "PEAK POWER LEVEL", kim đỏ).
+- Menu, thông tin bài, hộp tín hiệu, sóng nhạc, hộp thiết bị nhận và danh sách phát cùng tông kính hổ phách, chữ nâu đậm.
+- Nút nhôm đang kích hoạt sáng viền vàng + quầng sáng + đèn LED như phím cơ có đèn.
+
+## Bản 1.0.3 — Nhôm phay xước: điện thoại + sửa lỗi TV
+- Điện thoại: giao diện Nhôm phay xước riêng (nav 5 mục đặt trên cùng, ảnh bìa, VU kính hổ phách, sóng nhạc chạm để tua, nút nhôm có đèn); không hiện thông tin chỉ của TV (cổng quang/HDMI/mặc định hệ thống). Các trang khác nằm trong màn hình đen lõm của khối nhôm.
+- TV: mục menu/bài hát khi trỏ tới chuyển nền tối chữ vàng sáng (đọc được); nút Play thu nhỏ (80dp) không chạm khung sóng nhạc; nút cơ vát cạnh thật hơn, bỏ quầng sáng — chỉ còn chấm vàng (bật) / chấm đen (tắt).
+
+## Bản 1.0.4 — Nhôm phay xước TV: căn chỉnh & mặt nhôm mới
+- Mép trên Menu / Ảnh bìa / Thông số / Danh sách phát thẳng hàng; Menu cao bằng màn Đang phát; mép dưới Danh sách = mép dưới sóng nhạc; mọi khe giữa các màn hình bằng nhau (16dp).
+- Logo cáo–nho chuyển xuống trên Limited Edition; bỏ chữ "Đang phát"; chữ "Đầu ra · …" cam sáng trên dải nhôm.
+- Thiết bị nhận + Kết nối gộp thành một cửa sổ kính liền khối như VU, hiển thị đủ chữ (xuống dòng thay vì cắt).
+- Mặt nhôm phay xước mới kiểu champagne hi-end: vệt xước ngang ngẫu nhiên, dải phản chiếu, mép vát.
+
+## Bản 1.0.5
+- TV: khung giao diện Đang phát tự co/giãn đều để luôn vừa trọn màn hình (sửa lỗi bị to hơn màn hình, mất mép/ốc); lề an toàn rộng hơn.
+- Nhôm: ảnh bìa + thông số + VU/thiết bị nhận gộp thành một màn hình, ngăn bằng vạch mực đen; chữ "Đầu ra" về góc trên phải, màu đen; logo cáo-nho nằm giữa menu và huy hiệu; Limited Edition màu vàng gold.
+- Điện thoại: đầu ra hiển thị "Loa điện thoại" (không còn "Loa TV"), ẩn mục thiết bị điện thoại (telephony), luôn có lựa chọn Bluetooth; bỏ ghi chú cổng quang trên điện thoại.
+
+## Bản 1.1.0 — Nhôm phay xước: màu kính + chất liệu
+- Cài đặt có thẻ chọn **màu kính hiển thị** (Hổ phách, Đỏ hồng ngọc, Xanh olive, Tím nho, Xanh sapphire, Lục bảo, Trắng băng, Đen chữ vàng) và **chất liệu mặt máy** (Nhôm phay xước, bóng, nhám, đen, Titan, Nhôm xám); lưu lại khi mở lại app.
+- Vạch phân cách trong màn hình gộp là vạch mờ tan dần ở hai đầu, cùng phong cách với vạch giữa Thiết bị nhận | Kết nối.
+- Logo cáo-nho nguyên bản có màu + chữ GRAPE2Play bên dưới.
+- Cửa sổ Thiết bị nhận/Kết nối cao thêm để hiển thị đủ chữ.
+
+## Bản 1.1.1 — Nhôm phay xước: bố cục lại
+- TV: màn hình menu kéo cao bằng màn hình Danh sách phát; logo + tên app + Limited Edition ở trên cùng, các mục menu xếp tiếp bên dưới; bỏ dòng "Đầu ra" phía trên; hàng nút cứng ở dưới gồm Bật/Tắt (không còn chữ) | xáo trộn, lùi, Play, tới, lặp | Đầu ra, nằm giữa mép dưới màn hình và mép ngoài dải nhôm.
+- Điện thoại: ảnh bìa, thông số, VU/thiết bị nhận và thanh tua gộp một màn hình kính, ngăn bằng vạch mờ.
+
+## Bản 1.2.0 — Giao diện Robot / Sci-Fi
+- Cài đặt → Bố cục màn hình: thêm lựa chọn **Robot / Sci-Fi** (TV và điện thoại). HUD: nền lưới + vân quét, khung góc vát có ngoặc góc sáng, chữ đơn cách, VU vòng cung 40 vạch (5 vạch cuối đỏ), nút lục giác có đèn (bật = chấm xanh), nút Play có vòng tiến độ.
+- Thẻ **Robot / Sci-Fi — màu giao diện**: Cyan Tron, Cam Alien, Đỏ HAL, Tím neon, Lục Matrix. Màu đổi toàn bộ app (mọi màn hình dùng chung bảng màu `Themes.eff`).
+- TV: menu, thông tin bài + 6 thông số + đường tín hiệu, VU / thiết bị nhận, danh sách phát, hàng điều khiển dưới (Power | sóng + nút | Đầu ra). Điện thoại: thanh điều hướng trên, màn Đang phát gộp, không còn thông tin riêng của TV.
+- Chưa biên dịch/thử trên thiết bị — nếu Gradle báo lỗi, gửi log để sửa.
+
+## Bản 1.3.0 — Giao diện đồng bộ toàn app
+- Cài đặt → **Giao diện**: một nơi duy nhất chọn Mặc định / Nhôm phay xước / Robot-Sci-Fi / Cổ điển; thẻ tuỳ biến bên dưới đổi theo giao diện (màu nho/xanh…, màu kính + chất liệu, màu HUD).
+- Mỗi giao diện áp cho mọi màn hình: nền, thanh menu, thẻ cài đặt, nút/ô chọn (hình dạng, chữ, đèn), nút điện thoại. Nhôm: khung kim loại + màn kính tối đúng màu kính. Robot: nền lưới, khung góc vát, chữ đơn cách, nút góc vát. Cổ điển: bo tròn lớn.
+- Đã bỏ giao diện "Nền màu" (bản đã lưu tự chuyển về Mặc định).
+
+## Bản 1.4.0 — Giao diện theo phong cách hãng + Limited Edition dưới logo
+- 5 giao diện mới (Cài đặt → Giao diện): Kiểu Denon, Marantz, Tannoy, McIntosh, Luxman. Mỗi bộ đồng bộ toàn app: mặt máy (kim loại/gỗ), màn hình tối có viền, đồng hồ (vòng cung số hoặc kim analog), núm xoay, nút tròn có đèn, bảng màu và phông riêng; tuỳ biến 3 màu chữ/đèn màn hình mỗi hãng. Chỉ lấy cảm hứng, không dùng logo hãng.
+- "Limited Edition" nay nằm ngay dưới logo con cáo ở mọi giao diện: menu TV, thanh điều hướng điện thoại, Giới thiệu, Nhôm, Robot, các bộ hãng.
+
+## Bản 1.5.0 — Limited Edition bằng hình + 5 hãng mới
+- "Limited Edition" dùng đúng hình chữ viết tay bạn cung cấp (res/drawable-nodpi/limited_edition.png), không khung, đổi màu theo màu nhấn của từng giao diện; nằm ngay dưới logo con cáo ở mọi menu (TV, điện thoại, Nhôm, Robot, các bộ hãng, Giới thiệu).
+- Bỏ chữ GRAPE2Play ở trang Thư viện (TV và điện thoại).
+- Thêm 5 giao diện hãng: Kiểu Technics, Accuphase, Yamaha, Pioneer, JBL (tổng 10 hãng), mỗi bộ có 3 màu màn hình tuỳ biến.
+
+## Bản 1.5.1
+- Chữ GRAPE2Play nằm ngay dưới logo, trên chữ Limited Edition, ở mọi menu (TV, điện thoại, Nhôm, Robot, các hãng, Giới thiệu); header TV Robot/hãng đã có tên bên cạnh logo nên giữ nguyên.
+
+## Bản 1.6.0
+- Bỏ 10 giao diện theo hãng (bản đã lưu tự về Mặc định).
+- Robot / Sci-Fi: GRAPE·2·PLAY và LIMITED EDITION dùng phông đơn cách của giao diện; màn Đang phát: Limited Edition dưới GRAPE·2·PLAY, bỏ dòng AUDIO CORE // MK-II, hết che dòng thông tin dưới // SYSTEM.
+
+## Bản 1.6.1
+- Sửa: phát DSD từ thư viện DLNA của chính WiiM tới WiiM bị lỗi 714 (Invalid MIME-type) ở cả DoP lẫn DSD gốc. Nguyên nhân: loại file DSD từ DLNA bị nhận sai (đuôi "dsd"/MIME chung) nên app coi là nén (lossy), khai MIME "octet-stream" và bỏ qua DoP. Nay nhận đúng dsf/dff, giữ MIME gốc của máy chủ khi gửi lại chính URL đó.
+
+## Bản 1.6.2
+- Nhật ký cho thấy file DSD từ thư viện WiiM bị coi là đuôi "dsd" (đã sửa ở 1.6.1). Thêm: nếu WiiM vẫn từ chối URL của chính nó (714), app tự thử lại qua TV làm trung gian với MIME audio/x-dsf.

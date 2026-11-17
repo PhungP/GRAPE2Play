@@ -42,17 +42,17 @@ import kotlin.math.log10
 
 object C {
     // Màu lấy từ giao diện đang chọn (Themes). Đọc state nên khi đổi giao diện toàn bộ màn hình tự vẽ lại.
-    val Bg: Color get() = Themes.cur.value.bg
-    val Panel: Color get() = Themes.cur.value.panel
-    val Side: Color get() = Themes.cur.value.side
-    val Line: Color get() = Themes.cur.value.line
-    val Dim: Color get() = Themes.cur.value.dim
-    val Sel: Color get() = Themes.cur.value.sel
-    val Gold: Color get() = Themes.cur.value.accent
-    val Text: Color get() = Themes.cur.value.text
-    val Muted: Color get() = Themes.cur.value.muted
-    val Plum: Color get() = Themes.cur.value.plum
-    val PlumSoft: Color get() = Themes.cur.value.plumSoft
+    val Bg: Color get() = Themes.eff.bg
+    val Panel: Color get() = Themes.eff.panel
+    val Side: Color get() = Themes.eff.side
+    val Line: Color get() = Themes.eff.line
+    val Dim: Color get() = Themes.eff.dim
+    val Sel: Color get() = Themes.eff.sel
+    val Gold: Color get() = Themes.eff.accent
+    val Text: Color get() = Themes.eff.text
+    val Muted: Color get() = Themes.eff.muted
+    val Plum: Color get() = Themes.eff.plum
+    val PlumSoft: Color get() = Themes.eff.plumSoft
 }
 
 /** true khi chạy trên điện thoại / máy tính bảng (giao diện cảm ứng gọn), false trên TV. */
@@ -68,7 +68,7 @@ fun T(s: String, size: Int, color: Color = C.Text, modifier: Modifier = Modifier
     val ts = LocalTextScale.current
     val px = if (ts == 1f) size.toFloat() else (size * ts).coerceAtLeast(10f)
     Text(Lang.tr(s), modifier = modifier, color = color, fontSize = px.sp,
-        fontFamily = if (serif) FontFamily.Serif else null,
+        fontFamily = if (Themes.isMono) FontFamily.Monospace else if (serif || Themes.isSerif) FontFamily.Serif else null,
         fontWeight = if (bold) FontWeight.Bold else null,
         letterSpacing = if (spaced) 3.sp else TextUnit.Unspecified,
         lineHeight = if (lines > 1) (px * 1.2f).sp else TextUnit.Unspecified,
@@ -130,11 +130,12 @@ fun FieldPair(a: @Composable (Modifier) -> Unit, b: @Composable (Modifier) -> Un
 @Composable
 fun Focusable(onClick: () -> Unit, modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(8.dp),
               selected: Boolean = false, ring: Color = C.Gold, requester: FocusRequester? = null,
-              onLong: (() -> Unit)? = null, onFocus: (() -> Unit)? = null,
+              onLong: (() -> Unit)? = null, onFocus: (() -> Unit)? = null, selColor: Color = C.Sel,
               content: @Composable BoxScope.(Boolean) -> Unit) {
     var f by remember { mutableStateOf(false) }
     val longDone = remember { BooleanArray(1) }
     var m = modifier
+    val sh = uiShapeOf(shape)
     if (requester != null) m = m.focusRequester(requester)
     Box(
         m.onFocusChanged { f = it.isFocused; if (it.isFocused) onFocus?.invoke() }
@@ -150,9 +151,9 @@ fun Focusable(onClick: () -> Unit, modifier: Modifier = Modifier, shape: Shape =
                     else false
                 }
             }
-            .clip(shape)
-            .background(if (f || selected) C.Sel else Color.Transparent)
-            .then(if (f) Modifier.border(3.dp, ring, shape) else Modifier)
+            .clip(sh)
+            .background(if (f || selected) selColor else Color.Transparent)
+            .then(if (f) Modifier.border(3.dp, ring, sh) else Modifier)
             .clickable { if (longDone[0]) longDone[0] = false else onClick() },
     ) { content(f) }
 }
@@ -189,7 +190,7 @@ fun GeneratedCover(seed: Int) {
 
 /** Thanh sóng âm + tiến trình. Hình dạng sóng được tạo từ đường dẫn file (chưa phải sóng âm thật, sẽ làm ở giai đoạn sau). */
 @Composable
-fun Waveform(seed: Int, progress: Float, modifier: Modifier = Modifier, played: Color? = null) {
+fun Waveform(seed: Int, progress: Float, modifier: Modifier = Modifier, played: Color? = null, base: Color? = null) {
     val n = 110
     val hs = remember(seed) {
         val r = java.util.Random(seed.toLong()); val raw = FloatArray(n) { 0.2f + 0.8f * r.nextFloat() }
@@ -199,7 +200,7 @@ fun Waveform(seed: Int, progress: Float, modifier: Modifier = Modifier, played: 
         val w = size.width / n
         hs.forEachIndexed { i, h ->
             val bh = size.height * h
-            drawRoundRect(if (i < progress * n) (played ?: C.Gold) else C.Dim, Offset(i * w + w * 0.15f, (size.height - bh) / 2), Size(w * 0.7f, bh), CornerRadius(w * 0.3f))
+            drawRoundRect(if (i < progress * n) (played ?: C.Gold) else (base ?: C.Dim), Offset(i * w + w * 0.15f, (size.height - bh) / 2), Size(w * 0.7f, bh), CornerRadius(w * 0.3f))
         }
     }
 }
@@ -218,3 +219,24 @@ fun TrackRow(i: Int, t: Track, current: Boolean, compact: Boolean = false, onCli
             T(fmt(t.durationMs), if (compact) 12 else 14, C.Muted)
         }
     }
+
+
+/** Hình dạng nút/ô theo giao diện đang chọn: Robot = góc vát, Nhôm = góc vuông nhẹ, Cổ điển = bo tròn lớn, Mặc định = giữ nguyên. Hình tròn không đổi. */
+@Composable
+fun uiShapeOf(shape: Shape): Shape {
+    if (shape === androidx.compose.foundation.shape.CircleShape || shape !is RoundedCornerShape) return shape
+    return when (Themes.style.value) {
+        5 -> ChamferShape(7.dp)
+        in 6..15 -> RoundedCornerShape((Brands.cur?.radius ?: 8).dp)
+        4 -> RoundedCornerShape(3.dp)
+        1 -> RoundedCornerShape(20.dp)
+        else -> shape
+    }
+}
+
+/** Nền một trang: giao diện Robot có nền lưới + vân quét, còn lại là màu nền. */
+@Composable
+fun Modifier.pageBg(): Modifier = if (Themes.style.value == 5) this.sfBackdrop() else this.background(C.Bg)
+
+@Composable
+fun uiShape(r: androidx.compose.ui.unit.Dp): Shape = uiShapeOf(RoundedCornerShape(r))

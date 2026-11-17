@@ -203,7 +203,10 @@ object Upnp {
         mime.contains("wav") || mime.contains("wave") || mime.contains("l16") -> "wav"
         mime.contains("mp4") || mime.contains("m4a") || mime.contains("aac") -> "m4a"
         mime.contains("ogg") -> "ogg"
-        else -> url.substringBefore('?').substringAfterLast('.', "").lowercase().take(5)
+        mime.contains("dsf") -> "dsf"
+        mime.contains("dff") || mime.contains("dsdiff") -> "dff"
+        mime.contains("dsd") -> "dsf"      // máy chủ chỉ báo "audio/dsd" chung chung: coi là DSF (phần giải mã tự nhận dạng theo đầu file)
+        else -> url.substringBefore('?').substringAfterLast('.', "").lowercase().take(5).let { if (it == "dsd") "dsf" else it }
     }
 
     /** Phân tích DIDL-Lite theo thứ tự xuất hiện; so tên thẻ theo phần cục bộ nên không phụ thuộc tiền tố (dc:, upnp:…). */
@@ -249,7 +252,7 @@ object Upnp {
                         if (audio && url.isNotEmpty()) {
                             val t = Track(url, title.ifEmpty { "Không tên" }, artist.ifEmpty { creator.ifEmpty { "Không rõ nghệ sĩ" } },
                                 album.ifEmpty { dir.substringAfterLast('/').ifEmpty { "Không rõ album" } }, genre.ifEmpty { "Không rõ thể loại" },
-                                dur, no, s.id, extOf(mime, url), art, dir.ifEmpty { s.name }, sr, bits, ch, kb)
+                                dur, no, s.id, extOf(mime, url), art, dir.ifEmpty { s.name }, sr, bits, ch, kb, mime)
                             out += DEntry(id, t.title, false, cls, 0, t)
                         }
                     }

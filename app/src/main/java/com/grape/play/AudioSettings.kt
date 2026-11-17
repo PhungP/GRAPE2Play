@@ -62,7 +62,8 @@ object AudioSettings {
     fun applyStartup() { if (startupDev != KEEP) deviceType = startupDev }
 
     fun label(type: Int) = when (type) {
-        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Loa TV"
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> if (Device.tv) "Loa TV" else "Loa điện thoại"
+        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Loa thoại (nghe gần)"
         AudioDeviceInfo.TYPE_HDMI -> "HDMI"
         AudioDeviceInfo.TYPE_HDMI_ARC -> "HDMI ARC"
         AudioDeviceInfo.TYPE_LINE_ANALOG -> "Analogue (line)"
@@ -74,7 +75,7 @@ object AudioSettings {
         else -> "Thiết bị loại $type"
     }
     fun sinks(ctx: Context): List<AudioDeviceInfo> =
-        (ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager).getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter { it.isSink }.distinctBy { it.type }
+        (ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager).getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter { it.isSink && it.type != AudioDeviceInfo.TYPE_TELEPHONY }.distinctBy { it.type }
     fun current(ctx: Context): AudioDeviceInfo? = if (deviceType == 0) null else sinks(ctx).firstOrNull { it.type == deviceType }
     fun currentName(ctx: Context) = when {
         deviceType == 0 -> "Mặc định hệ thống"

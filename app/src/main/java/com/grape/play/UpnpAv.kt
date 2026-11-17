@@ -116,7 +116,7 @@ class UpnpController(private val r: Renderer) : RemoteController() {
         val au = StreamServer.artUrl(t)
         val art = if (au != null) "<upnp:albumArtURI xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\" dlna:profileID=\"JPEG_SM\">${xml(au)}</upnp:albumArtURI>" else ""
         val dop = StreamServer.isDopUrl(url)
-        val mime = if (dop) "audio/wav" else StreamServer.mime(t.ext)
+        val mime = if (dop) "audio/wav" else if (url == t.path && t.mime.isNotEmpty()) t.mime else StreamServer.mime(t.ext)
         val dur = (if (t.durationMs > 0) " duration=\"${hms(t.durationMs)}\"" else "") + (if (dop) " bitsPerSample=\"24\" sampleFrequency=\"${DopPcm.outRate()}\"" else "")
         return "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">" +
             "<item id=\"0\" parentID=\"-1\" restricted=\"1\"><dc:title>${xml(t.title)}</dc:title><upnp:artist>${xml(t.artist)}</upnp:artist><upnp:album>${xml(t.album)}</upnp:album>" +
@@ -178,7 +178,17 @@ class UpnpController(private val r: Renderer) : RemoteController() {
                 settle(my)
                 if (my != seq) return@launch
                 try {
-                    retrying(my) { call("SetAVTransportURI", "<CurrentURI>${xml(url)}</CurrentURI><CurrentURIMetaData>${xml(didl(t, url))}</CurrentURIMetaData>") }
+                    try {
+                        retrying(my) { call("SetAVTransportURI", "<CurrentURI>${xml(url)}</CurrentURI><CurrentURIMetaData>${xml(didl(t, url))}</CurrentURIMetaData>") }
+                    } catch (e: CancellationException) { throw e } catch (e: Exception) {
+                        // Thiết bị từ chối chính URL của nó (714): để TV làm trung gian phát lại file với MIME chuẩn rồi nạp lại
+                        if (url == t.path && "(714)" in e.message.orEmpty()) {
+                            val u2 = StreamServer.urlFor(t, mode, viaTv = true)
+                            AppLog.i("UPnP", "714 với URL gốc của máy chủ: thử lại qua TV ($u2)")
+                            knownUrls.clear(); remember(u2); curUrl = u2
+                            retrying(my) { call("SetAVTransportURI", "<CurrentURI>${xml(u2)}</CurrentURI><CurrentURIMetaData>${xml(didl(t, u2))}</CurrentURIMetaData>") }
+                        } else throw e
+                    }
                 } catch (e: CancellationException) { throw e } catch (e: Exception) {
                     // Một số TV (Bravia đời cũ) từ chối metadata DIDL: thử lại với metadata rỗng
                     retrying(my, 3) { call("SetAVTransportURI", "<CurrentURI>${xml(url)}</CurrentURI><CurrentURIMetaData></CurrentURIMetaData>") }

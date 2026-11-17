@@ -16,6 +16,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -41,11 +44,21 @@ fun Rail(cur: Screen, onNav: (Screen) -> Unit, onSources: () -> Unit = {}, onOut
     val scanning by Library.scanning.collectAsState()
     val count by Library.tracks.collectAsState()
     val remote by Playback.remote.collectAsState()
+    val st = Themes.style.value
+    val rm = when (st) {
+        5 -> Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp).width(132.dp).fillMaxHeight().sfPanel()
+        4 -> Modifier.width(132.dp).fillMaxHeight().background(Brush.verticalGradient(listOf(C.Panel, C.Side))).drawBehind {
+            drawLine(Brush.verticalGradient(listOf(Color.Transparent, C.Gold.copy(alpha = .5f), Color.Transparent)), Offset(size.width - 1f, 0f), Offset(size.width - 1f, size.height), 2f)
+        }
+        else -> Modifier.width(132.dp).fillMaxHeight().background(C.Side)
+    }
     Column(
-        Modifier.width(132.dp).fillMaxHeight().background(C.Side).padding(horizontal = 8.dp, vertical = 14.dp),
+        rm.padding(horizontal = 8.dp, vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         GrapeLogo(Modifier.size(56.dp))
+        Wordmark(15, Modifier.padding(top = 4.dp))
+        LimitedBadge()
         Spacer(Modifier.height(10.dp))
         RailItem(Icons.Outlined.MusicNote, "Đang phát", cur == Screen.NOW) { onNav(Screen.NOW) }
         RailItem(Icons.Outlined.GridView, "Thư viện", cur == Screen.LIB) { onNav(Screen.LIB) }
@@ -55,8 +68,6 @@ fun Rail(cur: Screen, onNav: (Screen) -> Unit, onSources: () -> Unit = {}, onOut
         RailItem(Icons.Outlined.Tune, "Cài đặt", cur == Screen.SOUND) { onNav(Screen.SOUND) }
         if (!scanning) RailItem(Icons.Outlined.Refresh, "Quét lại", false) { Library.rescanAllAsync(ctx.applicationContext) }
         Spacer(Modifier.weight(1f))
-        LimitedBadge()
-        Spacer(Modifier.height(4.dp))
         if (scanning) T("Đang quét… ${count.size} bài", 12, C.Gold)
         RailItem(Icons.Outlined.PowerSettingsNew, "Thoát", false, tintOverride = Color(0xFFE5575A)) { Overlay.exit.value = true }
     }
@@ -65,25 +76,17 @@ fun Rail(cur: Screen, onNav: (Screen) -> Unit, onSources: () -> Unit = {}, onOut
 @Composable
 private fun RailItem(icon: ImageVector, label: String, selected: Boolean, highlight: Boolean = false, tintOverride: Color? = null, onClick: () -> Unit) =
     Focusable(onClick, Modifier.fillMaxWidth(), RoundedCornerShape(14.dp), selected = selected) {
+
         Column(Modifier.fillMaxWidth().padding(vertical = 7.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Icon(icon, null, tint = tintOverride ?: if (selected || highlight) C.Gold else C.Muted, modifier = Modifier.size(30.dp))
             T(label, 13, if (selected) C.Gold else C.Muted, bold = selected)
         }
     }
 
-/** Huy hiệu "Limited Edition" (giữ nguyên tiếng Anh ở mọi ngôn ngữ): chữ serif nghiêng, vàng chuyển sắc, khung vàng mảnh. */
+/**
+ * Huy hiệu "Limited Edition" (giữ nguyên tiếng Anh ở mọi ngôn ngữ): chữ serif nghiêng, vàng chuyển sắc, khung vàng mảnh.
+ * [engraved] = khắc laser chìm trên nhôm: chữ và khung màu than, kèm vệt sáng mảnh lệch xuống dưới/phải như vết khắc lõm.
+ */
 @Composable
-fun LimitedBadge() {
-    val gold = Brush.horizontalGradient(listOf(Color(0xFFF3DFA2), Color(0xFFD4B36A), Color(0xFFA67C2E), Color(0xFFE9CF8A)))
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).border(1.dp, Color(0x88D4B36A), RoundedCornerShape(10.dp)).background(Color(0x14D4B36A)).padding(horizontal = 6.dp, vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        androidx.compose.material3.Text("✦", style = TextStyle(brush = gold, fontSize = 14.sp))
-        androidx.compose.material3.Text(
-            "Limited\nEdition", textAlign = TextAlign.Center,
-            style = TextStyle(brush = gold, fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, fontWeight = FontWeight.Bold, fontSize = 19.sp, letterSpacing = 0.5.sp, lineHeight = 23.sp),
-        )
-        androidx.compose.material3.Text("✦", style = TextStyle(brush = gold, fontSize = 14.sp))
-    }
-}
+fun LimitedBadge(engraved: Boolean = false) =
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { LimitedArt(104.dp, if (engraved) AluTheme.m.gold else C.Gold) }

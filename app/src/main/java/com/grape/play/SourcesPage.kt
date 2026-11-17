@@ -184,7 +184,7 @@ fun SourcesPage(onNav: (Screen) -> Unit) {
         PageHeader("Thêm nguồn nhạc", "Chọn nơi chứa nhạc của bạn")
         TypeList(Modifier.fillMaxWidth())
         Detail(Modifier.fillMaxWidth())
-    } else Row(Modifier.fillMaxSize().background(C.Bg)) {
+    } else Row(Modifier.fillMaxSize().pageBg()) {
         Rail(Screen.SOURCES, onNav)
         Row(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 36.dp, vertical = 28.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
             Column(Modifier.weight(0.9f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {

@@ -66,6 +66,9 @@ fun OutputPage(onNav: (Screen) -> Unit) {
             val rate = d.sampleRates.maxOrNull()?.takeIf { it > 0 }?.let { "PCM tối đa ${khz(it)}" }
             add(OutItem("tv:${d.type}", iconFor(d.type), AudioSettings.label(d.type), listOfNotNull(name, rate).joinToString(" · ").ifEmpty { "Đầu ra do Android báo" }, true, d.type))
         }
+        // Bluetooth luôn có mặt trong danh sách (kể cả khi chưa kết nối): chọn trước, ghép đôi sau — app tự chuyển sang khi loa/tai nghe kết nối
+        if (devices.none { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP })
+            add(OutItem("tv:${AudioDeviceInfo.TYPE_BLUETOOTH_A2DP}", Icons.Outlined.Bluetooth, "Bluetooth", "Chưa kết nối — ghép đôi loa/tai nghe trong Cài đặt Bluetooth của ${if (Device.tv) "TV" else "máy"}", true, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP))
     }
     val renderers = (found + listOfNotNull(remote).filter { r -> found.none { it.id == r.id } })
     val rnItems = renderers.map { r -> OutItem("rn:${r.id}", if (r.kind == "cast") Icons.Outlined.Cast else Icons.Outlined.SettingsInputAntenna, r.name,
@@ -130,7 +133,7 @@ fun OutputPage(onNav: (Screen) -> Unit) {
             NoteBox {
                 T("Đường tín hiệu", 14, C.Muted, bold = true)
                 T("Đang đưa ra: ${fmt.ifEmpty { "chưa phát" }}", 17, C.Gold, lines = 2)
-                T("Nếu ${if (Device.tv) "TV" else "máy"} nối ampli qua cổng quang/analogue, hãy chọn “Mặc định hệ thống”. Trên TV Sony, việc chuyển loa / cổng quang / tai nghe thường do Cài đặt ▸ Âm thanh ▸ Đầu ra âm thanh của TV quyết định.", 14, C.Muted, lines = 5)
+                if (Device.tv) T("Nếu TV nối ampli qua cổng quang/analogue, hãy chọn “Mặc định hệ thống”. Trên TV Sony, việc chuyển loa / cổng quang / tai nghe thường do Cài đặt ▸ Âm thanh ▸ Đầu ra âm thanh của TV quyết định.", 14, C.Muted, lines = 5)
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
@@ -142,7 +145,7 @@ fun OutputPage(onNav: (Screen) -> Unit) {
         PageHeader("Đầu ra âm thanh", "Phát trên ${if (Device.tv) "TV" else "máy"} hoặc stream tới Network Player")
         Left(Modifier.fillMaxWidth())
         Right(Modifier.fillMaxWidth())
-    } else Row(Modifier.fillMaxSize().background(C.Bg)) {
+    } else Row(Modifier.fillMaxSize().pageBg()) {
         Rail(Screen.OUTPUT, onNav)
         Row(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 36.dp, vertical = 28.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
             Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {

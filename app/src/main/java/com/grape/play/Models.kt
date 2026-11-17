@@ -8,6 +8,8 @@ data class Track(
     val genre: String, val durationMs: Long, val no: Int = 0,
     val src: String = "local", val format: String = "", val art: String = "", val dir: String = "",
     val sr: Int = 0, val bits: Int = 0, val ch: Int = 0, val kbps: Int = 0,
+    /** MIME gốc do máy chủ DLNA báo (vd. thư viện WiiM); dùng lại khi gửi chính URL đó cho loa. */
+    val mime: String = "",
 ) {
     val folder: String get() = if (dir.isNotEmpty()) "$src|$dir" else path.substringBeforeLast('/')
     val ext: String get() = if (format.isNotEmpty()) format else path.substringAfterLast('.', "").lowercase().let { if (it.length in 1..5) it else "" }

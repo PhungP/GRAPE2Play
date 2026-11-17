@@ -78,13 +78,22 @@ fun MobileApp(hasPerm: Boolean, askPerm: () -> Unit, screen: Screen, onNav: (Scr
         }
     }
 
-    if (land) Row(Modifier.fillMaxSize().background(C.Bg)) {
+    if (Themes.style.value >= 5) SciFiPhoneShell(screen, onNav) {
+        Box(Modifier.weight(1f).fillMaxWidth()) { Page(Modifier.fillMaxSize()) }
+        if (cur != null && screen != Screen.NOW) Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).sfPanel(10.dp)) { MiniPlayer(cur, onNav) }
+    }
+    else if (Themes.style.value == 4) AluPhoneShell {
+        AluTopNav(screen, onNav)
+        Box(Modifier.weight(1f).fillMaxWidth().then(if (screen == Screen.NOW) Modifier else Modifier.padding(3.dp).aluScreen(dark = true).clip(RoundedCornerShape(4.dp)))) { Page(Modifier.fillMaxSize()) }
+        if (cur != null && screen != Screen.NOW) Box(Modifier.fillMaxWidth().padding(3.dp).aluScreen(dark = true).clip(RoundedCornerShape(4.dp))) { MiniPlayer(cur, onNav) }
+    }
+    else if (land) Row(Modifier.fillMaxSize().pageBg()) {
         MobileRail(screen, onNav)
         Column(Modifier.weight(1f).fillMaxHeight()) {
             Page(Modifier.weight(1f).fillMaxWidth())
             if (cur != null && screen != Screen.NOW) MiniPlayer(cur, onNav)
         }
-    } else Column(Modifier.fillMaxSize().background(C.Bg)) {
+    } else Column(Modifier.fillMaxSize().pageBg()) {
         MobileTopBar(screen, onNav)
         Page(Modifier.weight(1f).fillMaxWidth())
         if (cur != null && screen != Screen.NOW) MiniPlayer(cur, onNav)
@@ -143,7 +152,7 @@ private fun IconBtn(icon: ImageVector, desc: String, size: Int = 26, tint: Color
 @Composable
 private fun MButton(text: String, modifier: Modifier = Modifier, color: Color = C.Gold, onClick: () -> Unit) =
     Box(
-        modifier.clip(RoundedCornerShape(10.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(10.dp))
+        modifier.clip(uiShape(10.dp)).background(C.Panel).border(1.dp, if (Themes.style.value == 5) C.Gold.copy(alpha = .4f) else C.Line, uiShape(10.dp))
             .clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) { T(text, 18, color, bold = true) }
@@ -205,7 +214,6 @@ private fun MobileLibrary(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen)
 
     Column(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Wordmark(28)
             Spacer(Modifier.weight(1f))
             if (scanning) IconBtn(Icons.Filled.Close, "Dừng quét") { Library.cancelScan() }
             else IconBtn(Icons.Filled.Refresh, "Quét lại") { Library.rescanAllAsync(ctx) }
@@ -311,7 +319,9 @@ private fun MobileNow(onOut: () -> Unit) {
     val land = cfg.screenWidthDp > cfg.screenHeightDp
     var showQueue by remember { mutableStateOf(false) }
     val style by Themes.style
-    if (style != 0 && style != 4) { SymNow(style, {}, onOut); return }
+    if (style >= 5) { SciFiPhoneNow(onOut) { showQueue = true }; if (showQueue) QueueDialog { showQueue = false }; return }
+    if (style == 4) { AluPhoneNow(onOut) { showQueue = true }; if (showQueue) QueueDialog { showQueue = false }; return }
+    if (style != 0) { SymNow(style, {}, onOut); return }
     if (t == null) {
         Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
             T("Chưa có bài nào đang phát. Mở Thư viện để chọn nhạc.", 20, C.Muted, lines = 3)
@@ -430,8 +440,7 @@ private fun MobileSettings(onOut: () -> Unit) {
         ) {
             T("Cài đặt", 34, serif = true)
             MButton("Đầu ra âm thanh · $outName", Modifier.fillMaxWidth()) { onOut() }
-            ThemeCard()
-            StyleCard()
+            AppearanceCards()
             DsdCard()
             MobileEq()
             BackgroundCard()

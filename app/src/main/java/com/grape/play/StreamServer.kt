@@ -57,7 +57,7 @@ object StreamServer {
 
     fun mime(ext: String) = when (ext.lowercase()) {
         "flac" -> "audio/flac"
-        "dsf" -> "audio/x-dsf"
+        "dsf", "dsd" -> "audio/x-dsf"
         "dff" -> "audio/x-dff"
         "mp3" -> "audio/mpeg"
         "wav" -> "audio/wav"
@@ -82,9 +82,9 @@ object StreamServer {
     }
 
     /** mode = DSD_DOP: bài DSD64 phát dưới dạng DoP (WAV 24-bit/176,4 kHz); DSD_RAW: file gốc. Chỉ dùng cho thiết bị UPnP. */
-    fun urlFor(t: Track, mode: Int = AudioSettings.DSD_RAW): String {
+    fun urlFor(t: Track, mode: Int = AudioSettings.DSD_RAW, viaTv: Boolean = false): String {
         val asDop = mode == AudioSettings.DSD_DOP && dopEligible(t)
-        if (!asDop && (t.path.startsWith("http://") || t.path.startsWith("https://"))) return t.path
+        if (!asDop && !viaTv && (t.path.startsWith("http://") || t.path.startsWith("https://"))) return t.path
         ensure()
         val ip = CloudAuth.lanIp() ?: throw IOException("TV chưa kết nối mạng LAN/Wi-Fi")
         val id = (if (asDop) "dop-" else "") + Integer.toHexString(t.path.hashCode()) + "-" + counter.incrementAndGet()

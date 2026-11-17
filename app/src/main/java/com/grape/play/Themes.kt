@@ -36,6 +36,11 @@ object Themes {
     )
 
     val cur = mutableStateOf(ALL[0])
+    /** Bảng màu đang dùng thật: giao diện Robot / Sci-Fi (kiểu 5) ghi đè bằng biến thể màu của nó. */
+    /** Chữ đơn cách cho Robot / Denon, chữ serif cho các hãng cổ điển. */
+    val isMono: Boolean get() = style.value == 5 || Brands.cur?.mono == true
+    val isSerif: Boolean get() = Brands.cur?.serif == true
+    val eff: Palette get() = when (style.value) { 5 -> SciFi.palette; in 6..15 -> Brands.palette; 4 -> AluTheme.palette; else -> cur.value }
     /** Bố cục màn Đang phát: 0 mặc định, 1 Cổ điển, 2 Toàn ảnh (đã bỏ), 3 Nền màu (kiểu Symfonium), 4 Nhôm phay xước (chỉ TV/máy tính bảng ngang; điện thoại dùng bố cục mặc định). */
     val style = mutableStateOf(0)
     private lateinit var sp: SharedPreferences
@@ -43,9 +48,12 @@ object Themes {
     fun init(ctx: Context) {
         if (::sp.isInitialized) return
         sp = ctx.getSharedPreferences("theme", Context.MODE_PRIVATE)
+        AluTheme.init(ctx)
+        SciFi.init(ctx)
+        Brands.init(ctx)
         val id = sp.getString("id", "grape")
         cur.value = ALL.firstOrNull { it.id == id } ?: ALL[0]
-        style.value = sp.getInt("nowStyle", 0).coerceIn(0, 4).let { if (it == 2) 0 else it }   // kiểu "Toàn ảnh" đã bỏ
+        style.value = sp.getInt("nowStyle", 0).coerceIn(0, 15).let { if (it == 2 || it == 3 || it > 5) 0 else it }   // kiểu "Toàn ảnh" đã bỏ
     }
     fun setStyle(i: Int) { style.value = i; if (::sp.isInitialized) sp.edit().putInt("nowStyle", i).apply() }
     fun set(id: String) {

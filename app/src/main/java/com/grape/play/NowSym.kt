@@ -57,7 +57,7 @@ fun SymNow(style: Int, onNav: (Screen) -> Unit, onOut: () -> Unit) {
     var showQueue by remember { mutableStateOf(false) }
     if (tv) {
         BackHandler { onNav(Screen.LIB) }
-        Row(Modifier.fillMaxSize().background(C.Bg)) {
+        Row(Modifier.fillMaxSize().pageBg()) {
             Rail(Screen.NOW, onNav)
             Box(Modifier.weight(1f).fillMaxHeight()) { SymBody(style, true, onOut) { showQueue = true } }
         }
@@ -122,7 +122,7 @@ private fun SymBody(style: Int, tv: Boolean, onOut: () -> Unit, onQueue: () -> U
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color(0x40000000), 0.5f to Color(0x99000000), 1f to Color(0xF5000000))))
             }
             3 -> Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(tint, C.Bg))))
-            else -> Box(Modifier.fillMaxSize().background(C.Bg))
+            else -> Box(Modifier.fillMaxSize().pageBg())
         }
         if (t == null) {
             Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
