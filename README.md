@@ -314,3 +314,11 @@ Lưu ý: bản 0.8.1 phải cài thủ công một lần; từ đó trở đi c�
 - Thư mục hiện dạng ô thư mục (khung có tai, ảnh bìa hoặc biểu tượng thư mục), khác ô Album; duyệt thiết bị DLNA cũng dạng lưới thư mục.
 - Tab "Thói quen": thời gian nghe hôm nay + 7 ngày, Nhạc hay phát (kèm nút thêm vào Yêu thích), Nhạc ít phát, Chưa nghe bao giờ (kèm thư mục chưa nghe để mở). Gợi ý 💡 ở thư mục gốc.
 - Trộn bài (xáo thứ tự rồi phát) và Phát ngẫu nhiên: ở Thư viện, thư mục, thư mục DLNA, Thói quen; nút ⤮ Trộn trên danh sách phát đang nghe (mọi giao diện, cả điện thoại).
+
+## Bản 1.7.1
+- Robot/SciFi: chữ BIT‑PERFECT ở Signal Path hiển thị đủ; khối // SYSTEM·LIB·QUEUE·MODE không còn chắn focus giữa nút Power và "Quét lại" (nhảy qua trực tiếp); trang Cài đặt: cột cài đặt và cột EQ có mép dưới bằng cột menu.
+- Biểu tượng Cài đặt ở menu đổi thành bánh răng.
+- Thư mục trong Thư viện: ô vuông 1:1, nền màu phẳng tối dịu, một icon trắng + một chữ cái lớn (Bolero nâu đỏ/guitar/B, Jazz vàng đồng/sax/J, Pop hồng/micro/P, 24bit tím/tai nghe/2, DSD xanh/đĩa than/DSD); thư mục khác tự chọn màu/icon theo tên.
+
+## Bản 1.7.2
+- Sửa lỗi biên dịch FolderBrowser.kt (rotate); ô thư mục hiển thị lại số bài và ảnh bìa nếu có (không có ảnh thì dùng nền màu + icon + chữ cái).

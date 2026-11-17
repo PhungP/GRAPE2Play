@@ -11,7 +11,17 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,29 +49,79 @@ private fun build(all: List<Track>): Node {
     return root
 }
 
-/** Ô thư mục: khung hình thư mục (có tai ở góc trên) bao quanh ảnh bìa (không có ảnh thì hiện biểu tượng thư mục) + số bài + tên. Khác hẳn ô Album. */
+/** Kiểu thư mục theo tên: màu nền tối dịu, biểu tượng trắng và chữ cái lớn. Bolero, Jazz, Pop, 24bit, DSD có kiểu riêng; thư mục khác lấy màu/biểu tượng theo tên. */
+private class FolderLook(val color: Color, val icon: Int, val letter: String)
+private val FOLDER_COLORS = listOf(0xFF3F6B5B, 0xFF8F5B2F, 0xFF4A4F8F, 0xFF6B3F4F, 0xFF2F6F7F, 0xFF6F6F2F, 0xFF7F3F2F, 0xFF4F7F3F).map { Color(it) }
+// icon: 0 guitar, 1 sax, 2 mmicro, 3 tai nghe, 4 đĩa than, 5 nốt nhạc, 6 album
+private fun folderLook(name: String): FolderLook {
+    val n = name.lowercase().replace(" ", "").replace("-", "").replace("_", "")
+    return when {
+        "bolero" in n -> FolderLook(Color(0xFF7A2E2E), 0, "B")
+        "jazz" in n -> FolderLook(Color(0xFF9A6B2A), 1, "J")
+        n == "pop" || n.startsWith("pop") || n.endsWith("pop") -> FolderLook(Color(0xFFA8446F), 2, "P")
+        "24bit" in n || n.startsWith("24") -> FolderLook(Color(0xFF5B3F8F), 3, "2")
+        "dsd" in n -> FolderLook(Color(0xFF2F5F8F), 4, "DSD")
+        else -> {
+            val h = Math.floorMod(name.hashCode(), 1000)
+            FolderLook(FOLDER_COLORS[h % FOLDER_COLORS.size], 5 + (h / 8) % 2, name.trim().firstOrNull { it.isLetterOrDigit() }?.uppercase() ?: "#")
+        }
+    }
+}
+
+@Composable
+private fun FolderGlyph(icon: Int, bg: Color, modifier: Modifier) {
+    when (icon) {
+        2 -> Icon(Icons.Filled.Mic, null, tint = Color.White, modifier = modifier)
+        3 -> Icon(Icons.Filled.Headphones, null, tint = Color.White, modifier = modifier)
+        5 -> Icon(Icons.Filled.MusicNote, null, tint = Color.White, modifier = modifier)
+        6 -> Icon(Icons.Filled.Album, null, tint = Color.White, modifier = modifier)
+        else -> Canvas(modifier) {
+            val u = size.minDimension / 100f
+            val w = Color.White
+            when (icon) {
+                0 -> rotate(-40f, Offset(50f * u, 50f * u)) {   // guitar
+                    drawCircle(w, 14f * u, Offset(50f * u, 52f * u)); drawCircle(w, 20f * u, Offset(50f * u, 74f * u))
+                    drawCircle(bg, 6f * u, Offset(50f * u, 66f * u))
+                    drawRect(w, Offset(47f * u, 6f * u), Size(6f * u, 44f * u)); drawRect(w, Offset(44f * u, 0f), Size(12f * u, 12f * u))
+                }
+                1 -> {   // kèn sax
+                    val p = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(70f * u, 8f * u); lineTo(54f * u, 24f * u); lineTo(54f * u, 66f * u)
+                        quadraticBezierTo(54f * u, 90f * u, 36f * u, 90f * u); quadraticBezierTo(20f * u, 90f * u, 20f * u, 72f * u)
+                    }
+                    drawPath(p, w, style = androidx.compose.ui.graphics.drawscope.Stroke(9f * u, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+                    drawCircle(w, 11f * u, Offset(20f * u, 68f * u)); drawCircle(bg, 5f * u, Offset(20f * u, 68f * u))
+                }
+                else -> {   // đĩa than
+                    drawCircle(w, 46f * u, Offset(50f * u, 50f * u))
+                    drawCircle(bg, 34f * u, Offset(50f * u, 50f * u), style = androidx.compose.ui.graphics.drawscope.Stroke(2.5f * u))
+                    drawCircle(bg, 24f * u, Offset(50f * u, 50f * u), style = androidx.compose.ui.graphics.drawscope.Stroke(2.5f * u))
+                    drawCircle(bg, 13f * u, Offset(50f * u, 50f * u)); drawCircle(w, 3.5f * u, Offset(50f * u, 50f * u))
+                }
+            }
+        }
+    }
+}
+
+/** Ô thư mục: vuông 1:1, nền màu phẳng tối dịu, ở giữa một biểu tượng trắng và một chữ cái lớn; không viền, không chữ nhỏ, không đổ bóng. Tên thư mục ở dưới. */
 @Composable
 internal fun FolderTile(name: String, count: Int, cover: Track?, unit: String = "bài", onClick: () -> Unit) {
+    val look = remember(name) { folderLook(name) }
     Focusable(onClick, Modifier.fillMaxWidth(), RoundedCornerShape(12.dp)) {
         Column(Modifier.padding(8.dp)) {
-            Box(Modifier.padding(start = 6.dp).width(56.dp).height(12.dp).clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)).background(C.Gold.copy(alpha = 0.6f)))
-            Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(topEnd = 12.dp, bottomStart = 12.dp, bottomEnd = 12.dp)).background(C.Gold.copy(alpha = 0.6f)).padding(5.dp)) {
-                if (cover != null) CoverImage(cover, Modifier.fillMaxSize(), 8)
-                else Box(Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.Panel, C.Side))), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Folder, null, tint = C.Gold.copy(alpha = 0.7f), modifier = Modifier.fillMaxSize(0.5f))
-                }
-                if (count >= 0) Box(
-                    Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(4.dp)).background(C.Bg.copy(alpha = 0.8f))
-                        .border(1.dp, C.Gold, RoundedCornerShape(4.dp)).padding(6.dp, 2.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Icon(Icons.Filled.Folder, null, tint = C.Gold, modifier = Modifier.size(15.dp))
-                        T("$count $unit", 12, C.Gold, bold = true)
-                    }
+            BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(10.dp)).background(look.color)) {
+                val w = maxWidth
+                if (cover != null) CoverImage(cover, Modifier.fillMaxSize(), 0)
+                else Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    FolderGlyph(look.icon, look.color, Modifier.size(w * 0.36f))
+                    Spacer(Modifier.height(w * 0.04f))
+                    androidx.compose.material3.Text(look.letter, color = Color.White, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, maxLines = 1,
+                        fontSize = (w.value * (if (look.letter.length > 1) 0.2f else 0.3f)).sp)
                 }
             }
             Spacer(Modifier.height(8.dp))
             T(name, 19, bold = true, lines = 2)
+            T("$count $unit", 15, color = C.Muted)
         }
     }
 }

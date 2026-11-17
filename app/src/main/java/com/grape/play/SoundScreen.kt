@@ -33,8 +33,9 @@ fun SoundScreen(onNav: (Screen) -> Unit, onSources: () -> Unit, onOut: () -> Uni
     var showAbout by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxSize().pageBg()) {
         Rail(Screen.SOUND, onNav, onSources, onOut)
-        Row(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 40.dp, vertical = 28.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-            Column(Modifier.weight(0.85f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        val sfOn = Themes.style.value == 5
+        Row(Modifier.weight(1f).fillMaxHeight().padding(horizontal = if (sfOn) 18.dp else 40.dp, vertical = if (sfOn) 12.dp else 28.dp), horizontalArrangement = Arrangement.spacedBy(if (sfOn) 18.dp else 32.dp)) {
+            Column(Modifier.weight(0.85f).fillMaxHeight().then(if (sfOn) Modifier.sfPanel() else Modifier).verticalScroll(rememberScrollState()).then(if (sfOn) Modifier.padding(20.dp) else Modifier), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 T("Cài đặt", 44, serif = true)
                 T("DSD, đầu ra và tinh chỉnh chỉ dùng cho Sony Bravia", 16, C.Muted)
                 AppearanceCards()
@@ -277,7 +278,7 @@ private fun EqPanel(modifier: Modifier) {
     val bal by DspParams.balance.collectAsState()
     val pre by DspParams.preamp.collectAsState()
     val labels = listOf("31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
-    Column(modifier.clip(RoundedCornerShape(12.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(12.dp)).padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column((if (Themes.style.value == 5) modifier.sfPanel() else modifier.clip(RoundedCornerShape(12.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(12.dp))).padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             T("BỘ CÂN BẰNG (EQ)", 13, C.Muted, spaced = true)
             Focusable({ DspParams.setOn(!on) }, shape = RoundedCornerShape(8.dp)) { T((if (on) "● " else "○ ") + "Bật bộ cân bằng", 18, if (on) C.Gold else C.Text, Modifier.padding(14.dp, 8.dp)) }

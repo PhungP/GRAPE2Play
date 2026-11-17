@@ -178,7 +178,7 @@ internal fun AluRail(cur: Screen, onNav: (Screen) -> Unit, remoteActive: Boolean
                 AluMenuItem(Icons.Outlined.CloudQueue, "Nguồn nhạc", cur == Screen.SOURCES) { onNav(Screen.SOURCES) }
                 AluMenuItem(Icons.Outlined.Cast, "Đầu ra", cur == Screen.OUTPUT, highlight = remoteActive) { onNav(Screen.OUTPUT) }
                 AluMenuItem(Icons.Outlined.Equalizer, "Phổ tần", false) { Overlay.spectrum.value = true }
-                AluMenuItem(Icons.Outlined.Tune, "Cài đặt", cur == Screen.SOUND) { onNav(Screen.SOUND) }
+                AluMenuItem(Icons.Outlined.Settings, "Cài đặt", cur == Screen.SOUND) { onNav(Screen.SOUND) }
                 if (scanning) T("Đang quét… ${count.size} bài", 13, AluAmberInk, Modifier.padding(12.dp, 10.dp))
                 else AluMenuItem(Icons.Outlined.Refresh, "Quét lại", false) { Library.rescanAllAsync(ctx.applicationContext) }
             }

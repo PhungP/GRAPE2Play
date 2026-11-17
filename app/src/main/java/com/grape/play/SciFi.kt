@@ -29,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -150,10 +152,10 @@ internal fun S(s: String, size: Int, color: Color = C.Text, modifier: Modifier =
 // ---------------------------------------------------------------- nút
 /** Nút lục giác có đèn: bật = viền sáng + chấm xanh lá, tắt = viền mờ + chấm tối. */
 @Composable
-internal fun SfHex(w: Dp, active: Boolean, icon: ImageVector, desc: String, requester: FocusRequester? = null, onClick: () -> Unit) {
+internal fun SfHex(w: Dp, active: Boolean, icon: ImageVector, desc: String, requester: FocusRequester? = null, mod: Modifier = Modifier, onClick: () -> Unit) {
     val br = Brands.cur
     val h = if (br != null) w else w * 1.12f
-    Focusable(onClick, Modifier.size(w + 10.dp, h + 10.dp), if (br != null) CircleShape else HexShape, ring = C.Text, requester = requester, selColor = Color.Transparent) {
+    Focusable(onClick, mod.size(w + 10.dp, h + 10.dp), if (br != null) CircleShape else HexShape, ring = C.Text, requester = requester, selColor = Color.Transparent) {
         Box(Modifier.align(Alignment.Center).size(w, h).drawBehind {
             if (br != null) {
                 drawCircle(Brush.verticalGradient(if (active) listOf(br.knobHi, br.knobLo) else listOf(br.knobLo, Color.Black)), size.minDimension / 2f)
@@ -226,9 +228,9 @@ private fun SfTag(text: String) =
 
 @Composable
 private fun SfCell(label: String, value: String, modifier: Modifier) =
-    Column(modifier.border(1.dp, C.Gold.copy(alpha = .3f)).background(C.Gold.copy(alpha = .05f)).padding(8.dp, 5.dp)) {
+    Column(modifier.border(1.dp, C.Gold.copy(alpha = .3f)).background(C.Gold.copy(alpha = .05f)).padding(8.dp, 3.dp)) {
         S(label, 9, C.Gold.copy(alpha = .8f), spaced = true, caps = true)
-        S(value, 15, C.Text, bold = true)
+        S(value, 14, C.Text, bold = true)
     }
 
 /** Toàn bộ thông tin bài: nhãn chất lượng, tên, nghệ sĩ, album, 6 ô thông số, đường tín hiệu (kể cả lỗi / cảnh báo EQ / DoP). */
@@ -239,7 +241,7 @@ internal fun SfInfo(t: Track?, modifier: Modifier, compact: Boolean) {
     val outName by Playback.outName.collectAsState()
     val error by Playback.error.collectAsState()
     val pcm by Playback.level.fmt.collectAsState()
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         if (t == null) {
             S("Chưa có bài nào đang phát", if (compact) 18 else 24, C.Text, bold = true, lines = 2)
             S("Vào Thư viện để chọn nhạc", 14, C.Muted)
@@ -257,7 +259,7 @@ internal fun SfInfo(t: Track?, modifier: Modifier, compact: Boolean) {
                 Icon(if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, "Yêu thích", tint = if (isFav) C.Gold else C.Text, modifier = Modifier.align(Alignment.Center).size(22.dp))
             }
         }
-        S(t.title, if (compact) 20 else 27, C.Text, Modifier.padding(top = 6.dp), bold = true, lines = 2, mono = false)
+        S(t.title, if (compact) 20 else 25, C.Text, Modifier.padding(top = 2.dp), bold = true, lines = if (compact) 2 else 1, mono = false)
         S("▸ " + t.artist, if (compact) 14 else 19, Grade.GREEN.color, lines = 1)
         S("ALBUM // " + t.album, 12, C.Muted, lines = 1, caps = true)
         Spacer(Modifier.height(4.dp))
@@ -280,9 +282,9 @@ internal fun SfInfo(t: Track?, modifier: Modifier, compact: Boolean) {
             S("// SIGNAL PATH", 10, C.Gold, spaced = true)
             S((if (grade == Grade.GREEN) "✓ " else "") + gl, 14, grade.color, bold = true, lines = 2)
             val err = error
-            if (err != null) S(err.lines().first().take(160), 12, C.Gold, lines = 3)
+            if (err != null) S(err.lines().first().take(160), 12, C.Gold, lines = 2)
             else {
-                S(if (remote != null) (if (dopActive(t, i, remote)) "Tín hiệu: $src → DoP 24-bit/176,4 kHz → $outName" else "Tín hiệu: $src → $outName (file gốc, thiết bị tự giải mã)") else "Tín hiệu: $src → ${pcm.ifEmpty { "PCM" }}${if (dspOn) " → EQ" else ""} → $outName", 12, grade.color, lines = 3)
+                S(if (remote != null) (if (dopActive(t, i, remote)) "Tín hiệu: $src → DoP 24-bit/176,4 kHz → $outName" else "Tín hiệu: $src → $outName (file gốc, thiết bị tự giải mã)") else "Tín hiệu: $src → ${pcm.ifEmpty { "PCM" }}${if (dspOn) " → EQ" else ""} → $outName", 12, grade.color, lines = 2)
                 if (dspOn) S("⚠ EQ đang chỉnh — có thể méo nếu tăng cao", 11, Grade.YELLOW.color, lines = 1)
             }
         }
@@ -373,6 +375,10 @@ internal fun SciFiNow(onNav: (Screen) -> Unit, onOut: () -> Unit) {
     val t = queue.getOrNull(idx)
     val playReq = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { playReq.requestFocus() } }
+    // Phím lên/xuống đi thẳng giữa nút Power và mục menu cuối, bỏ qua khối thông tin // SYSTEM
+    val powerReq = remember { FocusRequester() }
+    val lastReq = remember { FocusRequester() }
+    val lastMenu = Modifier.focusRequester(lastReq).focusProperties { down = powerReq }
     var clock by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { val f = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US); while (true) { clock = f.format(java.util.Date()); delay(1000) } }
 
@@ -407,9 +413,9 @@ internal fun SciFiNow(onNav: (Screen) -> Unit, onOut: () -> Unit) {
                     SfMenuItem("Nguồn nhạc", false) { onNav(Screen.SOURCES) }
                     SfMenuItem("Đầu ra", false, remote != null) { onNav(Screen.OUTPUT) }
                     SfMenuItem("Phổ tần", false) { Overlay.spectrum.value = true }
-                    SfMenuItem("Cài đặt", false) { onNav(Screen.SOUND) }
+                    SfMenuItem("Cài đặt", false, mod = if (scanning) lastMenu else Modifier) { onNav(Screen.SOUND) }
                     if (scanning) S("Đang quét… ${lib.size} bài", 12, C.Gold, Modifier.padding(14.dp, 10.dp), lines = 2)
-                    else SfMenuItem("Quét lại", false) { Library.rescanAllAsync(ctx.applicationContext) }
+                    else SfMenuItem("Quét lại", false, mod = lastMenu) { Library.rescanAllAsync(ctx.applicationContext) }
                     Spacer(Modifier.weight(1f))
                     S("// SYSTEM", 11, C.Gold, spaced = true)
                     S("LIB   ${lib.size}", 12, C.Muted)
@@ -424,7 +430,7 @@ internal fun SciFiNow(onNav: (Screen) -> Unit, onOut: () -> Unit) {
                         }
                         SfInfo(t, Modifier.weight(1f).fillMaxHeight().padding(top = 16.dp, end = 22.dp, bottom = 12.dp), compact = false)
                     }
-                    SfMeters(Modifier.fillMaxWidth().height(162.dp).sfPanel().padding(horizontal = 10.dp, vertical = 6.dp))
+                    SfMeters(Modifier.fillMaxWidth().height(128.dp).sfPanel().padding(horizontal = 10.dp, vertical = 6.dp))
                 }
                 // ---- danh sách phát
                 Column(Modifier.width(420.dp).fillMaxHeight().sfPanel().padding(18.dp)) {
@@ -445,7 +451,7 @@ internal fun SciFiNow(onNav: (Screen) -> Unit, onOut: () -> Unit) {
             Row(Modifier.fillMaxWidth().height(190.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 Column(Modifier.width(230.dp).fillMaxHeight().sfPanel().padding(14.dp, 12.dp), verticalArrangement = Arrangement.SpaceBetween) {
                     S("// POWER", 11, C.Gold, spaced = true)
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { SfHex(60.dp, true, Icons.Filled.PowerSettingsNew, "Bật / Tắt") { Overlay.exit.value = true } }
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { SfHex(60.dp, true, Icons.Filled.PowerSettingsNew, "Bật / Tắt", powerReq, Modifier.focusProperties { up = lastReq }) { Overlay.exit.value = true } }
                     Spacer(Modifier.height(4.dp))
                 }
                 Column(Modifier.weight(1f).fillMaxHeight().sfPanel().padding(horizontal = 22.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
@@ -469,8 +475,8 @@ internal fun SciFiNow(onNav: (Screen) -> Unit, onOut: () -> Unit) {
 }
 
 @Composable
-private fun SfMenuItem(label: String, selected: Boolean, highlight: Boolean = false, onClick: () -> Unit) =
-    Focusable(onClick, Modifier.fillMaxWidth(), ChamferShape(6.dp), selected = selected, ring = C.Text, selColor = C.Sel) { f ->
+private fun SfMenuItem(label: String, selected: Boolean, highlight: Boolean = false, mod: Modifier = Modifier, onClick: () -> Unit) =
+    Focusable(onClick, mod.fillMaxWidth(), ChamferShape(6.dp), selected = selected, ring = C.Text, selColor = C.Sel) { f ->
         Row(
             Modifier.fillMaxWidth().then(if (selected) Modifier.background(Brush.horizontalGradient(listOf(C.Gold.copy(alpha = .28f), Color.Transparent))) else Modifier).padding(12.dp, 7.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
