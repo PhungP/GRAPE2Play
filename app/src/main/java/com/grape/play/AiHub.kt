@@ -192,6 +192,11 @@ private fun KeyPage(onDone: () -> Unit) {
         if (Ai.hasKey.value) Focusable({ accept(Ai.key) }) { T("Kiểm tra khóa", 16, C.Gold, Modifier.padding(16.dp, 8.dp)) }
         if (Ai.hasKey.value) Focusable({ Ai.key = ""; status = "Đã xóa khóa" }) { T("Xóa khóa", 16, androidx.compose.ui.graphics.Color(0xFFE5575A), Modifier.padding(16.dp, 8.dp)) }
     }
+    var diag by remember { mutableStateOf("") }
+    Focusable({
+        if (!busy) { busy = true; diag = "Đang đo từng bước, có thể mất tới 1 phút…"; scope.launch { try { diag = Ai.diagnose() } catch (e: Exception) { diag = "Lỗi: ${e.message}" } finally { busy = false } } }
+    }) { T("🩺 Chẩn đoán mạng", 16, C.Gold, Modifier.padding(16.dp, 8.dp)) }
+    if (diag.isNotEmpty()) T(diag, 14, C.Text, lines = 10)
     if (status.isNotEmpty()) T(status, 15, if (status.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 4)
     T("Khóa lưu riêng trong app, trên thiết bị này. Máy chủ tạm chỉ chạy khi hộp thoại này mở.", 12, C.Muted, lines = 2)
 }

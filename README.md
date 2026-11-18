@@ -368,3 +368,9 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 
 ## Bản 1.8.4
 - Sửa lỗi biên dịch Ai.kt (Dns phải khai báo bằng object).
+
+## Bản 1.8.5
+- Khóa Gemini: thêm nút "Chẩn đoán mạng" đo thời gian từng bước (DNS, TCP, Internet, API + khóa, tạo nội dung) để biết TV kẹt ở đâu.
+
+## Bản 1.8.6
+- Gemini: kiểm tra khóa bằng việc liệt kê model (không phụ thuộc tải của model tạo nội dung); khi model quá tải (503) hoặc hết hạn mức (429) tự thử lại rồi chuyển sang model dự phòng (flash-latest → flash-lite-latest → 2.5-flash → 2.5-flash-lite).
