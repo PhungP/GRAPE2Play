@@ -67,6 +67,7 @@ fun Rail(cur: Screen, onNav: (Screen) -> Unit, onSources: () -> Unit = {}, onOut
         RailItem(Icons.Outlined.CloudQueue, "Nguồn nhạc", cur == Screen.SOURCES) { onNav(Screen.SOURCES) }
         RailItem(Icons.Outlined.Cast, "Đầu ra", cur == Screen.OUTPUT, highlight = remote != null) { onNav(Screen.OUTPUT) }
         RailItem(Icons.Outlined.Equalizer, "Phổ tần", false) { Overlay.spectrum.value = true }
+        RailItem(Icons.Outlined.AutoAwesome, "Trợ lý AI", false) { Overlay.aiStart = "menu"; Overlay.ai.value = true }
         RailItem(Icons.Outlined.Settings, "Cài đặt", cur == Screen.SOUND) { onNav(Screen.SOUND) }
         if (!scanning) RailItem(Icons.Outlined.Refresh, "Quét lại", false) { Library.rescanAllAsync(ctx.applicationContext) }
         Spacer(Modifier.weight(1f))

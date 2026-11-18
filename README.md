@@ -359,3 +359,6 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 
 ## Bản 1.8.1
 - Khóa Gemini: TV hiện 2 mã QR (① trang tạo khóa của Google, ② trang gửi khóa về TV); app điện thoại có nút mở thẳng trang tạo khóa Google.
+
+## Bản 1.8.2
+- Thêm mục "Trợ lý AI" (✨) vào thanh menu bên trái của TV ở các giao diện Mặc định/Cổ điển, Nhôm phay xước và Robot/SciFi, mở được từ mọi trang.
