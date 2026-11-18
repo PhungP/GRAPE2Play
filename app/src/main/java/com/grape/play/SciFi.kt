@@ -436,7 +436,7 @@ internal fun SciFiNow(onNav: (Screen) -> Unit, onOut: () -> Unit) {
                         Box(Modifier.padding(14.dp).fillMaxHeight().aspectRatio(1f).border(1.dp, C.Gold.copy(alpha = .45f))) {
                             CoverImage(t, Modifier.fillMaxSize(), 0)
                         }
-                        SfInfo(t, Modifier.weight(1f).fillMaxHeight().padding(top = 10.dp, end = 22.dp, bottom = 8.dp), compact = false)
+                        SfInfo(t, Modifier.weight(1f).fillMaxHeight().padding(top = 14.dp, end = 22.dp, bottom = 14.dp), compact = false)
                     }
                     SfMeters(Modifier.fillMaxWidth().height(160.dp).sfPanel().padding(horizontal = 10.dp, vertical = 6.dp))
                 }

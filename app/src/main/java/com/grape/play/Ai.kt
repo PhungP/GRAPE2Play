@@ -21,7 +21,7 @@ object Ai {
     private lateinit var sp: SharedPreferences
     val hasKey = mutableStateOf(false)
     /** HTTP/1.1 và ưu tiên IPv4: một số TV Android cũ treo kết nối khi dùng HTTP/2 hoặc IPv6 hỏng. */
-    private val http = OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS)
+    internal val http = OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS)
         .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
         .dns(object : okhttp3.Dns {
             override fun lookup(hostname: String): List<java.net.InetAddress> = okhttp3.Dns.SYSTEM.lookup(hostname).sortedBy { it is java.net.Inet6Address }

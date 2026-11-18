@@ -374,3 +374,8 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 
 ## Bản 1.8.6
 - Gemini: kiểm tra khóa bằng việc liệt kê model (không phụ thuộc tải của model tạo nội dung); khi model quá tải (503) hoặc hết hạn mức (429) tự thử lại rồi chuyển sang model dự phòng (flash-latest → flash-lite-latest → 2.5-flash → 2.5-flash-lite).
+
+## Bản 1.9.0
+- Robot/SciFi: mép dưới ảnh bìa và hộp Signal Path thẳng hàng.
+- Hộp thoại Trợ lý AI nhỏ gọn hơn, cùng phong cách thẻ Cài đặt của từng giao diện.
+- Mới "Gợi ý theo bối cảnh": thời tiết thực tế (Open-Meteo, vị trí ước lượng theo IP), mùa, lễ hội/phong tục (có âm lịch, đếm ngày tới Tết), và chọn tâm trạng (Buồn, Vui, Chill, Thư giãn…).

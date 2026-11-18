@@ -92,23 +92,27 @@ private fun AiFrame(title: String, back: String?, onBack: () -> Unit, onClose: (
     LaunchedEffect(title) { runCatching { first.requestFocus() } }
     val maxH = if (Device.tv) 640.dp else (LocalConfiguration.current.screenHeightDp * 0.9f).dp
     Dialog(onDismissRequest = { if (back != null) onBack() else onClose() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier.dlgW(900).heightIn(max = maxH).clip(RoundedCornerShape(14.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(14.dp)).padding(22.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (back != null) Focusable(onBack, requester = first) { T("◂ $back", 15, C.Gold, Modifier.padding(14.dp, 7.dp)) }
-                T(title, 24, serif = true, modifier = Modifier.weight(1f))
-                Focusable(onClose, requester = if (back == null) first else null) { T("Đóng", 15, C.Muted, Modifier.padding(14.dp, 7.dp)) }
+        val base = Modifier.dlgW(720).heightIn(max = maxH)
+        val surf = when (Themes.style.value) {
+            5, 6, 7, 8, 9, 10 -> base.clip(RoundedCornerShape(12.dp)).background(C.Bg).sfPanel(12.dp)
+            4 -> base.clip(RoundedCornerShape(4.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.Panel, C.Side))).border(1.dp, C.Line, RoundedCornerShape(4.dp))
+            1 -> base.clip(RoundedCornerShape(22.dp)).background(C.Panel)
+            else -> base.clip(RoundedCornerShape(12.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(12.dp))
+        }
+        Column(surf.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (back != null) Focusable(onBack, requester = first) { T("◂ $back", 14, C.Gold, Modifier.padding(12.dp, 5.dp)) }
+                T(title.uppercase(), 13, C.Muted, spaced = true, modifier = Modifier.weight(1f))
+                Focusable(onClose, requester = if (back == null) first else null) { T("Đóng", 14, C.Muted, Modifier.padding(12.dp, 5.dp)) }
             }
-            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
         }
     }
 }
 
 @Composable
 private fun Btn(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) =
-    Focusable(onClick, modifier.fillMaxWidth(), RoundedCornerShape(10.dp)) { T(text, 18, C.Gold, Modifier.padding(16.dp, 11.dp), bold = true) }
+    Focusable(onClick, modifier.fillMaxWidth(), RoundedCornerShape(10.dp)) { T(text, 16, C.Gold, Modifier.padding(14.dp, 9.dp), bold = true, lines = 2) }
 
 @Composable
 fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
@@ -123,13 +127,13 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
     when {
         page == "key" -> AiFrame("Khóa Gemini", if (hasKey) "Menu" else null, goMenu, ::close) { KeyPage { page = "menu" } }
         page == "ask" -> AiFrame("Hỏi / tìm nhạc", "Menu", goMenu, ::close) { AskPage(lib, ::play) }
-        page == "suggest" -> AiFrame("Gợi ý hôm nay", "Menu", goMenu, ::close) { SuggestPage(lib, ::play) }
+        page == "suggest" -> AiFrame("Gợi ý theo bối cảnh", "Menu", goMenu, ::close) { SuggestPage(lib, ::play) }
         page == "info" -> AiFrame("Giới thiệu bài đang phát", "Menu", goMenu, ::close) { InfoPage() }
         page == "clean" -> AiFrame("Làm sạch thư viện", "Menu", goMenu, ::close) { CleanPage(lib) }
         else -> AiFrame("✨ Trợ lý AI (Gemini)", null, goMenu, ::close) {
-            T("AI chỉ chạy khi bạn bấm. Thư viện không bị gửi lên mạng — chỉ gửi câu hỏi, vài tên nghệ sĩ/album hoặc tên thư mục cần xử lý.", 14, C.Muted, lines = 3)
+            T("AI chỉ chạy khi bạn bấm. Thư viện không bị gửi lên mạng — chỉ gửi câu hỏi, vài tên nghệ sĩ/album hoặc tên thư mục cần xử lý.", 13, C.Muted, lines = 3)
             Btn("🔎  Hỏi / tìm nhạc bằng lời nói hoặc chữ") { page = "ask" }
-            Btn("🌤  Gợi ý hôm nay theo thời điểm và thói quen") { page = "suggest" }
+            Btn("🌤  Gợi ý theo thời tiết, lễ hội, tâm trạng") { page = "suggest" }
             Btn("ℹ  Giới thiệu bài / album / nghệ sĩ đang phát") { page = "info" }
             Btn("🧹  Làm sạch tên và thể loại thư mục") { page = "clean" }
             Btn("🔑  Khóa API / ghép bằng điện thoại") { page = "key" }
@@ -258,26 +262,40 @@ private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SuggestPage(lib: List<Track>, play: (List<Track>) -> Unit) {
     var msg by remember { mutableStateOf("Đang chọn nhạc cho bạn…") }
     var lists by remember { mutableStateOf<List<AiSuggest.Playlist>>(emptyList()) }
     var tick by remember { mutableStateOf(0) }
-    LaunchedEffect(tick) {
-        msg = "Đang chọn nhạc cho bạn…"; lists = emptyList()
-        try { lists = AiSuggest.run(lib); msg = if (lists.isEmpty()) "AI chưa chọn được danh sách nào." else "" }
-        catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+    var mood by remember { mutableStateOf("Tự động") }
+    var head by remember { mutableStateOf("") }
+    LaunchedEffect(tick, mood) {
+        msg = "Đang xem thời tiết và chọn nhạc…"; lists = emptyList()
+        try {
+            val info = AiContext.load(tick > 0 && mood == "Tự động")
+            head = AiContext.headline(info)
+            lists = AiSuggest.run(lib, AiContext.describe(info, mood))
+            msg = if (lists.isEmpty()) "AI chưa chọn được danh sách nào." else ""
+        } catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+    }
+    if (head.isNotEmpty()) T(head, 14, C.Muted, lines = 2)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        AiContext.MOODS.forEach { m ->
+            Focusable({ mood = m }, Modifier, RoundedCornerShape(8.dp), selected = mood == m) { T(m, 15, if (mood == m) C.Gold else C.Text, Modifier.padding(12.dp, 6.dp)) }
+        }
     }
     if (msg.isNotEmpty()) T(msg, 15, if (msg.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 4)
     lists.forEach { p ->
         Focusable({ play(p.tracks) }, Modifier.fillMaxWidth(), RoundedCornerShape(10.dp)) {
-            Column(Modifier.padding(16.dp, 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                T("▶ ${p.title}  ·  ${p.tracks.size} bài", 19, C.Gold, bold = true, lines = 1)
-                T(p.reason, 14, C.Muted, lines = 2)
+            Column(Modifier.padding(14.dp, 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                T("▶ ${p.title}  ·  ${p.tracks.size} bài", 17, C.Gold, bold = true, lines = 1)
+                T(p.reason, 13, C.Muted, lines = 2)
             }
         }
     }
-    Focusable({ tick++ }) { T("↻ Gợi ý khác", 16, C.Gold, Modifier.padding(16.dp, 8.dp)) }
+    Focusable({ tick++ }) { T("↻ Gợi ý khác", 15, C.Gold, Modifier.padding(14.dp, 7.dp)) }
+    T("Vị trí ước lượng theo địa chỉ IP; thời tiết từ Open-Meteo. Chỉ gửi thành phố, thời tiết và ngày giờ — không gửi thư viện.", 12, C.Muted, lines = 2)
 }
 
 @Composable
@@ -334,10 +352,10 @@ fun AiCard() {
     val has by Ai.hasKey
     Card {
         T("AI · GEMINI", 13, C.Muted, spaced = true)
-        T(if (has) "Đã có khóa API. Tìm nhạc bằng giọng nói, gợi ý theo thời điểm, giới thiệu bài, làm sạch tên thư mục." else "Chưa có khóa. Ghép bằng điện thoại: quét mã QR, dán khóa — không cần gõ trên TV.", 15, C.Muted, lines = 3)
+        T(if (has) "Đã có khóa API. Tìm nhạc bằng giọng nói, gợi ý theo thời tiết / lễ hội / tâm trạng, giới thiệu bài, làm sạch tên thư mục." else "Chưa có khóa. Ghép bằng điện thoại: quét mã QR, dán khóa — không cần gõ trên TV.", 15, C.Muted, lines = 3)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (has) Focusable({ Overlay.aiStart = "menu"; Overlay.ai.value = true }) { T("✨ Mở trợ lý AI", 17, C.Gold, Modifier.padding(16.dp, 9.dp), bold = true) }
-            Focusable({ Overlay.aiStart = "key"; Overlay.ai.value = true }) { T(if (has) "🔑 Đổi / xóa khóa" else "🔑 Ghép khóa bằng điện thoại", 17, C.Gold, Modifier.padding(16.dp, 9.dp)) }
+            if (has) Focusable({ Overlay.aiStart = "menu"; Overlay.ai.value = true }) { T("✨ Mở trợ lý AI", 16, C.Gold, Modifier.padding(14.dp, 7.dp), bold = true) }
+            Focusable({ Overlay.aiStart = "key"; Overlay.ai.value = true }) { T(if (has) "🔑 Đổi / xóa khóa" else "🔑 Ghép khóa bằng điện thoại", 16, C.Gold, Modifier.padding(14.dp, 7.dp)) }
         }
     }
 }

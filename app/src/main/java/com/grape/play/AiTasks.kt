@@ -13,7 +13,7 @@ internal fun aiNorm(s: String): String = Normalizer.normalize(s.lowercase(), Nor
 
 private val GENRES = "bolero, jazz, pop, rock, classical, folk, soundtrack, other"
 
-private fun timeOfDay(): String {
+internal fun timeOfDay(): String {
     val c = Calendar.getInstance(); val h = c.get(Calendar.HOUR_OF_DAY)
     val part = when { h < 5 -> "đêm khuya"; h < 11 -> "buổi sáng"; h < 14 -> "buổi trưa"; h < 18 -> "buổi chiều"; h < 22 -> "buổi tối"; else -> "đêm" }
     val day = listOf("Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy")[c.get(Calendar.DAY_OF_WEEK) - 1]
@@ -100,16 +100,16 @@ object AiSearch {
 object AiSuggest {
     class Playlist(val title: String, val reason: String, val tracks: List<Track>)
 
-    suspend fun run(lib: List<Track>): List<Playlist> {
+    suspend fun run(lib: List<Track>, context: String = ""): List<Playlist> {
         val albums = lib.groupBy { it.artist.trim() + "\u0000" + it.album.trim() }.filter { it.key.length > 1 }
         val withPlays = albums.entries.map { it to it.value.sumOf { t -> UsageStats.plays(t.path) } }
         val pool = (withPlays.sortedByDescending { it.second }.take(25) + withPlays.shuffled().take(110)).distinctBy { it.first.key }.map { it.first }
         val lines = pool.mapIndexed { i, e -> val t = e.value.first(); "$i|${t.artist}|${t.album}|${t.ext}" }
         val topArtists = lib.filter { UsageStats.plays(it.path) > 0 }.groupBy { it.artist }.entries.sortedByDescending { e -> e.value.sumOf { UsageStats.plays(it.path) } }.take(8).map { it.key }
         val recent = lib.filter { UsageStats.tracks[it.path] != null }.sortedByDescending { UsageStats.tracks[it.path]?.last ?: 0L }.take(6).map { it.title }
-        val sys = "Bạn là người chọn nhạc cho app nghe nhạc hi-fi. Từ danh sách album có sẵn (id|nghệ sĩ|album|định dạng), tạo 3 danh sách nghe hợp thời điểm và thói quen. " +
+        val sys = "Bạn là người chọn nhạc cho app nghe nhạc hi-fi. Từ danh sách album có sẵn (id|nghệ sĩ|album|định dạng), tạo 3 đến 4 danh sách nghe hợp bối cảnh hiện tại (thời tiết thực tế, mùa, lễ hội/phong tục, tâm trạng nếu có) và thói quen. Tên danh sách phải gợi đúng bối cảnh; \"reason\" nêu rõ lý do (ví dụ trời mưa, sắp Tết, tâm trạng buồn). " +
             "Chỉ trả JSON {\"playlists\":[{\"title\":<tên ngắn>, \"reason\":<1 câu vì sao hợp>, \"albums\":[id, tối đa 6 id]}]}. Chỉ dùng id có trong danh sách. ${Ai.langHint()}"
-        val prompt = "Bây giờ: ${timeOfDay()}\nNghệ sĩ hay nghe: ${topArtists.joinToString().ifEmpty { "(chưa có)" }}\nMới nghe: ${recent.joinToString(" | ").ifEmpty { "(chưa có)" }}\nAlbum:\n${lines.joinToString("\n")}"
+        val prompt = "Bối cảnh:\n${context.ifEmpty { "Bây giờ: ${timeOfDay()}" }}\nNghệ sĩ hay nghe: ${topArtists.joinToString().ifEmpty { "(chưa có)" }}\nMới nghe: ${recent.joinToString(" | ").ifEmpty { "(chưa có)" }}\nAlbum:\n${lines.joinToString("\n")}"
         val o = Ai.parseJson(Ai.generate(prompt, sys, json = true, temp = 0.7)) as JSONObject
         val arr = o.optJSONArray("playlists") ?: return emptyList()
         val out = ArrayList<Playlist>()
