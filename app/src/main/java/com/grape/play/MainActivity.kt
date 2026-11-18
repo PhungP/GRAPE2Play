@@ -153,6 +153,7 @@ class MainActivity : ComponentActivity() {
                         }
                         if (permDone) UpdateDialog()
                         if (Overlay.spectrum.value) SpectrumDialog { Overlay.spectrum.value = false }
+                        if (Overlay.ai.value) AiHubDialog(onClose = { Overlay.ai.value = false }, onPlayed = { screen = Screen.NOW })
                         if (Overlay.exit.value) ExitDialog(onStay = { Overlay.exit.value = false }, onExit = { Overlay.exit.value = false; exitApp() })
                         if (permDone && askBg) BackgroundDialog(onAllow = { askBg = false; askBackground() }, onLater = { askBg = false; BackgroundAccess.asked = true })
                     } }

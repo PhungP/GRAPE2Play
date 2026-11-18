@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -149,6 +150,11 @@ internal fun S(s: String, size: Int, color: Color = C.Text, modifier: Modifier =
         maxLines = lines, overflow = TextOverflow.Ellipsis, textAlign = align)
 }
 
+/** Dòng chữ thông tin (tối đa 2 dòng) trong Robot/SciFi. */
+@Composable
+internal fun Marq(s: String, size: Int, color: Color, bold: Boolean = false) =
+    S(s, size, color, Modifier.fillMaxWidth(), bold = bold, lines = 2)
+
 // ---------------------------------------------------------------- nút
 /** Nút lục giác có đèn: bật = viền sáng + chấm xanh lá, tắt = viền mờ + chấm tối. */
 @Composable
@@ -259,10 +265,10 @@ internal fun SfInfo(t: Track?, modifier: Modifier, compact: Boolean) {
                 Icon(if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, "Yêu thích", tint = if (isFav) C.Gold else C.Text, modifier = Modifier.align(Alignment.Center).size(22.dp))
             }
         }
-        S(t.title, if (compact) 20 else 25, C.Text, Modifier.padding(top = 2.dp), bold = true, lines = if (compact) 2 else 1, mono = false)
-        S("▸ " + t.artist, if (compact) 14 else 19, Grade.GREEN.color, lines = 1)
+        S(t.title, if (compact) 20 else 23, C.Text, Modifier.padding(top = 0.dp), bold = true, lines = if (compact) 2 else 1, mono = false)
+        S("▸ " + t.artist, if (compact) 14 else 17, Grade.GREEN.color, lines = 1)
         S("ALBUM // " + t.album, 12, C.Muted, lines = 1, caps = true)
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(2.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SfCell("Định dạng", if (isDsd) dsdLabel(i?.sampleRate ?: t.sr) else t.ext.uppercase(), Modifier.weight(1f))
             SfCell("Độ sâu bit", ((i?.bits ?: 0).takeIf { it > 0 } ?: t.bits).let { if (it > 0) "$it-bit" else "—" }, Modifier.weight(1f))
@@ -273,19 +279,21 @@ internal fun SfInfo(t: Track?, modifier: Modifier, compact: Boolean) {
             SfCell("Kênh", channelName(i?.channels ?: 0), Modifier.weight(1f))
             SfCell("Nguồn", t.sourceName.substringBefore(" · "), Modifier.weight(1f))
         }
-        Spacer(Modifier.height(4.dp))
-        Column(Modifier.fillMaxWidth().then(if (compact) Modifier else Modifier.weight(1f)).border(1.dp, Grade.GREEN.color.copy(alpha = .4f)).background(Grade.GREEN.color.copy(alpha = .05f)).padding(10.dp, 6.dp)) {
+        Spacer(Modifier.height(2.dp))
+        Column(Modifier.fillMaxWidth().then(if (compact) Modifier else Modifier.weight(1f)).border(1.dp, Grade.GREEN.color.copy(alpha = .4f)).background(Grade.GREEN.color.copy(alpha = .05f)).padding(10.dp, 4.dp)) {
             val src = if (isDsd) "${dsdLabel(i?.sampleRate ?: t.sr)} ${mhz(i?.sampleRate ?: t.sr)}"
                 else if (i != null && i.sampleRate > 0) "${t.ext.uppercase()} ${i.bits.takeIf { it > 0 } ?: ""}/${khz(i.sampleRate)}" else t.ext.uppercase()
             val dspOn = !DspParams.isFlat() && remote == null
             val (grade, gl) = signalGrade(t, i, pcm, remote)
             S("// SIGNAL PATH", 10, C.Gold, spaced = true)
-            S((if (grade == Grade.GREEN) "✓ " else "") + gl, 14, grade.color, bold = true, lines = 2)
+            Marq((if (grade == Grade.GREEN) "✓ " else "") + gl, 14, grade.color, bold = true)
+            val route = if (remote != null) (if (dopActive(t, i, remote)) "Tín hiệu: $src → DoP 24-bit/176,4 kHz → $outName" else "Tín hiệu: $src → $outName (file gốc, thiết bị tự giải mã)")
+                else "Tín hiệu: $src → ${pcm.ifEmpty { "PCM" }}${if (dspOn) " → EQ" else ""} → $outName"
             val err = error
-            if (err != null) S(err.lines().first().take(160), 12, C.Gold, lines = 2)
+            if (err != null) Marq(err.lines().first().take(200), 12, C.Gold)
             else {
-                S(if (remote != null) (if (dopActive(t, i, remote)) "Tín hiệu: $src → DoP 24-bit/176,4 kHz → $outName" else "Tín hiệu: $src → $outName (file gốc, thiết bị tự giải mã)") else "Tín hiệu: $src → ${pcm.ifEmpty { "PCM" }}${if (dspOn) " → EQ" else ""} → $outName", 12, grade.color, lines = 2)
-                if (dspOn) S("⚠ EQ đang chỉnh — có thể méo nếu tăng cao", 11, Grade.YELLOW.color, lines = 1)
+                Marq(route, 12, grade.color)
+                if (dspOn) Marq("⚠ EQ đang chỉnh — có thể méo nếu tăng cao", 11, Grade.YELLOW.color)
             }
         }
     }
@@ -385,7 +393,7 @@ internal fun SciFiNow(onNav: (Screen) -> Unit, onOut: () -> Unit) {
     val br = Brands.cur
     val hi = br?.faceInk ?: C.Text; val hi2 = br?.faceInk2 ?: C.Gold
     Box(Modifier.fillMaxSize().then(if (br != null) Modifier.brandFace() else Modifier.sfBackdrop())) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 22.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        Column(Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, top = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             // ---- thanh trên
             Row(Modifier.fillMaxWidth().height(66.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -426,11 +434,10 @@ internal fun SciFiNow(onNav: (Screen) -> Unit, onOut: () -> Unit) {
                     Row(Modifier.fillMaxWidth().weight(1f).sfPanel()) {
                         Box(Modifier.padding(14.dp).fillMaxHeight().aspectRatio(1f).border(1.dp, C.Gold.copy(alpha = .45f))) {
                             CoverImage(t, Modifier.fillMaxSize(), 0)
-                            Box(Modifier.align(Alignment.Center).offset(y = 24.dp).fillMaxWidth().height(2.dp).background(Brush.horizontalGradient(listOf(Color.Transparent, C.Gold, Color.Transparent))))
                         }
-                        SfInfo(t, Modifier.weight(1f).fillMaxHeight().padding(top = 16.dp, end = 22.dp, bottom = 12.dp), compact = false)
+                        SfInfo(t, Modifier.weight(1f).fillMaxHeight().padding(top = 10.dp, end = 22.dp, bottom = 8.dp), compact = false)
                     }
-                    SfMeters(Modifier.fillMaxWidth().height(128.dp).sfPanel().padding(horizontal = 10.dp, vertical = 6.dp))
+                    SfMeters(Modifier.fillMaxWidth().height(160.dp).sfPanel().padding(horizontal = 10.dp, vertical = 6.dp))
                 }
                 // ---- danh sách phát
                 Column(Modifier.width(420.dp).fillMaxHeight().sfPanel().padding(18.dp)) {
@@ -545,7 +552,6 @@ internal fun SciFiPhoneNow(onOut: () -> Unit, onQueue: () -> Unit) {
     val cover: @Composable (Modifier) -> Unit = { m ->
         Box(m.border(1.dp, C.Gold.copy(alpha = .45f))) {
             CoverImage(t, Modifier.fillMaxSize(), 0)
-            Box(Modifier.align(Alignment.Center).offset(y = 16.dp).fillMaxWidth().height(2.dp).background(Brush.horizontalGradient(listOf(Color.Transparent, C.Gold, Color.Transparent))))
         }
     }
     val controls: @Composable () -> Unit = {

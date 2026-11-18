@@ -196,7 +196,7 @@ object Playback {
         Themes.init(appCtx)
         Covers.init(appCtx)
         Favorites.init(appCtx)
-        Recents.init(appCtx); UsageStats.init(appCtx); LibNav.init(appCtx); SourceOrder.init(appCtx)
+        Recents.init(appCtx); UsageStats.init(appCtx); Ai.init(appCtx); LibNav.init(appCtx); SourceOrder.init(appCtx)
         TvHome.init(appCtx)
         BackgroundAccess.init(appCtx)
         exo = build()

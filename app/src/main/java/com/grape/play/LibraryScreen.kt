@@ -67,6 +67,7 @@ fun LibraryScreen(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen) -> Unit
                     Focusable({ tab = tb; sel = null }, selected = tb == tab) { T(tb.label, 25, if (tb == tab) C.Gold else C.Muted, Modifier.padding(16.dp, 8.dp), serif = true, bold = tb == tab) }
                 }
                 if (srcSource?.type == "dlna") Focusable({ live = !live }, selected = live) { T(if (live) "Xem thư viện đã quét" else "📂 Duyệt thiết bị", 16, C.Gold, Modifier.padding(12.dp, 7.dp)) }
+                Focusable({ Overlay.aiStart = "menu"; Overlay.ai.value = true }) { T("✨ AI", 15, C.Gold, Modifier.padding(12.dp, 7.dp), bold = true) }
                 Spacer(Modifier.weight(1f))
                 if (all.isNotEmpty() && tab != Tab.HABIT) {
                     Focusable({ Playback.playMixed(all); onNav(Screen.NOW) }) { T("⤮ Trộn & phát", 15, C.Gold, Modifier.padding(12.dp, 6.dp)) }

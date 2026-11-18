@@ -234,6 +234,9 @@ private fun MobileLibrary(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen)
                     T(tb.label, 22, if (tb == tab) C.Gold else C.Muted, serif = true, bold = tb == tab)
                 }
             }
+            item {
+                Box(Modifier.clip(RoundedCornerShape(8.dp)).clickable { Overlay.aiStart = "menu"; Overlay.ai.value = true }.padding(horizontal = 10.dp, vertical = 8.dp)) { T("✨ AI", 15, C.Gold, bold = true) }
+            }
             if (srcSource?.type == "dlna") item {
                 Box(Modifier.clip(RoundedCornerShape(8.dp)).clickable { live = !live }.padding(horizontal = 10.dp, vertical = 8.dp)) {
                     T(if (live) "Xem thư viện đã quét" else "Duyệt thiết bị", 15, C.Gold)
@@ -457,6 +460,7 @@ private fun MobileSettings(onOut: () -> Unit) {
             UpdateCard()
             LogCard()
             CoverWebCard()
+            AiCard()
             LanguageCard()
             MButton("Về ứng dụng (About)", Modifier.fillMaxWidth()) { showAbout = true }
             MButton("Thoát ứng dụng", Modifier.fillMaxWidth(), Color(0xFFE5575A)) { Overlay.exit.value = true }

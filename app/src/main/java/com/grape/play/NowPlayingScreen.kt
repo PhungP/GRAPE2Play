@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
@@ -307,18 +308,20 @@ private fun MiniBar(sk: Skin, frac: Float, modifier: Modifier = Modifier) = Canv
 @Composable
 internal fun ReceiverBox(sk: Skin, r: Renderer, t: Track?, i: AudioInfo?, modifier: Modifier) {
     val h by RemoteStats.health.collectAsState()
+    val fs = if (sk.sf) 12 else 13
     Box1(sk, "THIẾT BỊ NHẬN", modifier) {
-        T(r.name, if (sk.alu) 16 else 18, sk.text, bold = true, lines = if (sk.alu) 2 else 1)
-        val dsd = t != null && StreamServer.isDsdFile(t)
-        T((if (r.kind == "cast") "Google Cast" else "UPnP / OpenHome") + (if (dsd) " · " + (if (dopActive(t!!, i, r)) "DSD: DoP" else "DSD: file gốc") else ""), 13, sk.acc, lines = 1)
-        T("IP ${r.host}" + (if (r.port > 0) ":${r.port}" else ""), 13, sk.muted, lines = 1)
-        Spacer(Modifier.weight(1f))
-        if (h.volume >= 0) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                T("Âm lượng loa", 13, sk.muted); T("${h.volume}%", 13, sk.text, bold = true)
-            }
-            MiniBar(sk, h.volume / 100f, Modifier.padding(top = 3.dp, bottom = 2.dp))
-        } else T(if (r.kind == "cast") "Thiết bị tự giải mã luồng nhận được" else "Thiết bị tự kéo nhạc về và giải mã", 13, sk.muted, lines = 3)
+        Column(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.SpaceEvenly) {
+            T(r.name, if (sk.alu) 16 else 18, sk.text, bold = true, lines = if (sk.alu) 2 else 1)
+            val dsd = t != null && StreamServer.isDsdFile(t)
+            T((if (r.kind == "cast") "Google Cast" else "UPnP / OpenHome") + (if (dsd) " · " + (if (dopActive(t!!, i, r)) "DSD: DoP" else "DSD: file gốc") else ""), fs, sk.acc, lines = 1)
+            T("IP ${r.host}" + (if (r.port > 0) ":${r.port}" else ""), fs, sk.muted, lines = 1)
+            if (h.volume >= 0) Column {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    T("Âm lượng loa", fs, sk.muted); T("${h.volume}%", fs, sk.text, bold = true)
+                }
+                MiniBar(sk, h.volume / 100f, Modifier.padding(top = 3.dp))
+            } else T(if (r.kind == "cast") "Thiết bị tự giải mã luồng nhận được" else "Thiết bị tự kéo nhạc về và giải mã", fs, sk.muted, lines = 2)
+        }
     }
 }
 
@@ -326,33 +329,36 @@ internal fun ReceiverBox(sk: Skin, r: Renderer, t: Track?, i: AudioInfo?, modifi
  * Hộp "Kết nối & phát liên tục". Cột trái: thanh đệm của loa (giây nhạc đã tải trước), phản hồi, mất kết nối, trạng thái, bài kế.
  * Cột phải: đồ thị tốc độ TV gửi nhạc cho loa (kbit/s), nhảy theo từng đợt loa kéo dữ liệu.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun LinkBox(sk: Skin, r: Renderer, t: Track?, playing: Boolean, modifier: Modifier) {
     val h by RemoteStats.health.collectAsState()
     val viaTv = t != null && !t.path.startsWith("http")
+    val fs = if (sk.sf) 12 else 13
+    val mq = Modifier
     Box1(sk, "KẾT NỐI & PHÁT LIÊN TỤC", modifier) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(Modifier.weight(1f)) {
                 if (viaTv && h.bufferSec >= 0) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        T("Đệm của loa", 13, sk.muted); T("≈ ${h.bufferSec} s", 13, if (h.bufferSec < 8) sk.acc else Grade.GREEN.on(sk), bold = true)
+                        T("Đệm của loa", fs, sk.muted); T("≈ ${h.bufferSec} s", fs, if (h.bufferSec < 8) sk.acc else Grade.GREEN.on(sk), bold = true)
                     }
                     MiniBar(sk, (h.bufferSec / 60f), Modifier.padding(top = 3.dp, bottom = 3.dp))
                 }
-                T("Phản hồi: " + (if (h.latencyMs > 0) "${h.latencyMs} ms" else "—"), 13, if (h.latencyMs > 600) sk.acc else sk.text, lines = 1)
-                T("Mất kết nối: ${h.drops}", 13, if (h.drops > 0) sk.acc else sk.text, lines = 1)
-                T("Trạng thái: " + stateText(h.state, playing), 13, if (h.state == "MẤT KẾT NỐI") sk.acc else sk.text, lines = 1)
-                T("Bài kế: " + (if (r.kind != "upnp") "do thiết bị" else if (!h.nextSupported) "app nạp khi hết bài" else if (h.nextArmed) "đã nạp sẵn ✓" else "chưa nạp"), 13, sk.muted, lines = 2)
-                if (h.otherController) T("⚠ Máy khác đang điều khiển loa", 12, sk.acc, lines = 2)
+                T("Phản hồi: " + (if (h.latencyMs > 0) "${h.latencyMs} ms" else "—"), fs, if (h.latencyMs > 600) sk.acc else sk.text, mq, lines = 1)
+                T("Mất kết nối: ${h.drops}", fs, if (h.drops > 0) sk.acc else sk.text, mq, lines = 1)
+                T("Trạng thái: " + stateText(h.state, playing), fs, if (h.state == "MẤT KẾT NỐI") sk.acc else sk.text, mq, lines = 1)
+                T("Bài kế tiếp: " + (if (r.kind != "upnp") "do thiết bị" else if (!h.nextSupported) "app nạp khi hết bài" else if (h.nextArmed) "đã nạp sẵn ✓" else "chưa nạp"), fs, sk.muted, mq, lines = 1)
+                if (h.otherController) T("⚠ Máy khác đang điều khiển loa", fs - 1, sk.acc, lines = 2)
             }
             Column(Modifier.weight(1f)) {
                 val last = h.kbps.lastOrNull()
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    T("Tốc độ kéo nhạc", 13, sk.muted)
-                    if (viaTv && last != null) T(if (last >= 1000) "%.1f Mbps".format(last / 1000f) else "$last kbps", 13, sk.text, bold = true)
+                    T("Tốc độ kéo nhạc", fs, sk.muted)
+                    if (viaTv && last != null) T(if (last >= 1000) "%.1f Mbps".format(last / 1000f) else "$last kbps", fs, sk.text, bold = true)
                 }
                 if (viaTv) Spark(sk, h.kbps, Modifier.fillMaxWidth().weight(1f).padding(top = 4.dp))
-                else T("Loa kéo nhạc thẳng từ nguồn, không qua TV", 12, sk.muted, Modifier.padding(top = 4.dp), lines = 3)
+                else T("Loa kéo nhạc thẳng từ nguồn, không qua TV", fs - 1, sk.muted, Modifier.padding(top = 4.dp).then(mq), lines = if (sk.sf) 2 else 3)
             }
         }
     }

@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.sp
 object Overlay {
     val spectrum = mutableStateOf(false)
     val exit = mutableStateOf(false)
+    val ai = mutableStateOf(false)
+    var aiStart = "menu"
 }
 
 /**

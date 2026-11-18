@@ -322,3 +322,40 @@ Lưu ý: bản 0.8.1 phải cài thủ công một lần; từ đó trở đi c�
 
 ## Bản 1.7.2
 - Sửa lỗi biên dịch FolderBrowser.kt (rotate); ô thư mục hiển thị lại số bài và ảnh bìa nếu có (không có ảnh thì dùng nền màu + icon + chữ cái).
+
+## Bản 1.7.3
+- Robot/SciFi: hộp Thiết bị nhận / Kết nối cao hơn, chữ gọn để hiện đủ; bỏ vạch ngang trên ảnh bìa; trang Cài đặt có lề trong để chữ không bị cắt sát mép.
+- Thư mục: kèn saxophone vẽ lại, DSD ưu tiên hơn Jazz, 24bit hiện "24"; ẩn số bài khi không biết; thư mục chưa rõ thể loại được tra qua Deezer (cache trong máy).
+
+## Bản 1.7.4
+- Robot/SciFi: Signal Path gọn lại để hiện đủ; "Bài kế tiếp"; ô thông tin bài và hộp VU/Thiết bị nhận thấp hơn.
+- Hộp Thiết bị nhận: thanh âm lượng loa chuyển sang dọc (mọi giao diện).
+- Thư mục: kèn sax vẽ lại; mọi thư mục (trừ DSD, 24) hiện chữ cái đầu của tên.
+
+## Bản 1.7.5
+- Kèn sax vẽ lại theo ảnh mẫu (loa kèn bên trái, ống thổi bên phải). Âm lượng loa trở lại thanh ngang, thông tin trong hộp Thiết bị nhận dàn đều. Robot/SciFi: Signal Path chỉ hiện BIT-PERFECT / mức gần.
+
+## Bản 1.7.6
+- Robot/SciFi: Signal Path đầy đủ trở lại (chữ chạy khi dài); hộp Kết nối & phát liên tục dùng chữ chạy, đủ mọi dòng; hạ mép dưới giao diện Đang phát.
+
+## Bản 1.7.7
+- Sửa lỗi biên dịch basicMarquee (repeatDelayMillis không có trong phiên bản Compose đang dùng).
+
+## Bản 1.7.8
+- Robot/SciFi: bỏ chữ chạy; nâng toàn bộ giao diện (cả logo) lên 18dp để hộp Kết nối & phát liên tục cao hơn (160dp).
+
+## Bản 1.8.0 — Trợ lý AI (Gemini)
+Tất cả tính năng AI chỉ chạy khi người dùng bấm; app vẫn dùng bình thường khi không có khóa hoặc mất mạng.
+
+**Nhập khóa API không cần gõ trên TV:** Cài đặt ▸ thẻ "AI · GEMINI" ▸ "Ghép khóa bằng điện thoại" (hoặc nút ✨ AI ở Thư viện, lần đầu tự mở bước này). TV hiện mã QR; điện thoại cùng Wi-Fi quét mã, mở trang, dán khóa (tạo miễn phí tại aistudio.google.com/apikey) rồi bấm "Lưu khóa vào TV". TV kiểm tra khóa ngay. Máy chủ tạm (cổng 8790–8799, kèm mã ngẫu nhiên trong địa chỉ) chỉ chạy khi hộp thoại đang mở. Trên điện thoại có thể dán trực tiếp hoặc dùng "Dán từ bộ nhớ tạm". Khóa lưu riêng trong app (SharedPreferences "ai").
+
+**Bốn tính năng** (nút ✨ AI trong Thư viện, hoặc Cài đặt):
+1. Hỏi / tìm nhạc bằng lời nói (🎤, nhận dạng giọng nói của hệ thống), bằng chữ, hoặc nhập bằng điện thoại (QR). AI chỉ chuyển câu hỏi thành bộ lọc (nghệ sĩ, từ khoá, thể loại, định dạng, sắp xếp theo thói quen); việc lọc chạy cục bộ nên thư viện không bị gửi lên mạng.
+2. Gợi ý hôm nay: dựa vào thứ/giờ, nghệ sĩ hay nghe và danh sách album mẫu, tạo 3 danh sách nghe.
+3. Giới thiệu bài / album / nghệ sĩ đang phát (có ghi chú "có thể chưa chính xác").
+4. Làm sạch thư viện: tên hiển thị gọn, có dấu tiếng Việt và thể loại cho từng thư mục (xử lý theo lô 25, lưu cache, có thể dừng/tiếp tục/khôi phục). Không đổi tên file thật. Thể loại do AI xác định quyết định màu và biểu tượng của ô thư mục.
+
+Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). Gói miễn phí có giới hạn yêu cầu/phút nên làm sạch thư viện lớn sẽ chạy chậm theo lô.
+
+## Bản 1.8.1
+- Khóa Gemini: TV hiện 2 mã QR (① trang tạo khóa của Google, ② trang gửi khóa về TV); app điện thoại có nút mở thẳng trang tạo khóa Google.
