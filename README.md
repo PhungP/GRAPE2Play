@@ -362,3 +362,9 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 
 ## Bản 1.8.2
 - Thêm mục "Trợ lý AI" (✨) vào thanh menu bên trái của TV ở các giao diện Mặc định/Cổ điển, Nhôm phay xước và Robot/SciFi, mở được từ mọi trang.
+
+## Bản 1.8.3
+- Khóa Gemini: kiểm tra khóa có giới hạn 20 giây và báo rõ lỗi mạng (trước đây có thể treo ở "Đang kiểm tra khóa…"); khóa được lưu ngay, thêm nút "Kiểm tra khóa"; kết nối Gemini dùng HTTP/1.1 và ưu tiên IPv4 cho TV Android cũ; lỗi mạng ghi vào nhật ký (thẻ AI).
+
+## Bản 1.8.4
+- Sửa lỗi biên dịch Ai.kt (Dns phải khai báo bằng object).

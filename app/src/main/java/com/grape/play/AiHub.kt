@@ -147,11 +147,12 @@ private fun KeyPage(onDone: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     fun accept(k: String) {
         if (busy) return
-        busy = true; status = "Đang kiểm tra khóa…"
-        val old = Ai.key; Ai.key = k
+        busy = true; Ai.key = k
+        status = "Đã lưu khóa. Đang kiểm tra kết nối tới Gemini…"
         scope.launch {
+            val t0 = System.currentTimeMillis()
             try { Ai.test(); status = "Khóa hợp lệ ✓"; onDone() }
-            catch (e: Exception) { Ai.key = old; status = "✗ " + (e.message ?: "Lỗi") }
+            catch (e: Exception) { status = "✗ Đã lưu khóa nhưng kiểm tra thất bại sau ${(System.currentTimeMillis() - t0) / 1000}s: ${e.message ?: e.javaClass.simpleName}. Kiểm tra mạng của TV rồi bấm “Kiểm tra khóa”." }
             finally { busy = false }
         }
     }
@@ -188,6 +189,7 @@ private fun KeyPage(onDone: () -> Unit) {
             val s = cm.primaryClip?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
             if (s.length >= 20) accept(s) else status = "Bộ nhớ tạm không có khóa"
         }) { T("Dán từ bộ nhớ tạm", 16, C.Gold, Modifier.padding(16.dp, 8.dp)) }
+        if (Ai.hasKey.value) Focusable({ accept(Ai.key) }) { T("Kiểm tra khóa", 16, C.Gold, Modifier.padding(16.dp, 8.dp)) }
         if (Ai.hasKey.value) Focusable({ Ai.key = ""; status = "Đã xóa khóa" }) { T("Xóa khóa", 16, androidx.compose.ui.graphics.Color(0xFFE5575A), Modifier.padding(16.dp, 8.dp)) }
     }
     if (status.isNotEmpty()) T(status, 15, if (status.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 4)

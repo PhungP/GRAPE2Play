@@ -20,7 +20,12 @@ import java.util.concurrent.TimeUnit
 object Ai {
     private lateinit var sp: SharedPreferences
     val hasKey = mutableStateOf(false)
-    private val http = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(90, TimeUnit.SECONDS).build()
+    /** HTTP/1.1 và ưu tiên IPv4: một số TV Android cũ treo kết nối khi dùng HTTP/2 hoặc IPv6 hỏng. */
+    private val http = OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS)
+        .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
+        .dns(object : okhttp3.Dns {
+            override fun lookup(hostname: String): List<java.net.InetAddress> = okhttp3.Dns.SYSTEM.lookup(hostname).sortedBy { it is java.net.Inet6Address }
+        }).build()
 
     fun init(ctx: Context) {
         if (::sp.isInitialized) return
@@ -38,14 +43,15 @@ object Ai {
         get() = if (::sp.isInitialized) sp.getString("model", "gemini-flash-latest") ?: "gemini-flash-latest" else "gemini-flash-latest"
         set(v) { if (::sp.isInitialized) sp.edit().putString("model", v.trim().ifEmpty { "gemini-flash-latest" }).apply() }
 
-    private fun call(body: JSONObject): Pair<Int, String> {
+    private fun call(body: JSONObject, quick: Boolean): Pair<Int, String> {
+        val client = if (quick) http.newBuilder().callTimeout(20, TimeUnit.SECONDS).build() else http
         val req = Request.Builder().url("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
             .header("x-goog-api-key", key).post(body.toString().toRequestBody("application/json".toMediaType())).build()
-        http.newCall(req).execute().use { return it.code to (it.body?.string() ?: "") }
+        client.newCall(req).execute().use { return it.code to (it.body?.string() ?: "") }
     }
 
     /** Gọi Gemini; json = true bắt buộc trả JSON. Tự thử lại khi quá tải (429/503). */
-    suspend fun generate(prompt: String, system: String? = null, json: Boolean = false, temp: Double = 0.3): String = withContext(Dispatchers.IO) {
+    suspend fun generate(prompt: String, system: String? = null, json: Boolean = false, temp: Double = 0.3, quick: Boolean = false): String = withContext(Dispatchers.IO) {
         if (key.isEmpty()) throw IOException("Chưa có khóa API Gemini")
         val body = JSONObject().put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))))
         if (system != null) body.put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system))))
@@ -54,7 +60,10 @@ object Ai {
         body.put("generationConfig", gc)
         var attempt = 0
         while (true) {
-            val (code, text) = try { call(body) } catch (e: IOException) { if (attempt++ < 2) { delay(2000); continue } else throw IOException("Không kết nối được Gemini: ${e.message}") }
+            val (code, text) = try { call(body, quick) } catch (e: IOException) {
+                AppLog.i("AI", "Gemini lỗi mạng: ${e.javaClass.simpleName} ${e.message}")
+                if (!quick && attempt++ < 2) { delay(2000); continue } else throw IOException("Không kết nối được Gemini (${e.javaClass.simpleName}: ${e.message ?: "không rõ"})")
+            }
             if (code in 200..299) {
                 val o = JSONObject(text)
                 val parts = o.optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")
@@ -72,7 +81,7 @@ object Ai {
     }
 
     /** Kiểm tra khóa bằng một yêu cầu rất nhỏ. */
-    suspend fun test(): String = generate("Trả lời đúng một từ: OK", temp = 0.0).trim().take(20)
+    suspend fun test(): String = generate("Trả lời đúng một từ: OK", temp = 0.0, quick = true).trim().take(20)
 
     /** Bóc JSON khỏi câu trả lời (bỏ hàng rào ```). */
     fun parseJson(s: String): Any {
