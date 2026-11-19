@@ -379,3 +379,11 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 - Robot/SciFi: mép dưới ảnh bìa và hộp Signal Path thẳng hàng.
 - Hộp thoại Trợ lý AI nhỏ gọn hơn, cùng phong cách thẻ Cài đặt của từng giao diện.
 - Mới "Gợi ý theo bối cảnh": thời tiết thực tế (Open-Meteo, vị trí ước lượng theo IP), mùa, lễ hội/phong tục (có âm lịch, đếm ngày tới Tết), và chọn tâm trạng (Buồn, Vui, Chill, Thư giãn…).
+
+## Bản 2.0.0 (trước đó là 1.10.0)
+- Chữ chạy: tên bài ở trang đang phát (Mặc định, Robot/SciFi, điện thoại) tự chạy khi dài; ở danh sách chỉ chạy khi chọn/di chuột vào dòng.
+- AI: tạo playlist từ câu nói (có thể nói thời lượng, vd. "khoảng 1 giờ") và lưu lại; mục "Playlist đã lưu".
+- AI DJ: bật trong menu AI, khi sắp hết danh sách sẽ tự thêm 3 album hợp mạch.
+- Sửa tag: gom tên nghệ sĩ/album viết nhiều kiểu, thêm dấu tiếng Việt (AI) — duyệt rồi mới áp dụng, chỉ đổi hiển thị, có nút hoàn tác.
+- Album bị bỏ quên: AI chọn album chất lượng cao ít nghe, hợp hôm nay.
+- Lời bài hát: đọc file .lrc/.txt cùng tên hoặc lời nhúng tag (MP3/FLAC); dịch và giải nghĩa bằng AI. Không có lời thì không bịa.

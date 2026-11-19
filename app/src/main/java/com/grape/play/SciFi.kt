@@ -265,7 +265,7 @@ internal fun SfInfo(t: Track?, modifier: Modifier, compact: Boolean) {
                 Icon(if (isFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, "Yêu thích", tint = if (isFav) C.Gold else C.Text, modifier = Modifier.align(Alignment.Center).size(22.dp))
             }
         }
-        S(t.title, if (compact) 20 else 23, C.Text, Modifier.padding(top = 0.dp), bold = true, lines = if (compact) 2 else 1, mono = false)
+        TM(t.title, if (compact) 20 else 23, C.Text, Modifier.fillMaxWidth(), bold = true)
         S("▸ " + t.artist, if (compact) 14 else 17, Grade.GREEN.color, lines = 1)
         S("ALBUM // " + t.album, 12, C.Muted, lines = 1, caps = true)
         Spacer(Modifier.height(2.dp))
@@ -500,7 +500,7 @@ private fun SfQueueRow(i: Int, t: Track, cur: Boolean, onClick: () -> Unit) =
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             CoverImage(t, Modifier.size(40.dp).border(1.dp, C.Gold.copy(alpha = .35f)), 0)
             Column(Modifier.weight(1f)) {
-                S(t.title, 14, if (cur || f) C.Text else C.Text.copy(alpha = .85f), bold = cur, lines = 1, mono = false)
+                TM(t.title, 14, if (cur || f) C.Text else C.Text.copy(alpha = .85f), bold = cur, run = f)
                 S("${t.artist} · ${t.ext.uppercase()}", 11, C.Muted, lines = 1)
             }
             if (t.path in Favorites.paths.value) Icon(Icons.Filled.Favorite, null, tint = C.Gold, modifier = Modifier.size(14.dp))

@@ -196,7 +196,7 @@ object Playback {
         Themes.init(appCtx)
         Covers.init(appCtx)
         Favorites.init(appCtx)
-        Recents.init(appCtx); UsageStats.init(appCtx); Ai.init(appCtx); LibNav.init(appCtx); SourceOrder.init(appCtx)
+        Recents.init(appCtx); UsageStats.init(appCtx); Ai.init(appCtx); UserPlaylists.init(appCtx); TagFix.init(appCtx); AiDj.init(appCtx); LibNav.init(appCtx); SourceOrder.init(appCtx)
         TvHome.init(appCtx)
         BackgroundAccess.init(appCtx)
         exo = build()
@@ -309,6 +309,13 @@ object Playback {
         exo.setMediaItems(tracks.map { MediaItem.fromUri(Remote.toUri(it)) }, start, 0L)
         AppLog.i("Player", "Phát danh sách ${tracks.size} bài từ #$start · ${tracks.getOrNull(start)?.ext} · đầu ra ${outName.value}")
         if (rc != null) { sync(); loadRemote(start) } else { exo.prepare(); exo.play(); sync() }
+    }
+    /** Thêm bài vào cuối danh sách đang phát (AI DJ). */
+    fun append(tracks: List<Track>) {
+        if (tracks.isEmpty()) return
+        queue.value = queue.value + tracks
+        runCatching { exo.addMediaItems(tracks.map { MediaItem.fromUri(Remote.toUri(it)) }) }
+        updateNext()
     }
     fun playShuffled(tracks: List<Track>) = play(tracks, tracks.indices.random(), true)
     /** Trộn bài: xáo thứ tự cả danh sách rồi phát từ đầu (danh sách hiện đúng thứ tự mới). */

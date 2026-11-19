@@ -2,6 +2,7 @@ package com.grape.play
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -73,6 +74,20 @@ fun T(s: String, size: Int, color: Color = C.Text, modifier: Modifier = Modifier
         letterSpacing = if (spaced) 3.sp else TextUnit.Unspecified,
         lineHeight = if (lines > 1) (px * 1.2f).sp else TextUnit.Unspecified,
         maxLines = lines, overflow = TextOverflow.Ellipsis)
+}
+
+/** Như T nhưng 1 dòng; khi [run] và chữ dài hơn chỗ chứa thì chạy ngang (chữ chạy), còn lại cắt bằng "…". */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun TM(s: String, size: Int, color: Color = C.Text, modifier: Modifier = Modifier, serif: Boolean = false,
+       bold: Boolean = false, run: Boolean = true) {
+    val ts = LocalTextScale.current
+    val px = if (ts == 1f) size.toFloat() else (size * ts).coerceAtLeast(10f)
+    Text(Lang.tr(s), modifier = if (run) modifier.basicMarquee(iterations = Int.MAX_VALUE, delayMillis = 1200, initialDelayMillis = 1000) else modifier,
+        color = color, fontSize = px.sp,
+        fontFamily = if (Themes.isMono) FontFamily.Monospace else if (serif || Themes.isSerif) FontFamily.Serif else null,
+        fontWeight = if (bold) FontWeight.Bold else null,
+        softWrap = false, maxLines = 1, overflow = if (run) TextOverflow.Clip else TextOverflow.Ellipsis)
 }
 
 /** Chiều rộng hộp thoại: tối đa maxW dp, nhưng không quá 94% màn hình (để vừa điện thoại). */
@@ -207,12 +222,14 @@ fun Waveform(seed: Int, progress: Float, modifier: Modifier = Modifier, played: 
 
 @Composable
 fun TrackRow(i: Int, t: Track, current: Boolean, compact: Boolean = false, onClick: () -> Unit) =
-    Focusable(onClick, Modifier.fillMaxWidth(), selected = current, onLong = { Favorites.toggle(t) }) {
-        Row(Modifier.padding(if (compact) 5.dp else 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp)) {
+    Focusable(onClick, Modifier.fillMaxWidth(), selected = current, onLong = { Favorites.toggle(t) }) { f ->
+        val hs = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+        val hov by hs.collectIsHoveredAsState()
+        Row(Modifier.hoverable(hs).padding(if (compact) 5.dp else 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp)) {
             T("${i + 1}", if (compact) 13 else 16, C.Muted, Modifier.width(if (compact) 26.dp else 36.dp))
             CoverImage(t, Modifier.size(if (compact) 38.dp else 56.dp), 4)
             Column(Modifier.weight(1f)) {
-                T(t.title, if (compact) 16 else 19, if (current) C.Gold else C.Text)
+                TM(t.title, if (compact) 16 else 19, if (current) C.Gold else C.Text, run = f || hov)
                 T("${t.artist} · ${t.ext.uppercase()}", if (compact) 12 else 14, C.Muted)
             }
             if (t.path in Favorites.paths.value) Icon(Icons.Filled.Favorite, null, tint = C.Gold, modifier = Modifier.size(if (compact) 16.dp else 22.dp))

@@ -298,7 +298,7 @@ internal fun AluQueue(queue: List<Track>, idx: Int, remoteActive: Boolean, onOut
                         T("${i + 1}", 13, sub, Modifier.width(24.dp))
                         CoverImage(t, Modifier.size(38.dp), 3)
                         Column(Modifier.weight(1f)) {
-                            T(t.title, 16, main, bold = lit)
+                            TM(t.title, 16, main, bold = lit, run = f)
                             T("${t.artist} · ${t.ext.uppercase()}", 12, sub)
                         }
                         T(fmt(t.durationMs), 12, sub)

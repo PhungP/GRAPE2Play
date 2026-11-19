@@ -126,15 +126,26 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
     val goMenu = { page = "menu" }
     when {
         page == "key" -> AiFrame("Khóa Gemini", if (hasKey) "Menu" else null, goMenu, ::close) { KeyPage { page = "menu" } }
-        page == "ask" -> AiFrame("Hỏi / tìm nhạc", "Menu", goMenu, ::close) { AskPage(lib, ::play) }
+        page == "ask" -> AiFrame("Hỏi / tạo playlist", "Menu", goMenu, ::close) { AskPage(lib, ::play) }
+        page == "plist" -> AiFrame("Playlist đã lưu", "Menu", goMenu, ::close) { SavedListsPage(lib, ::play) }
+        page == "tags" -> AiFrame("Sửa tag, gộp trùng", "Menu", goMenu, ::close) { TagsPage(lib) }
+        page == "forgot" -> AiFrame("Album bị bỏ quên", "Menu", goMenu, ::close) { ForgottenPage(lib, ::play) }
+        page == "lyrics" -> AiFrame("Lời bài hát", "Menu", goMenu, ::close) { LyricsPage() }
         page == "suggest" -> AiFrame("Gợi ý theo bối cảnh", "Menu", goMenu, ::close) { SuggestPage(lib, ::play) }
         page == "info" -> AiFrame("Giới thiệu bài đang phát", "Menu", goMenu, ::close) { InfoPage() }
         page == "clean" -> AiFrame("Làm sạch thư viện", "Menu", goMenu, ::close) { CleanPage(lib) }
         else -> AiFrame("✨ Trợ lý AI (Gemini)", null, goMenu, ::close) {
             T("AI chỉ chạy khi bạn bấm. Thư viện không bị gửi lên mạng — chỉ gửi câu hỏi, vài tên nghệ sĩ/album hoặc tên thư mục cần xử lý.", 13, C.Muted, lines = 3)
-            Btn("🔎  Hỏi / tìm nhạc bằng lời nói hoặc chữ") { page = "ask" }
+            val dj by AiDj.on
+            Btn("🔎  Hỏi / tạo playlist bằng lời nói hoặc chữ") { page = "ask" }
+            Btn("📂  Playlist đã lưu (${UserPlaylists.list.size})") { page = "plist" }
+            Btn(if (dj) "📻  AI DJ: ĐANG BẬT — bấm để tắt" else "📻  AI DJ: tự thêm bài tiếp theo hợp mạch (đang tắt)") { AiDj.set(!dj) }
+            if (dj && AiDj.note.value.isNotEmpty()) T("DJ: " + AiDj.note.value, 13, C.Muted, lines = 2)
             Btn("🌤  Gợi ý theo thời tiết, lễ hội, tâm trạng") { page = "suggest" }
+            Btn("💎  Album bị bỏ quên — đáng nghe lại hôm nay") { page = "forgot" }
             Btn("ℹ  Giới thiệu bài / album / nghệ sĩ đang phát") { page = "info" }
+            Btn("📝  Lời bài hát: xem, dịch, giải nghĩa") { page = "lyrics" }
+            Btn("🏷  Sửa tag, gộp tên nghệ sĩ/album bị trùng") { page = "tags" }
             Btn("🧹  Làm sạch tên và thể loại thư mục") { page = "clean" }
             Btn("🔑  Khóa API / ghép bằng điện thoại") { page = "key" }
         }
@@ -213,9 +224,10 @@ private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
     var msg by remember { mutableStateOf("") }
     var res by remember { mutableStateOf<AiSearch.Result?>(null) }
     var url by remember { mutableStateOf<String?>(null) }
+    var saved by remember { mutableStateOf(false) }
     fun run(text: String) {
         if (busy || text.isBlank()) return
-        busy = true; msg = "Đang hỏi AI…"; res = null
+        busy = true; msg = "Đang hỏi AI…"; res = null; saved = false
         scope.launch {
             try { res = AiSearch.run(text, lib); msg = if (res!!.tracks.isEmpty()) "Không tìm thấy bài phù hợp — thử nói khác đi." else "" }
             catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
@@ -228,7 +240,7 @@ private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
     }
     val link = remember { AiPhoneLink({}, { s -> ui.post { q = s; run(s) } }) }
     DisposableEffect(Unit) { onDispose { link.stop() } }
-    T("Ví dụ: “nhạc Bolero nhẹ nhàng buổi tối”, “album DSD nghe nhiều nhất”, “jazz chưa nghe bao giờ”.", 14, C.Muted, lines = 2)
+    T("Ví dụ: “nhạc Trịnh nghe lúc mưa khoảng 1 giờ”, “10 bài DSD để thử dàn loa”, “jazz chưa nghe bao giờ”.", 14, C.Muted, lines = 2)
     OutlinedTextField(q, { q = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 18.sp), modifier = Modifier.fillMaxWidth(), placeholder = { T("Bạn muốn nghe gì?", 16, C.Muted) })
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Focusable({ run(q) }) { T("Tìm", 17, C.Gold, Modifier.padding(18.dp, 9.dp), bold = true) }
@@ -257,7 +269,9 @@ private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Focusable({ play(r.tracks) }) { T("▶ Phát", 17, C.Gold, Modifier.padding(18.dp, 9.dp), bold = true) }
                 Focusable({ play(r.tracks.shuffled()) }) { T("⤮ Trộn & phát", 17, C.Gold, Modifier.padding(18.dp, 9.dp)) }
+                Focusable({ UserPlaylists.add(r.name.ifBlank { q }, r.tracks); saved = true }) { T(if (saved) "✓ Đã lưu" else "💾 Lưu playlist", 17, C.Gold, Modifier.padding(18.dp, 9.dp)) }
             }
+            T("${fmtTotal(r.tracks)} tổng thời lượng", 13, C.Muted)
         }
     }
 }
@@ -346,13 +360,171 @@ private fun CleanPage(lib: List<Track>) {
     } else Btn("■ Dừng") { job?.cancel() }
 }
 
+private fun fmtTotal(l: List<Track>): String { val m = l.sumOf { it.durationMs } / 60000; return if (m >= 60) "${m / 60}g ${m % 60}p" else "${m}p" }
+
+@Composable
+private fun SavedListsPage(lib: List<Track>, play: (List<Track>) -> Unit) {
+    val items = UserPlaylists.list
+    if (items.isEmpty()) T("Chưa có playlist nào. Vào “Hỏi / tạo playlist”, nói điều bạn muốn nghe rồi bấm Lưu playlist.", 15, C.Muted, lines = 3)
+    items.toList().forEach { p ->
+        val tr = UserPlaylists.tracks(p, lib)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Focusable({ play(tr) }, Modifier.weight(1f), RoundedCornerShape(10.dp)) {
+                Column(Modifier.padding(14.dp, 8.dp)) {
+                    T("▶ ${p.name}", 17, C.Gold, bold = true)
+                    T("${tr.size} bài · ${fmtTotal(tr)}", 13, C.Muted)
+                }
+            }
+            Focusable({ UserPlaylists.remove(p) }) { T("✕ Xóa", 14, C.Muted, Modifier.padding(12.dp, 8.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun TagsPage(lib: List<Track>) {
+    val scope = rememberCoroutineScope()
+    var fixes by remember { mutableStateOf<List<AiTags.Fix>?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf("") }
+    var undoCount by remember { mutableStateOf(TagFix.count) }
+    DisposableEffect(Unit) { onDispose { } }
+    T("Tìm tên nghệ sĩ/album bị viết nhiều kiểu (Khanh Ly / KHÁNH LY) và tên Việt thiếu dấu. Chỉ đổi cách hiển thị trong app, file nhạc không bị sửa. Bạn duyệt từng mục trước khi áp dụng.", 14, C.Muted, lines = 4)
+    if (msg.isNotEmpty()) T(msg, 15, if (msg.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 3)
+    val list = fixes
+    if (list == null) {
+        if (!busy) Btn("🔍 Quét thư viện") {
+            busy = true; msg = "Đang quét và hỏi AI…"
+            scope.launch {
+                try { val r = AiTags.scan(lib).take(80); fixes = r; msg = if (r.isEmpty()) "Không thấy tên nào cần sửa ✓" else "" }
+                catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+                finally { busy = false }
+            }
+        }
+    } else {
+        list.forEach { f ->
+            Focusable({ f.on = !f.on }, Modifier.fillMaxWidth(), RoundedCornerShape(8.dp), selected = f.on) {
+                Column(Modifier.padding(12.dp, 7.dp)) {
+                    T((if (f.on) "● " else "○ ") + f.from.joinToString(", ") + "  →  " + f.to, 15, if (f.on) C.Gold else C.Text, lines = 2)
+                    T((if (f.kind == "artist") "nghệ sĩ" else "album") + if (f.viaAi) " · thêm dấu (AI)" else " · gộp tên trùng", 12, C.Muted)
+                }
+            }
+        }
+        val n = list.count { it.on }
+        if (n > 0) Btn("✔ Áp dụng $n mục") { AiTags.apply(list); undoCount = TagFix.count; fixes = null; msg = "Đã áp dụng $n mục ✓" }
+    }
+    if (undoCount > 0) Btn("↺ Hoàn tác mọi sửa tag ($undoCount)") { AiTags.undoAll(); undoCount = 0; msg = "Đã hoàn tác ✓" }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ForgottenPage(lib: List<Track>, play: (List<Track>) -> Unit) {
+    var msg by remember { mutableStateOf("Đang lục kho nhạc…") }
+    var lists by remember { mutableStateOf<List<AiSuggest.Playlist>>(emptyList()) }
+    var tick by remember { mutableStateOf(0) }
+    LaunchedEffect(tick) {
+        msg = "Đang lục kho nhạc…"; lists = emptyList()
+        try {
+            lists = AiForgotten.run(lib, AiContext.describe(AiContext.load(), ""))
+            msg = if (lists.isEmpty()) "Chưa chọn được album nào." else ""
+        } catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+    }
+    T("Album chất lượng cao hoặc lâu rồi chưa nghe, AI chọn những cái hợp với hôm nay.", 14, C.Muted, lines = 2)
+    if (msg.isNotEmpty()) T(msg, 15, if (msg.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 4)
+    lists.forEach { p ->
+        Focusable({ play(p.tracks) }, Modifier.fillMaxWidth(), RoundedCornerShape(10.dp)) {
+            Column(Modifier.padding(14.dp, 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                T("▶ ${p.title}  ·  ${p.tracks.size} bài", 16, C.Gold, bold = true, lines = 2)
+                T(p.reason, 13, C.Muted, lines = 3)
+            }
+        }
+    }
+    Focusable({ tick++ }) { T("↻ Chọn album khác", 15, C.Gold, Modifier.padding(14.dp, 7.dp)) }
+}
+
+@Composable
+private fun LyricsPage() {
+    val queue by Playback.queue.collectAsState()
+    val idx by Playback.index.collectAsState()
+    val t = queue.getOrNull(idx)
+    if (t == null) { T("Chưa có bài nào đang phát.", 16, C.Muted); return }
+    var lyrics by remember(t.path) { mutableStateOf<String?>(null) }
+    var loaded by remember(t.path) { mutableStateOf(false) }
+    var trans by remember(t.path) { mutableStateOf("") }
+    var meaning by remember(t.path) { mutableStateOf("") }
+    var showTrans by remember(t.path) { mutableStateOf(false) }
+    var busy by remember(t.path) { mutableStateOf(false) }
+    var err by remember(t.path) { mutableStateOf("") }
+    var pageNo by remember(t.path) { mutableStateOf(0) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(t.path) { lyrics = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Lyrics.load(t) }; loaded = true }
+    T(t.title, 18, bold = true, lines = 2)
+    T("${t.artist} · ${t.album}", 13, C.Muted, lines = 1)
+    val ly = lyrics
+    if (!loaded) { T("Đang tìm lời…", 15, C.Gold); return }
+    if (ly == null) {
+        T("Không tìm thấy lời bài hát. Hãy đặt file .lrc hoặc .txt cùng tên với bài nhạc (vd. bai.flac → bai.lrc), hoặc nhúng lời vào tag (MP3/FLAC). AI sẽ không tự bịa lời.", 15, C.Muted, lines = 5)
+        return
+    }
+    val src = if (showTrans && trans.isNotEmpty()) trans else ly
+    val lines = remember(src) { src.lines() }
+    val per = 12
+    val pages = ((lines.size + per - 1) / per).coerceAtLeast(1)
+    val pg = pageNo.coerceIn(0, pages - 1)
+    lines.drop(pg * per).take(per).forEach { T(it.ifBlank { " " }, 17, lines = 2) }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (pages > 1) {
+            Focusable({ pageNo = (pg - 1).coerceAtLeast(0) }) { T("▲ Trước", 14, C.Gold, Modifier.padding(12.dp, 7.dp)) }
+            T("${pg + 1}/$pages", 13, C.Muted)
+            Focusable({ pageNo = (pg + 1).coerceAtMost(pages - 1) }) { T("Sau ▼", 14, C.Gold, Modifier.padding(12.dp, 7.dp)) }
+        }
+        if (trans.isNotEmpty()) Focusable({ showTrans = !showTrans; pageNo = 0 }) { T(if (showTrans) "Xem bản gốc" else "Xem bản dịch", 14, C.Gold, Modifier.padding(12.dp, 7.dp)) }
+    }
+    if (busy) T("Đang hỏi AI…", 15, C.Gold)
+    if (err.isNotEmpty()) T(err, 14, androidx.compose.ui.graphics.Color(0xFFE5575A), lines = 3)
+    if (!busy) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Focusable({
+            busy = true; err = ""
+            scope.launch {
+                try { trans = AiLyrics.translate(ly, t); showTrans = true; pageNo = 0 } catch (e: Exception) { err = "✗ " + (e.message ?: "Lỗi") } finally { busy = false }
+            }
+        }) { T("🌐 Dịch", 15, C.Gold, Modifier.padding(14.dp, 8.dp), bold = true) }
+        Focusable({
+            busy = true; err = ""
+            scope.launch {
+                try { meaning = AiLyrics.meaning(ly, t) } catch (e: Exception) { err = "✗ " + (e.message ?: "Lỗi") } finally { busy = false }
+            }
+        }) { T("💡 Giải nghĩa", 15, C.Gold, Modifier.padding(14.dp, 8.dp), bold = true) }
+    }
+    if (meaning.isNotEmpty()) { T(meaning, 15, lines = 12); T("Nội dung do AI viết, có thể chưa chính xác.", 12, C.Muted) }
+}
+
+/** Chạy nền khi bật AI DJ: sắp hết danh sách đang phát thì nhờ AI thêm bài. */
+@Composable
+fun AiDjEffect() {
+    val on by AiDj.on
+    val queue by Playback.queue.collectAsState()
+    val idx by Playback.index.collectAsState()
+    val lib by Library.tracks.collectAsState()
+    val has by Ai.hasKey
+    LaunchedEffect(on, has, queue.size, idx) {
+        if (!on || !has || queue.isEmpty() || idx < queue.size - 2 || AiDj.busy) return@LaunchedEffect
+        AiDj.busy = true
+        try {
+            val more = AiDjTask.more(lib, queue, idx, AiContext.describe(AiContext.load(), ""))
+            if (more.isNotEmpty()) Playback.append(more)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) { AiDj.note.value = "✗ " + (e.message ?: "Lỗi") }
+        finally { AiDj.busy = false }
+    }
+}
+
 /** Thẻ trong Cài đặt. */
 @Composable
 fun AiCard() {
     val has by Ai.hasKey
     Card {
         T("AI · GEMINI", 13, C.Muted, spaced = true)
-        T(if (has) "Đã có khóa API. Tìm nhạc bằng giọng nói, gợi ý theo thời tiết / lễ hội / tâm trạng, giới thiệu bài, làm sạch tên thư mục." else "Chưa có khóa. Ghép bằng điện thoại: quét mã QR, dán khóa — không cần gõ trên TV.", 15, C.Muted, lines = 3)
+        T(if (has) "Đã có khóa API. Tạo playlist bằng lời nói, AI DJ, gợi ý theo thời tiết / lễ hội / tâm trạng, lời bài hát, sửa tag, làm sạch thư mục." else "Chưa có khóa. Ghép bằng điện thoại: quét mã QR, dán khóa — không cần gõ trên TV.", 15, C.Muted, lines = 3)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (has) Focusable({ Overlay.aiStart = "menu"; Overlay.ai.value = true }) { T("✨ Mở trợ lý AI", 16, C.Gold, Modifier.padding(14.dp, 7.dp), bold = true) }
             Focusable({ Overlay.aiStart = "key"; Overlay.ai.value = true }) { T(if (has) "🔑 Đổi / xóa khóa" else "🔑 Ghép khóa bằng điện thoại", 16, C.Gold, Modifier.padding(14.dp, 7.dp)) }

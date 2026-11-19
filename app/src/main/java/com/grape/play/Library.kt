@@ -28,8 +28,10 @@ object Library {
 
     private fun begin() { active.incrementAndGet(); scanning.value = true }
     private fun end() { if (active.decrementAndGet() <= 0) scanning.value = false }
-    @Synchronized private fun publish(id: String, l: List<Track>) { lists[id] = l; tracks.value = lists.values.flatten() }
-    @Synchronized private fun drop(id: String) { lists.remove(id); tracks.value = lists.values.flatten() }
+    @Synchronized private fun publish(id: String, l: List<Track>) { lists[id] = l; tracks.value = TagFix.apply(lists.values.flatten()) }
+    @Synchronized private fun drop(id: String) { lists.remove(id); tracks.value = TagFix.apply(lists.values.flatten()) }
+    /** Áp lại các sửa tên nghệ sĩ/album (hoặc hoàn tác) lên toàn thư viện. */
+    @Synchronized fun reapply() { tracks.value = TagFix.apply(lists.values.flatten()) }
     @Synchronized private fun cached(id: String): List<Track> = lists[id].orEmpty()
     private fun cacheFile(ctx: Context, id: String) = File(ctx.filesDir, if (id == "local") "library_v4.json" else "src_$id.json")
 

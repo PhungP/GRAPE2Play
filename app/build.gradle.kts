@@ -19,8 +19,8 @@ android {
         applicationId = "com.grape.play"
         minSdk = 26          // Android 8.0
         targetSdk = 34
-        versionCode = 66
-        versionName = "1.9.0"
+        versionCode = 68
+        versionName = "2.0.0"
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"${secret("GOOGLE_CLIENT_ID")}\"")
         buildConfigField("String", "GOOGLE_CLIENT_SECRET", "\"${secret("GOOGLE_CLIENT_SECRET")}\"")
         // Client ID của Microsoft là public client, không có secret.

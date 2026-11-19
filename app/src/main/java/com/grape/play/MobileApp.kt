@@ -368,7 +368,7 @@ private fun NowControls(t: Track, onOut: () -> Unit, onQueue: () -> Unit) {
     val dsd = t.ext == "dsf" || t.ext == "dff"
 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        T(t.title, 26, serif = true, bold = true, lines = 2)
+        TM(t.title, 26, C.Text, Modifier.fillMaxWidth(), serif = true, bold = true)
         T(listOf(t.artist, t.album).filter { it.isNotBlank() }.joinToString(" · "), 17, C.Muted, lines = 2)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Pill(formatBadge(t))

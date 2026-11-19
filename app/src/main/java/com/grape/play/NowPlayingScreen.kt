@@ -127,7 +127,7 @@ private fun NowPlayingBody(onNav: (Screen) -> Unit, onAdd: () -> Unit, onOut: ()
                             }
                         }
                         Spacer(Modifier.height(6.dp))
-                        T(t.title, 34, sk.text, serif = true, lines = 2)
+                        TM(t.title, 34, sk.text, Modifier.fillMaxWidth(), serif = true)
                         T(t.artist, 22, sk.acc)
                         T("Album: ${t.album}", 16, sk.muted, lines = 1)
                         Spacer(Modifier.height(8.dp))
