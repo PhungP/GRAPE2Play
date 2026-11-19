@@ -34,7 +34,7 @@ import java.net.URLDecoder
  * Cầu nối với điện thoại: TV mở một máy chủ HTTP tạm trong mạng LAN (chỉ khi hộp thoại đang mở, kèm mã ngẫu nhiên trong địa chỉ).
  * Người dùng quét mã QR bằng điện thoại để dán khóa API hoặc gõ/nói câu hỏi — không cần gõ chữ trên TV.
  */
-class AiPhoneLink(private val onKey: (String) -> Unit, private val onAsk: (String) -> Unit) {
+class AiPhoneLink(private val prov: Prov?, private val onKey: ((String) -> Unit)?, private val onAsk: ((String) -> Unit)?) {
     private val token = java.util.UUID.randomUUID().toString().replace("-", "").take(8)
     private var server: PairServer? = null
     var url: String? = null; private set
@@ -68,18 +68,20 @@ class AiPhoneLink(private val onKey: (String) -> Unit, private val onAsk: (Strin
         if (method == "POST" && route == "/key") {
             val k = form(body)["k"].orEmpty().trim()
             if (k.length < 20) return 200 to page("", "<p style='color:#b00020'><b>Khóa quá ngắn — hãy dán đúng toàn bộ khóa.</b></p><p><a href='/$tq'>← Quay lại</a></p>")
-            onKey(k); return 200 to page("Đã gửi khóa tới TV ✓ (xem kết quả kiểm tra trên TV)", "<p><a href='/$tq'>← Quay lại</a></p>")
+            onKey?.invoke(k); return 200 to page("Đã gửi khóa tới TV ✓ (xem kết quả kiểm tra trên TV)", "<p><a href='/$tq'>← Quay lại</a></p>")
         }
         if (method == "POST" && route == "/ask") {
             val a = form(body)["q"].orEmpty().trim()
             if (a.isEmpty()) return 200 to page("", "<p><a href='/$tq'>← Quay lại</a></p>")
-            onAsk(a); return 200 to page("Đã gửi tới TV ✓", "<p>Câu hỏi: <i>${esc(a)}</i></p><p><a href='/$tq'>Gửi câu khác →</a></p>")
+            onAsk?.invoke(a); return 200 to page("Đã gửi tới TV ✓", "<p>Câu hỏi: <i>${esc(a)}</i></p><p><a href='/$tq'>Gửi câu khác →</a></p>")
         }
-        val inner = "<h3>Hỏi / tìm nhạc</h3><p style='color:#555'>Gõ hoặc bấm micro trên bàn phím điện thoại để nói. Ví dụ: <i>nhạc Bolero nhẹ nhàng buổi tối</i>, <i>các album DSD hay nghe nhất</i>.</p>" +
-            "<form method=post action='/ask$tq'><textarea name=q rows=3 style='width:100%;font-size:18px' placeholder='Bạn muốn nghe gì?'></textarea><p><button style='font-size:18px;padding:10px 24px'>Gửi tới TV</button></p></form>" +
-            "<hr><h3>Khóa API Gemini</h3><p style='color:#555'>Trạng thái: <b>${if (Ai.hasKey.value) "đã có khóa" else "chưa có khóa"}</b>. Lấy khóa miễn phí tại " +
-            "<a target=_blank rel=noopener href='https://aistudio.google.com/apikey'>aistudio.google.com/apikey</a> rồi dán vào ô dưới.</p>" +
-            "<form method=post action='/key$tq'><input name=k autocomplete=off style='width:100%;font-size:16px;padding:6px' placeholder='AIza…'><p><button style='font-size:18px;padding:10px 24px'>Lưu khóa vào TV</button></p></form>"
+        val sb = StringBuilder()
+        if (onAsk != null) sb.append("<h3>Hỏi / tạo playlist</h3><p style='color:#555'>Gõ hoặc bấm micro trên bàn phím điện thoại để nói. Ví dụ: <i>nhạc Trịnh nghe lúc mưa khoảng 1 giờ</i>, <i>các album DSD hay nghe nhất</i>.</p>" +
+            "<form method=post action='/ask$tq'><textarea name=q rows=3 style='width:100%;font-size:18px' placeholder='Bạn muốn nghe gì?'></textarea><p><button style='font-size:18px;padding:10px 24px'>Gửi tới TV</button></p></form>")
+        if (onKey != null && prov != null) sb.append("<h3>Khóa API ${esc(prov.name)}</h3><p style='color:#555'>Trạng thái: <b>${if (Ai.has(prov.id)) "đã có khóa" else "chưa có khóa"}</b>. Lấy khóa miễn phí tại " +
+            "<a target=_blank rel=noopener href='${prov.keyUrl}'>${esc(prov.keyUrl.removePrefix("https://"))}</a> rồi dán vào ô dưới.</p>" +
+            "<form method=post action='/key$tq'><input name=k autocomplete=off style='width:100%;font-size:16px;padding:6px' placeholder='${esc(prov.keyHint)}'><p><button style='font-size:18px;padding:10px 24px'>Lưu khóa vào TV</button></p></form>")
+        val inner = sb.toString()
         return 200 to page("", inner)
     }
 }
@@ -106,6 +108,8 @@ private fun AiFrame(title: String, back: String?, onBack: () -> Unit, onClose: (
                 Focusable(onClose, requester = if (back == null) first else null) { T("Đóng", 14, C.Muted, Modifier.padding(12.dp, 5.dp)) }
             }
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+            val st by Ai.status
+            if (st.isNotEmpty()) T(st, 12, if (st.startsWith("↪")) C.Gold else if (st.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Muted, lines = 3)
         }
     }
 }
@@ -124,8 +128,11 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
     fun close() { Overlay.aiStart = "menu"; onClose() }
     fun play(l: List<Track>) { if (l.isNotEmpty()) { Playback.play(l, 0, false); onPlayed(); close() } }
     val goMenu = { page = "menu" }
+    val wantMic by Overlay.aiListen
+    LaunchedEffect(wantMic) { if (wantMic && Ai.hasKey.value) page = "ask" }
     when {
-        page == "key" -> AiFrame("Khóa Gemini", if (hasKey) "Menu" else null, goMenu, ::close) { KeyPage { page = "menu" } }
+        page == "key" -> AiFrame("Dịch vụ AI & khóa API", if (hasKey) "Menu" else null, goMenu, ::close) { ServicesPage { page = "key:$it" } }
+        page.startsWith("key:") -> AiFrame("Khóa " + AiProvs.get(page.removePrefix("key:")).name, "Dịch vụ", { page = "key" }, ::close) { KeyPage(AiProvs.get(page.removePrefix("key:"))) { page = "key" } }
         page == "ask" -> AiFrame("Hỏi / tạo playlist", "Menu", goMenu, ::close) { AskPage(lib, ::play) }
         page == "plist" -> AiFrame("Playlist đã lưu", "Menu", goMenu, ::close) { SavedListsPage(lib, ::play) }
         page == "tags" -> AiFrame("Sửa tag, gộp trùng", "Menu", goMenu, ::close) { TagsPage(lib) }
@@ -147,72 +154,102 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
             Btn("📝  Lời bài hát: xem, dịch, giải nghĩa") { page = "lyrics" }
             Btn("🏷  Sửa tag, gộp tên nghệ sĩ/album bị trùng") { page = "tags" }
             Btn("🧹  Làm sạch tên và thể loại thư mục") { page = "clean" }
-            Btn("🔑  Khóa API / ghép bằng điện thoại") { page = "key" }
+            Btn("🔑  Dịch vụ AI & khóa API (Gemini, Groq, OpenRouter…)") { page = "key" }
         }
     }
 }
 
 @Composable
-private fun KeyPage(onDone: () -> Unit) {
+private fun ServicesPage(open: (String) -> Unit) {
+    val rev by Ai.rev
+    var auto by remember { mutableStateOf(Ai.auto) }
+    val prim = remember(rev) { Ai.primary }
+    T("Mỗi dịch vụ đều có gói miễn phí (hạn mức khác nhau). Chọn một dịch vụ để thêm khóa; có thể dùng nhiều dịch vụ cùng lúc.", 13, C.Muted, lines = 3)
+    Focusable({ auto = !auto; Ai.auto = auto }, Modifier.fillMaxWidth(), RoundedCornerShape(10.dp), selected = auto) {
+        Column(Modifier.padding(14.dp, 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            T((if (auto) "● " else "○ ") + "Tự chuyển AI: " + (if (auto) "BẬT" else "TẮT"), 16, C.Gold, bold = true)
+            T("Khi AI chính hết hạn mức hoặc không phản hồi sau ${Ai.SWITCH_MS / 1000} giây, tự thử AI kế tiếp và ghi chú dịch vụ nào đang trả lời.", 12, C.Muted, lines = 3)
+        }
+    }
+    AiProvs.ALL.forEach { p ->
+        val has = Ai.has(p.id)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Focusable({ open(p.id) }, Modifier.weight(1f), RoundedCornerShape(10.dp)) {
+                Column(Modifier.padding(14.dp, 8.dp)) {
+                    T(p.name + if (has && p.id == prim) "  ★ chính" else "", 16, C.Gold, bold = true)
+                    T(if (has) "✓ Đã có khóa — bấm để đổi / kiểm tra / xóa" else "Chưa có khóa — bấm để thêm", 12, C.Muted)
+                }
+            }
+            if (has && p.id != prim) Focusable({ Ai.setPrimary(p.id) }) { T("★ Làm chính", 13, C.Gold, Modifier.padding(12.dp, 8.dp)) }
+        }
+    }
+    T("Thứ tự dự phòng: AI chính, rồi lần lượt các dịch vụ còn lại theo danh sách trên.", 12, C.Muted, lines = 2)
+}
+
+@Composable
+private fun KeyPage(prov: Prov, onDone: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf("") }
     var manual by remember { mutableStateOf("") }
     var url by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
-    fun accept(k: String) {
+    val rev by Ai.rev
+    val has = remember(rev) { Ai.has(prov.id) }
+    fun check() {
         if (busy) return
-        busy = true; Ai.key = k
-        status = "Đã lưu khóa. Đang kiểm tra kết nối tới Gemini…"
+        busy = true; status = "Đang kiểm tra kết nối tới ${prov.name}…"
         scope.launch {
             val t0 = System.currentTimeMillis()
-            try { Ai.test(); status = "Khóa hợp lệ ✓"; onDone() }
-            catch (e: Exception) { status = "✗ Đã lưu khóa nhưng kiểm tra thất bại sau ${(System.currentTimeMillis() - t0) / 1000}s: ${e.message ?: e.javaClass.simpleName}. Kiểm tra mạng của TV rồi bấm “Kiểm tra khóa”." }
+            try { Ai.test(prov.id); status = "Khóa hợp lệ ✓"; onDone() }
+            catch (e: Exception) { status = "✗ Kiểm tra thất bại sau ${(System.currentTimeMillis() - t0) / 1000}s: ${e.message ?: e.javaClass.simpleName}" }
             finally { busy = false }
         }
     }
-    val link = remember { AiPhoneLink({ k -> ui.post { accept(k) } }, {}) }
-    LaunchedEffect(Unit) { if (link.start()) url = link.url else status = "Không lấy được địa chỉ mạng — hãy dán khóa trực tiếp ở ô bên dưới." }
+    fun accept(k: String) { Ai.setKey(prov.id, k); check() }
+    val link = remember { AiPhoneLink(prov, { k -> ui.post { accept(k) } }, null) }
+    LaunchedEffect(Unit) { if (Device.tv) { if (link.start()) url = link.url else status = "Không lấy được địa chỉ mạng — hãy dán khóa trực tiếp ở ô bên dưới." } }
     DisposableEffect(Unit) { onDispose { link.stop() } }
-    T(if (Ai.hasKey.value) "Đã có khóa. Có thể thay bằng khóa khác." else "Cần khóa API Gemini (miễn phí, tạo ở aistudio.google.com/apikey).", 15, C.Muted, lines = 2)
+    T(if (has) "Đã có khóa ${prov.name}. Có thể thay bằng khóa khác." else "Cần khóa API ${prov.name} (miễn phí): ${prov.keyUrl.removePrefix("https://")}", 14, C.Muted, lines = 2)
     val u = url
-    val gUrl = "https://aistudio.google.com/apikey"
-    if (!Device.tv) Btn("🌐 Mở trang tạo khóa của Google") {
-        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(gUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        catch (e: Exception) { status = "Không mở được trình duyệt — hãy tự vào aistudio.google.com/apikey" }
+    if (!Device.tv) Btn("🌐 Mở trang tạo khóa của ${prov.name}") {
+        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(prov.keyUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        catch (e: Exception) { status = "Không mở được trình duyệt — hãy tự vào ${prov.keyUrl.removePrefix("https://")}" }
     }
     if (u != null && Device.tv) Row(horizontalArrangement = Arrangement.spacedBy(22.dp), verticalAlignment = Alignment.Top) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            T("① Tạo khóa", 15, C.Gold, bold = true); QrCode(gUrl, 150.dp); T("Trang Google", 12, C.Muted)
+            T("① Tạo khóa", 15, C.Gold, bold = true); QrCode(prov.keyUrl, 140.dp); T("Trang ${prov.name}", 12, C.Muted)
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            T("② Gửi khóa về TV", 15, C.Gold, bold = true); QrCode(u, 150.dp); T("Trang của TV", 12, C.Muted)
+            T("② Gửi khóa về TV", 15, C.Gold, bold = true); QrCode(u, 140.dp); T("Trang của TV", 12, C.Muted)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            T("Không cần gõ khóa trên TV (điện thoại cùng Wi-Fi):", 16, C.Gold, bold = true)
-            T("① Quét mã ①: đăng nhập Google → Create API key → sao chép khóa.", 15, lines = 3)
-            T("② Quét mã ②: dán khóa → Lưu khóa vào TV.", 15, lines = 2)
+            T("Không cần gõ khóa trên TV (điện thoại cùng Wi-Fi):", 15, C.Gold, bold = true)
+            T("① Quét mã ①: đăng nhập, tạo API key, sao chép khóa.", 14, lines = 3)
+            T("② Quét mã ②: dán khóa → Lưu khóa vào TV.", 14, lines = 2)
             T(u, 12, C.Muted, lines = 2)
         }
     }
-    T("Hoặc dán trực tiếp (điện thoại / bàn phím rời):", 14, C.Muted)
-    OutlinedTextField(manual, { manual = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 16.sp), modifier = Modifier.fillMaxWidth())
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Focusable({ if (manual.isNotBlank()) accept(manual.trim()) }) { T("Lưu khóa", 16, C.Gold, Modifier.padding(16.dp, 8.dp), bold = true) }
+    T(if (Device.tv) "Hoặc dán trực tiếp (bàn phím rời):" else "Dán khóa vào ô dưới:", 14, C.Muted)
+    OutlinedTextField(manual, { manual = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 16.sp), modifier = Modifier.fillMaxWidth(),
+        placeholder = { if (prov.keyHint.isNotEmpty()) T(prov.keyHint, 14, C.Muted) })
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Focusable({ if (manual.isNotBlank()) accept(manual.trim()) }) { T("Lưu khóa", 15, C.Gold, Modifier.padding(14.dp, 8.dp), bold = true) }
         Focusable({
             val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val s = cm.primaryClip?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
             if (s.length >= 20) accept(s) else status = "Bộ nhớ tạm không có khóa"
-        }) { T("Dán từ bộ nhớ tạm", 16, C.Gold, Modifier.padding(16.dp, 8.dp)) }
-        if (Ai.hasKey.value) Focusable({ accept(Ai.key) }) { T("Kiểm tra khóa", 16, C.Gold, Modifier.padding(16.dp, 8.dp)) }
-        if (Ai.hasKey.value) Focusable({ Ai.key = ""; status = "Đã xóa khóa" }) { T("Xóa khóa", 16, androidx.compose.ui.graphics.Color(0xFFE5575A), Modifier.padding(16.dp, 8.dp)) }
+        }) { T("Dán từ bộ nhớ tạm", 15, C.Gold, Modifier.padding(14.dp, 8.dp)) }
+        if (has) Focusable({ check() }) { T("Kiểm tra", 15, C.Gold, Modifier.padding(14.dp, 8.dp)) }
+        if (has) Focusable({ Ai.setKey(prov.id, ""); status = "Đã xóa khóa" }) { T("Xóa khóa", 15, androidx.compose.ui.graphics.Color(0xFFE5575A), Modifier.padding(14.dp, 8.dp)) }
     }
+    if (has && Ai.primary != prov.id) Btn("★ Đặt ${prov.name} làm AI chính") { Ai.setPrimary(prov.id); status = "Đã đặt làm AI chính ✓" }
     var diag by remember { mutableStateOf("") }
     Focusable({
-        if (!busy) { busy = true; diag = "Đang đo từng bước, có thể mất tới 1 phút…"; scope.launch { try { diag = Ai.diagnose() } catch (e: Exception) { diag = "Lỗi: ${e.message}" } finally { busy = false } } }
-    }) { T("🩺 Chẩn đoán mạng", 16, C.Gold, Modifier.padding(16.dp, 8.dp)) }
-    if (diag.isNotEmpty()) T(diag, 14, C.Text, lines = 10)
-    if (status.isNotEmpty()) T(status, 15, if (status.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 4)
+        if (!busy) { busy = true; diag = "Đang đo từng bước, có thể mất tới 1 phút…"; scope.launch { try { diag = Ai.diagnose(prov) } catch (e: Exception) { diag = "Lỗi: ${e.message}" } finally { busy = false } } }
+    }) { T("🩺 Chẩn đoán mạng", 15, C.Gold, Modifier.padding(14.dp, 8.dp)) }
+    if (diag.isNotEmpty()) T(diag, 13, C.Text, lines = 10)
+    if (status.isNotEmpty()) T(status, 14, if (status.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 4)
     T("Khóa lưu riêng trong app, trên thiết bị này. Máy chủ tạm chỉ chạy khi hộp thoại này mở.", 12, C.Muted, lines = 2)
 }
 
@@ -234,21 +271,29 @@ private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
             finally { busy = false }
         }
     }
-    val speech = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
-        val t = r.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-        if (!t.isNullOrBlank()) { q = t; run(t) }
+    val ctx = LocalContext.current
+    val listening by Voice.listening
+    val partial by Voice.partial
+    fun listen() {
+        if (Voice.listening.value) { Voice.stop(); return }
+        if (!Voice.available(ctx)) { msg = "Thiết bị này chưa có dịch vụ nhận giọng nói (cần app Google / Google Assistant). Dùng nút 📱 để nói bằng điện thoại."; return }
+        msg = "🎙 Đang nghe… hãy nói yêu cầu của bạn"
+        Voice.start(ctx, { t -> ui.post { q = t; run(t) } }, { e -> ui.post { msg = e } })
     }
-    val link = remember { AiPhoneLink({}, { s -> ui.post { q = s; run(s) } }) }
+    val micPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) listen() else msg = "Bạn chưa cho phép micro. Vào Cài đặt hệ thống → Ứng dụng → GRAPE2Play → Quyền để bật, hoặc dùng điện thoại để nhập."
+    }
+    fun startMic() { if (Voice.hasPermission(ctx)) listen() else micPerm.launch(android.Manifest.permission.RECORD_AUDIO) }
+    val wantMic by Overlay.aiListen
+    LaunchedEffect(wantMic) { if (wantMic) { Overlay.aiListen.value = false; startMic() } }
+    DisposableEffect(Unit) { onDispose { Voice.stop() } }
+    val link = remember { AiPhoneLink(null, null) { s -> ui.post { q = s; run(s) } } }
     DisposableEffect(Unit) { onDispose { link.stop() } }
     T("Ví dụ: “nhạc Trịnh nghe lúc mưa khoảng 1 giờ”, “10 bài DSD để thử dàn loa”, “jazz chưa nghe bao giờ”.", 14, C.Muted, lines = 2)
     OutlinedTextField(q, { q = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 18.sp), modifier = Modifier.fillMaxWidth(), placeholder = { T("Bạn muốn nghe gì?", 16, C.Muted) })
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Focusable({ run(q) }) { T("Tìm", 17, C.Gold, Modifier.padding(18.dp, 9.dp), bold = true) }
-        Focusable({
-            val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (Lang.en.value) "en-US" else "vi-VN").putExtra(RecognizerIntent.EXTRA_PROMPT, "Bạn muốn nghe gì?")
-            try { speech.launch(i) } catch (e: Exception) { msg = "Thiết bị này không có nhận dạng giọng nói — dùng điện thoại (nút bên cạnh) hoặc gõ chữ." }
-        }) { T("🎤 Nói", 17, C.Gold, Modifier.padding(18.dp, 9.dp)) }
+        Focusable({ startMic() }) { T(if (listening) "■ Dừng nghe" else "🎤 Nói", 17, C.Gold, Modifier.padding(18.dp, 9.dp)) }
         if (Device.tv) Focusable({ if (link.start()) url = link.url else msg = "Không lấy được địa chỉ mạng." }) { T("📱 Nhập bằng điện thoại", 17, C.Gold, Modifier.padding(18.dp, 9.dp)) }
     }
     val u = url
@@ -259,6 +304,7 @@ private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
             T(u, 12, C.Muted, lines = 2)
         }
     }
+    if (listening && partial.isNotEmpty()) T("“$partial”", 17, lines = 3)
     if (msg.isNotEmpty()) T(msg, 15, if (msg.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 4)
     res?.let { r ->
         if (r.tracks.isNotEmpty()) {
@@ -522,12 +568,14 @@ fun AiDjEffect() {
 @Composable
 fun AiCard() {
     val has by Ai.hasKey
+    val rev by Ai.rev
+    val n = remember(rev) { AiProvs.ALL.count { Ai.has(it.id) } }
     Card {
-        T("AI · GEMINI", 13, C.Muted, spaced = true)
-        T(if (has) "Đã có khóa API. Tạo playlist bằng lời nói, AI DJ, gợi ý theo thời tiết / lễ hội / tâm trạng, lời bài hát, sửa tag, làm sạch thư mục." else "Chưa có khóa. Ghép bằng điện thoại: quét mã QR, dán khóa — không cần gõ trên TV.", 15, C.Muted, lines = 3)
+        T("TRỢ LÝ AI", 13, C.Muted, spaced = true)
+        T(if (has) "Đã có $n dịch vụ AI (chính: ${AiProvs.get(Ai.primary).name}). Tạo playlist bằng lời nói, AI DJ, gợi ý theo thời tiết / lễ hội / tâm trạng, lời bài hát, sửa tag, làm sạch thư mục." else "Chưa có khóa. Hỗ trợ Gemini, Groq, OpenRouter, Mistral, Cerebras (đều có gói miễn phí). Ghép bằng điện thoại: quét mã QR, dán khóa.", 15, C.Muted, lines = 3)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (has) Focusable({ Overlay.aiStart = "menu"; Overlay.ai.value = true }) { T("✨ Mở trợ lý AI", 16, C.Gold, Modifier.padding(14.dp, 7.dp), bold = true) }
-            Focusable({ Overlay.aiStart = "key"; Overlay.ai.value = true }) { T(if (has) "🔑 Đổi / xóa khóa" else "🔑 Ghép khóa bằng điện thoại", 16, C.Gold, Modifier.padding(14.dp, 7.dp)) }
+            Focusable({ Overlay.aiStart = "key"; Overlay.ai.value = true }) { T(if (has) "🔑 Dịch vụ AI & khóa" else "🔑 Ghép khóa bằng điện thoại", 16, C.Gold, Modifier.padding(14.dp, 7.dp)) }
         }
     }
 }

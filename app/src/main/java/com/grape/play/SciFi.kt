@@ -324,19 +324,22 @@ private fun SfWave(t: Track?, height: Dp, touch: Boolean) {
     val shuffle by Playback.shuffle.collectAsState()
     val repeat by Playback.repeat.collectAsState()
     var focused by remember { mutableStateOf(false) }
+    var armed by remember { mutableStateOf(false) }   // tua chỉ hoạt động sau khi bấm OK/chuột vào dải sóng
     Column(Modifier.fillMaxWidth()) {
         Box(
             Modifier.fillMaxWidth().height(height)
                 .then(if (touch) Modifier.pointerInput(dur) { detectTapGestures { o -> if (dur > 0) Playback.seekTo((o.x / size.width * dur).toLong().coerceIn(0L, dur)) } } else Modifier)
-                .onFocusChanged { focused = it.isFocused }
-                .then(if (focused) Modifier.border(2.dp, C.Text) else Modifier)
+                .onFocusChanged { focused = it.isFocused; if (!it.isFocused) armed = false }
+                .then(if (armed) Modifier.border(3.dp, C.Gold).background(C.Gold.copy(alpha = 0.12f)) else if (focused) Modifier.border(2.dp, C.Text) else Modifier)
                 .onKeyEvent { e ->
-                    if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft) { Playback.seekBy(-10_000); true }
-                    else if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionRight) { Playback.seekBy(10_000); true }
+                    if (!armed || e.type != KeyEventType.KeyDown) false
+                    else if (e.key == Key.DirectionLeft) { Playback.seekBy(-10_000); true }
+                    else if (e.key == Key.DirectionRight) { Playback.seekBy(10_000); true }
+                    else if (e.key == Key.Back || e.key == Key.Escape) { armed = false; true }
                     else false
                 }
-                .focusable(),
-        ) { Waveform(t?.path.hashCode(), if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f, Modifier.fillMaxSize().padding(horizontal = 4.dp), C.Gold, C.Dim) }
+                .clickable { armed = !armed },
+        ) { if (armed) S("◀ ▶ tua · OK khóa", 10, C.Gold, Modifier.align(Alignment.TopEnd)); Waveform(t?.path.hashCode(), if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f, Modifier.fillMaxSize().padding(horizontal = 4.dp), C.Gold, C.Dim) }
         Row(Modifier.fillMaxWidth().padding(top = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             S(fmt(pos), 12, C.Muted, spaced = true)
             S((if (shuffle) "Ngẫu nhiên" else "Tuần tự") + " · " + when (repeat) { Player.REPEAT_MODE_ONE -> "Lặp một bài"; Player.REPEAT_MODE_ALL -> "Lặp toàn bộ"; else -> "Không lặp" }, 12, Grade.GREEN.color, caps = true)

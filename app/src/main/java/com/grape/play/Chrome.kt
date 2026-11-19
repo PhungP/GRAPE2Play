@@ -31,6 +31,8 @@ object Overlay {
     val spectrum = mutableStateOf(false)
     val exit = mutableStateOf(false)
     val ai = mutableStateOf(false)
+    /** Nút micro trên điều khiển TV: mở trợ lý AI và bắt đầu nghe. */
+    val aiListen = mutableStateOf(false)
     var aiStart = "menu"
 }
 

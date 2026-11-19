@@ -173,6 +173,9 @@ class MainActivity : ComponentActivity() {
         KeyEvent.KEYCODE_MEDIA_PAUSE -> { if (Playback.playing.value) Playback.toggle(); true }
         KeyEvent.KEYCODE_MEDIA_NEXT -> { Playback.next(); true }
         KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { Playback.prev(); true }
+        // Nút micro trên điều khiển TV: mở trợ lý AI và nghe ngay (nếu hệ thống chuyển phím này cho app)
+        KeyEvent.KEYCODE_SEARCH, KeyEvent.KEYCODE_VOICE_ASSIST, KeyEvent.KEYCODE_ASSIST ->
+            if (Ai.hasKey.value) { Overlay.aiStart = "ask"; Overlay.ai.value = true; Overlay.aiListen.value = true; true } else super.onKeyDown(keyCode, event)
         else -> super.onKeyDown(keyCode, event)
     }
 }

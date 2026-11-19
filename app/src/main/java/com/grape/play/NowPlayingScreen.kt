@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -192,19 +193,22 @@ private fun NowPlayingBody(onNav: (Screen) -> Unit, onAdd: () -> Unit, onOut: ()
             if (alu) Spacer(Modifier.height(AluGap)) else Spacer(Modifier.weight(1f))
 
             var wf by remember { mutableStateOf(false) }
+            var armed by remember { mutableStateOf(false) }   // tua chỉ hoạt động sau khi bấm OK/chuột vào dải sóng
             Column(Modifier.fillMaxWidth().then(if (alu) Modifier.height(AluWaveH).aluScreen().padding(10.dp, 6.dp) else Modifier)) {
                 Box(
                     Modifier.fillMaxWidth().height(46.dp)
-                        .onFocusChanged { wf = it.isFocused }
-                        .then(if (wf) Modifier.border(2.dp, sk.acc, RoundedCornerShape(6.dp)) else Modifier)
+                        .onFocusChanged { wf = it.isFocused; if (!it.isFocused) armed = false }
+                        .then(if (armed) Modifier.border(3.dp, sk.acc, RoundedCornerShape(6.dp)).background(sk.acc.copy(alpha = 0.12f)) else if (wf) Modifier.border(2.dp, sk.acc.copy(alpha = 0.6f), RoundedCornerShape(6.dp)) else Modifier)
                         .onKeyEvent { e ->
-                            if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft) { Playback.seekBy(-10_000); true }
-                            else if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionRight) { Playback.seekBy(10_000); true }
+                            if (!armed || e.type != KeyEventType.KeyDown) false
+                            else if (e.key == Key.DirectionLeft) { Playback.seekBy(-10_000); true }
+                            else if (e.key == Key.DirectionRight) { Playback.seekBy(10_000); true }
+                            else if (e.key == Key.Back || e.key == Key.Escape) { armed = false; true }
                             else false
                         }
-                        .focusable()
+                        .clickable { armed = !armed }
                         .padding(horizontal = 6.dp, vertical = 2.dp),
-                ) { Waveform(t?.path.hashCode(), if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f, Modifier.fillMaxSize(), if (alu) AluAmberInk else null, if (alu) AluTheme.g.waveBase else null) }
+                ) { if (armed) T("◀ ▶ tua 10 giây · bấm OK để khóa", 11, sk.acc, Modifier.align(Alignment.TopEnd)); Waveform(t?.path.hashCode(), if (dur > 0) (pos.toFloat() / dur).coerceIn(0f, 1f) else 0f, Modifier.fillMaxSize(), if (alu) AluAmberInk else null, if (alu) AluTheme.g.waveBase else null) }
                 Row(Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 2.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     val tm = if (alu) sk.muted else sk.muted
                     T(fmt(pos), 15, tm)

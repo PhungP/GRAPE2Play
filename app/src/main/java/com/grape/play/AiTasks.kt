@@ -43,6 +43,7 @@ object AiClean {
                 "title: bỏ mã số/catalog/số thứ tự/bitrate/định dạng thừa; đặt dấu tiếng Việt đúng nếu rõ là tên Việt; dạng \"Nghệ sĩ – Album\" nếu xác định được, ngắn gọn. " +
                 "Không bịa: nếu không chắc, giữ gần tên gốc và genre là other. Chỉ trả JSON."
             val res = Ai.parseJson(Ai.generate("Danh sách thư mục:\n$arr", sys, json = true, temp = 0.1)) as? JSONArray
+            if (res == null) throw java.io.IOException("AI trả về định dạng lạ — thử lại")
             val out = HashMap<String, AiMeta.M>()
             val valid = batch.map { it.first }.toSet()
             if (res != null) for (i in 0 until res.length()) {

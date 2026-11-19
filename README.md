@@ -387,3 +387,8 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 - Sửa tag: gom tên nghệ sĩ/album viết nhiều kiểu, thêm dấu tiếng Việt (AI) — duyệt rồi mới áp dụng, chỉ đổi hiển thị, có nút hoàn tác.
 - Album bị bỏ quên: AI chọn album chất lượng cao ít nghe, hợp hôm nay.
 - Lời bài hát: đọc file .lrc/.txt cùng tên hoặc lời nhúng tag (MP3/FLAC); dịch và giải nghĩa bằng AI. Không có lời thì không bịa.
+
+## Bản 2.1.0
+- Thanh sóng âm kiêm tua: mặc định bị khóa; chỉ tua khi bấm OK/chuột vào dải sóng (hiện khung sáng và gợi ý), bấm OK/Quay lại để khóa lại. Rời khỏi dải sóng tự khóa.
+- Ra lệnh bằng giọng nói: thêm quyền micro (xin khi bấm 🎤), nhận giọng nói ngay trong app; nút micro trên remote (nếu hệ thống chuyển phím cho app) mở trợ lý AI và nghe luôn.
+- Nhiều dịch vụ AI miễn phí: Gemini, Groq, OpenRouter, Mistral, Cerebras. Chọn AI chính, công tắc tự chuyển AI khi hết hạn mức hoặc không phản hồi sau 25 giây, ghi chú dịch vụ đang trả lời ở chân hộp thoại. Nhập khóa: TV quét QR bằng điện thoại, điện thoại dán trực tiếp.
