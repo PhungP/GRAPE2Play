@@ -196,7 +196,7 @@ object Playback {
         Themes.init(appCtx)
         Covers.init(appCtx)
         Favorites.init(appCtx)
-        Recents.init(appCtx); UsageStats.init(appCtx); Ai.init(appCtx); UserPlaylists.init(appCtx); TagFix.init(appCtx); AiDj.init(appCtx); LibNav.init(appCtx); SourceOrder.init(appCtx)
+        Recents.init(appCtx); UsageStats.init(appCtx); Ai.init(appCtx); UserPlaylists.init(appCtx); TagFix.init(appCtx); AiDj.init(appCtx); AiSaver.init(appCtx); LibNav.init(appCtx); SourceOrder.init(appCtx)
         TvHome.init(appCtx)
         BackgroundAccess.init(appCtx)
         exo = build()
@@ -310,6 +310,8 @@ object Playback {
         AppLog.i("Player", "Phát danh sách ${tracks.size} bài từ #$start · ${tracks.getOrNull(start)?.ext} · đầu ra ${outName.value}")
         if (rc != null) { sync(); loadRemote(start) } else { exo.prepare(); exo.play(); sync() }
     }
+    /** Đang phát tới thiết bị ngoài (UPnP/Cast) — âm lượng trong app không áp dụng. */
+    fun isRemote() = rc != null
     /** Thêm bài vào cuối danh sách đang phát (AI DJ). */
     fun append(tracks: List<Track>) {
         if (tracks.isEmpty()) return

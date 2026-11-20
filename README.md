@@ -401,3 +401,13 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 
 ## Bản 2.2.1
 - TV, hộp hỏi AI / Tìm nhanh: ô gõ chữ chuyển xuống cuối hộp thoại và mặc định ẩn; bật/tắt bằng nút "⌨ Hiện/Ẩn ô gõ" (nhớ lựa chọn).
+
+## Bản 2.3.0
+- Dịch vụ AI: bỏ Mistral (hết miễn phí) và Cerebras (đòi thẻ tín dụng); thêm Cloudflare AI (Account ID + API token) và NVIDIA AI (build.nvidia.com).
+- OpenRouter: các model cũ (gpt-oss…:free) không còn; dùng bộ định tuyến "openrouter/free" và tự hỏi danh sách model miễn phí hiện có (nhớ 6 giờ) để không lỗi thời.
+- Trang nhập khóa Cloudflare trên điện thoại có hai ô riêng (Account ID, token).
+
+## Bản 2.4.0
+- 🎚 Buổi thử dàn: AI chọn tối đa 8 bài thử âm (giọng hát, trầm, động lực, không gian, chi tiết dải cao…) từ chính thư viện, kèm lời nhắc nghe gì; phát cả buổi hoặc lưu playlist.
+- 😴 Hẹn giờ ngủ thông minh: 15/30/45/60/90 phút, "hết bài này", hoặc nói/gõ tự nhiên ("ru ngủ 30 phút"); âm lượng nhỏ dần ở cuối rồi tạm dừng; có thể kèm phát nhạc ru ngủ do AI chọn.
+- 🌙 Màn hình chờ thông minh: nền đen, ảnh bìa + tên bài + thời tiết + âm lịch/ngày lễ + câu giới thiệu album do AI viết, nội dung dịch chỗ chậm (chống in bóng OLED).

@@ -67,7 +67,8 @@ class AiPhoneLink(private val prov: Prov?, private val onKey: ((String) -> Unit)
         val route = path.substringBefore('?')
         val tq = "?t=$token"
         if (method == "POST" && route == "/key") {
-            val k = form(body)["k"].orEmpty().trim()
+            val f = form(body)
+            val k = if (prov?.twoPart == true) f["a"].orEmpty().trim() + ":" + f["k"].orEmpty().trim() else f["k"].orEmpty().trim()
             if (k.length < 20) return 200 to page("", "<p style='color:#b00020'><b>Khóa quá ngắn — hãy dán đúng toàn bộ khóa.</b></p><p><a href='/$tq'>← Quay lại</a></p>")
             onKey?.invoke(k); return 200 to page("Đã gửi khóa tới TV ✓ (xem kết quả kiểm tra trên TV)", "<p><a href='/$tq'>← Quay lại</a></p>")
         }
@@ -81,7 +82,8 @@ class AiPhoneLink(private val prov: Prov?, private val onKey: ((String) -> Unit)
             "<form method=post action='/ask$tq'><textarea name=q rows=3 style='width:100%;font-size:18px' placeholder='Bạn muốn nghe gì?'></textarea><p><button style='font-size:18px;padding:10px 24px'>Gửi tới TV</button></p></form>")
         if (onKey != null && prov != null) sb.append("<h3>Khóa API ${esc(prov.name)}</h3><p style='color:#555'>Trạng thái: <b>${if (Ai.has(prov.id)) "đã có khóa" else "chưa có khóa"}</b>. Lấy khóa miễn phí tại " +
             "<a target=_blank rel=noopener href='${prov.keyUrl}'>${esc(prov.keyUrl.removePrefix("https://"))}</a> rồi dán vào ô dưới.</p>" +
-            "<form method=post action='/key$tq'><input name=k autocomplete=off style='width:100%;font-size:16px;padding:6px' placeholder='${esc(prov.keyHint)}'><p><button style='font-size:18px;padding:10px 24px'>Lưu khóa vào TV</button></p></form>")
+            "<form method=post action='/key$tq'>" + (if (prov.twoPart) "<p>Account ID (dán từ trang Cloudflare):<br><input name=a autocomplete=off style='width:100%;font-size:16px;padding:6px' placeholder='32 ký tự'></p><p>API token (quyền Workers AI):<br>" else "") +
+            "<input name=k autocomplete=off style='width:100%;font-size:16px;padding:6px' placeholder='${esc(if (prov.twoPart) "API token" else prov.keyHint)}'>" + (if (prov.twoPart) "</p>" else "<p>") + "<button style='font-size:18px;padding:10px 24px'>Lưu khóa vào TV</button></p></form>")
         val inner = sb.toString()
         return 200 to page("", inner)
     }
@@ -135,6 +137,9 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
     when {
         page == "key" -> AiFrame("Dịch vụ AI & khóa API", "Menu", goMenu, ::close) { ServicesPage { page = "key:$it" } }
         page.startsWith("key:") -> AiFrame("Khóa " + AiProvs.get(page.removePrefix("key:")).name, "Dịch vụ", { page = "key" }, ::close) { KeyPage(AiProvs.get(page.removePrefix("key:"))) { page = "key" } }
+        page == "sleep" -> AiFrame("Hẹn giờ ngủ", "Menu", goMenu, ::close) { SleepPage(lib, ::play) }
+        page == "saver" -> AiFrame("Màn hình chờ", "Menu", goMenu, ::close) { SaverPage { close(); AiSaver.showing.value = true } }
+        page == "testset" -> AiFrame("Buổi thử dàn", "Menu", goMenu, ::close) { TestPage(lib, ::playAt) }
         page == "quick" -> AiFrame("Tìm nhanh", "Menu", goMenu, ::close) { QuickPage(rawTracks, ::playAt) { Overlay.aiAsk = it; page = "ask" } }
         page == "ask" -> AiFrame("Hỏi / tạo playlist", "Menu", goMenu, ::close) { AskPage(lib, ::play) }
         page == "plist" -> AiFrame("Playlist đã lưu", "Menu", goMenu, ::close) { SavedListsPage(lib, ::play) }
@@ -154,11 +159,14 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
             if (dj && AiDj.note.value.isNotEmpty()) T("DJ: " + AiDj.note.value, 13, C.Muted, lines = 2)
             Btn("🌤  Gợi ý theo thời tiết, lễ hội, tâm trạng") { page = "suggest" }
             Btn("💎  Album bị bỏ quên — đáng nghe lại hôm nay") { page = "forgot" }
+            Btn("🎚  Buổi thử dàn — AI chọn bài thử âm từ thư viện") { page = "testset" }
+            Btn("😴  Hẹn giờ ngủ thông minh" + if (SleepTimer.active.value) " — còn ${fmtMs(SleepTimer.remainingMs.value)}" else "") { page = "sleep" }
+            Btn("🌙  Màn hình chờ thông minh: " + if (AiSaver.on.value) "BẬT (${AiSaver.minutes.value} phút)" else "TẮT") { page = "saver" }
             Btn("ℹ  Giới thiệu bài / album / nghệ sĩ đang phát") { page = "info" }
             Btn("📝  Lời bài hát: xem, dịch, giải nghĩa") { page = "lyrics" }
             Btn("🏷  Sửa tag, gộp tên nghệ sĩ/album bị trùng") { page = "tags" }
             Btn("🧹  Làm sạch tên và thể loại thư mục") { page = "clean" }
-            Btn("🔑  Dịch vụ AI & khóa API (Gemini, Groq, OpenRouter…)") { page = "key" }
+            Btn("🔑  Dịch vụ AI & khóa API (Gemini, Groq, OpenRouter, Cloudflare, NVIDIA)") { page = "key" }
         }
     }
 }
@@ -234,6 +242,7 @@ private fun KeyPage(prov: Prov, onDone: () -> Unit) {
             T(u, 12, C.Muted, lines = 2)
         }
     }
+    if (prov.twoPart) T("Cloudflare cần 2 giá trị: Account ID (hiện trong địa chỉ trang Cloudflare Workers AI) và API token (tạo bằng mẫu “Workers AI”). Gõ/dán gộp dạng ACCOUNT_ID:API_TOKEN, hoặc dùng điện thoại quét mã ② để nhập hai ô riêng.", 13, C.Muted, lines = 4)
     T(if (Device.tv) "Hoặc dán trực tiếp (bàn phím rời):" else "Dán khóa vào ô dưới:", 14, C.Muted)
     OutlinedTextField(manual, { manual = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 16.sp), modifier = Modifier.fillMaxWidth(),
         placeholder = { if (prov.keyHint.isNotEmpty()) T(prov.keyHint, 14, C.Muted) })
@@ -242,7 +251,7 @@ private fun KeyPage(prov: Prov, onDone: () -> Unit) {
         Focusable({
             val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val s = cm.primaryClip?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
-            if (s.length >= 20) accept(s) else status = "Bộ nhớ tạm không có khóa"
+            if (s.length >= 20 && (!prov.twoPart || ":" in s)) accept(s) else status = if (prov.twoPart) "Bộ nhớ tạm cần có dạng ACCOUNT_ID:API_TOKEN" else "Bộ nhớ tạm không có khóa"
         }) { T("Dán từ bộ nhớ tạm", 15, C.Gold, Modifier.padding(14.dp, 8.dp)) }
         if (has) Focusable({ check() }) { T("Kiểm tra", 15, C.Gold, Modifier.padding(14.dp, 8.dp)) }
         if (has) Focusable({ Ai.setKey(prov.id, ""); status = "Đã xóa khóa" }) { T("Xóa khóa", 15, androidx.compose.ui.graphics.Color(0xFFE5575A), Modifier.padding(14.dp, 8.dp)) }
@@ -353,6 +362,118 @@ private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
         }
     }
     AiTyping(q, { q = it }, "Bạn muốn nghe gì?", true) { run(it) }
+}
+
+private fun fmtMs(ms: Long): String { val s = ms / 1000; return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s % 3600 / 60, s % 60) else "%d:%02d".format(s / 60, s % 60) }
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SleepPage(lib: List<Track>, play: (List<Track>) -> Unit) {
+    val scope = rememberCoroutineScope()
+    val active by SleepTimer.active
+    val left by SleepTimer.remainingMs
+    val note by SleepTimer.note
+    var q by remember { mutableStateOf("") }
+    var music by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    fun go(p: AiSleep.Plan) {
+        if (p.endOfTrack) SleepTimer.startEndOfTrack() else SleepTimer.start(p.minutes, p.fadeSec)
+        msg = p.say
+        if ((music || p.music) && lib.isNotEmpty()) {
+            if (!Ai.hasKey.value) { msg = "Đã hẹn giờ. Cần khóa AI để chọn nhạc ru ngủ."; return }
+            scope.launch {
+                try { play(AiSearch.run("nhạc nhẹ nhàng ru ngủ thư giãn, khoảng ${if (p.minutes > 0) p.minutes else 30} phút", lib).tracks) }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { msg = "Đã hẹn giờ, nhưng chọn nhạc lỗi: " + (e.message ?: "") }
+            }
+        }
+    }
+    fun submit(t: String) {
+        if (busy || t.isBlank()) return
+        busy = true; msg = "Đang hiểu yêu cầu…"
+        scope.launch {
+            try { go(AiSleep.parse(t)) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+            finally { busy = false }
+        }
+    }
+    T("Dừng nhạc sau một khoảng thời gian, âm lượng nhỏ dần ở cuối rồi tạm dừng. Nói hoặc gõ tự nhiên: “ru ngủ 30 phút”, “1 giờ 15”, “hết bài này”.", 13, C.Muted, lines = 3)
+    if (active) {
+        T("😴 Còn ${fmtMs(left)}", 22, C.Gold, bold = true)
+        if (note.isNotEmpty()) T(note, 13, C.Muted, lines = 2)
+        Btn("✕ Hủy hẹn giờ") { SleepTimer.cancel(); msg = "Đã hủy hẹn giờ" }
+    }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf(15, 30, 45, 60, 90).forEach { m ->
+            Focusable({ go(AiSleep.Plan(m, 60, false, false, "Đã hẹn giờ $m phút")) }, Modifier, RoundedCornerShape(8.dp)) { T("$m phút", 16, C.Gold, Modifier.padding(14.dp, 8.dp)) }
+        }
+        Focusable({ go(AiSleep.Plan(0, 12, true, false, "Sẽ dừng khi hết bài này")) }, Modifier, RoundedCornerShape(8.dp)) { T("Hết bài này", 16, C.Gold, Modifier.padding(14.dp, 8.dp)) }
+    }
+    Focusable({ music = !music }, Modifier.fillMaxWidth(), RoundedCornerShape(8.dp), selected = music) {
+        T((if (music) "● " else "○ ") + "Kèm phát nhạc ru ngủ từ thư viện (AI chọn)", 15, if (music) C.Gold else C.Text, Modifier.padding(14.dp, 8.dp), lines = 2)
+    }
+    AiInput(q, { q = it }, "Ví dụ: ru ngủ 30 phút", showSubmit = true, autoMic = false) { submit(it) }
+    if (msg.isNotEmpty()) T(msg, 15, if (msg.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 3)
+    AiTyping(q, { q = it }, "Ví dụ: ru ngủ 30 phút", true) { submit(it) }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SaverPage(preview: () -> Unit) {
+    val on by AiSaver.on
+    val mins by AiSaver.minutes
+    T("Khi không thao tác, màn hình chuyển sang nền đen (tiết kiệm OLED) hiện ảnh bìa, tên bài, thời tiết, âm lịch/ngày lễ và vài câu giới thiệu album do AI viết. Nội dung dịch chỗ chậm để không in bóng. Chạm hoặc bấm phím để thoát.", 13, C.Muted, lines = 5)
+    Focusable({ AiSaver.setOn(!on) }, Modifier.fillMaxWidth(), RoundedCornerShape(10.dp), selected = on) {
+        T((if (on) "● " else "○ ") + "Màn hình chờ thông minh: " + (if (on) "BẬT" else "TẮT"), 17, C.Gold, Modifier.padding(14.dp, 9.dp), bold = true)
+    }
+    T("Hiện sau:", 14, C.Muted)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf(1, 3, 5, 10, 15).forEach { m ->
+            Focusable({ AiSaver.setMinutes(m) }, Modifier, RoundedCornerShape(8.dp), selected = mins == m) { T("$m phút", 16, if (mins == m) C.Gold else C.Text, Modifier.padding(14.dp, 8.dp)) }
+        }
+    }
+    Btn("👁 Xem thử ngay") { preview() }
+    T("Câu giới thiệu album cần khóa AI (mỗi album chỉ hỏi một lần). Không có khóa thì chỉ hiện bài hát, thời tiết và ngày lễ.", 12, C.Muted, lines = 3)
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TestPage(lib: List<Track>, playAt: (List<Track>, Int) -> Unit) {
+    var focus by remember { mutableStateOf("Tổng hợp") }
+    var items by remember { mutableStateOf<List<AiTestSet.Item>>(emptyList()) }
+    var msg by remember { mutableStateOf("") }
+    var tick by remember { mutableStateOf(0) }
+    var saved by remember { mutableStateOf(false) }
+    LaunchedEffect(tick, focus) {
+        msg = "AI đang chọn bài thử âm từ thư viện của bạn…"; items = emptyList(); saved = false
+        try { items = AiTestSet.run(lib, focus); msg = if (items.isEmpty()) "AI chưa chọn được bài nào." else "" }
+        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+    }
+    T("Mỗi mục là một bài thử một khía cạnh của dàn loa/tai nghe, kèm lời nhắc nghe điều gì. Chọn từ chính thư viện của bạn, ưu tiên bản thu hi-res.", 13, C.Muted, lines = 3)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("Tổng hợp", "Giọng hát", "Trầm sâu & động lực", "Không gian & chi tiết").forEach { f ->
+            Focusable({ focus = f }, Modifier, RoundedCornerShape(8.dp), selected = focus == f) { T(f, 15, if (focus == f) C.Gold else C.Text, Modifier.padding(12.dp, 6.dp)) }
+        }
+    }
+    if (msg.isNotEmpty()) T(msg, 15, if (msg.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 4)
+    val tracks = items.map { x -> x.track }
+    items.forEachIndexed { i, x ->
+        Focusable({ playAt(tracks, i) }, Modifier.fillMaxWidth(), RoundedCornerShape(10.dp)) {
+            Column(Modifier.padding(14.dp, 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                T("▶ ${x.category} — ${x.track.title}", 16, C.Gold, bold = true, lines = 2)
+                T("${x.track.artist} · ${x.track.album} · ${x.track.ext.uppercase()}", 12, C.Muted, lines = 1)
+                if (x.tip.isNotBlank()) T("👂 " + x.tip, 13, lines = 3)
+            }
+        }
+    }
+    if (items.isNotEmpty()) {
+        Btn("▶ Phát cả buổi thử dàn (${items.size} bài)") { playAt(tracks, 0) }
+        Btn(if (saved) "✓ Đã lưu playlist" else "💾 Lưu thành playlist “Buổi thử dàn”") { UserPlaylists.add("Buổi thử dàn — $focus", tracks); saved = true }
+    }
+    Focusable({ tick++ }) { T("↻ Chọn bộ khác", 15, C.Gold, Modifier.padding(14.dp, 7.dp)) }
 }
 
 /** Tìm nhanh bài hát và thư mục trong MỌI nguồn đã quét (bộ nhớ, USB, NAS/DLNA, đám mây). Chạy cục bộ, kết quả hiện ngay khi gõ/nói; không cần khóa AI. */
@@ -656,7 +777,7 @@ fun AiCard() {
     val n = remember(rev) { AiProvs.ALL.count { Ai.has(it.id) } }
     Card {
         T("TRỢ LÝ AI", 13, C.Muted, spaced = true)
-        T(if (has) "Đã có $n dịch vụ AI (chính: ${AiProvs.get(Ai.primary).name}). Tạo playlist bằng lời nói, AI DJ, gợi ý theo thời tiết / lễ hội / tâm trạng, lời bài hát, sửa tag, làm sạch thư mục." else "Chưa có khóa. Hỗ trợ Gemini, Groq, OpenRouter, Mistral, Cerebras (đều có gói miễn phí). Ghép bằng điện thoại: quét mã QR, dán khóa.", 15, C.Muted, lines = 3)
+        T(if (has) "Đã có $n dịch vụ AI (chính: ${AiProvs.get(Ai.primary).name}). Tạo playlist bằng lời nói, AI DJ, gợi ý theo thời tiết / lễ hội / tâm trạng, lời bài hát, sửa tag, làm sạch thư mục." else "Chưa có khóa. Hỗ trợ Gemini, Groq, OpenRouter, Cloudflare AI, NVIDIA AI (đều có gói miễn phí). Ghép bằng điện thoại: quét mã QR, dán khóa.", 15, C.Muted, lines = 3)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (has) Focusable({ Overlay.aiStart = "menu"; Overlay.ai.value = true }) { T("✨ Mở trợ lý AI", 16, C.Gold, Modifier.padding(14.dp, 7.dp), bold = true) }
             Focusable({ Overlay.aiStart = "key"; Overlay.ai.value = true }) { T(if (has) "🔑 Dịch vụ AI & khóa" else "🔑 Ghép khóa bằng điện thoại", 16, C.Gold, Modifier.padding(14.dp, 7.dp)) }

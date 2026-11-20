@@ -154,6 +154,7 @@ class MainActivity : ComponentActivity() {
                         if (permDone) UpdateDialog()
                         if (Overlay.spectrum.value) SpectrumDialog { Overlay.spectrum.value = false }
                         AiDjEffect()
+                        AiSaverHost()
                         if (Overlay.ai.value) AiHubDialog(onClose = { Overlay.ai.value = false }, onPlayed = { screen = Screen.NOW })
                         if (Overlay.exit.value) ExitDialog(onStay = { Overlay.exit.value = false }, onExit = { Overlay.exit.value = false; exitApp() })
                         if (permDone && askBg) BackgroundDialog(onAllow = { askBg = false; askBackground() }, onLater = { askBg = false; BackgroundAccess.asked = true })
@@ -164,8 +165,18 @@ class MainActivity : ComponentActivity() {
     }
 
     // Ghi nhận lần thao tác cuối (cho chế độ tự giảm sáng chống lưu ảnh OLED)
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean { BurnIn.touch(); return super.dispatchKeyEvent(event) }
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean { BurnIn.touch(); return super.dispatchTouchEvent(ev) }
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (AiSaver.showing.value) {
+            if (AiSaver.passKey(event.keyCode)) return super.dispatchKeyEvent(event)
+            if (event.action == KeyEvent.ACTION_DOWN) AiSaver.hide()
+            return true   // phím đầu tiên chỉ để thoát màn hình chờ
+        }
+        BurnIn.touch(); return super.dispatchKeyEvent(event)
+    }
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (AiSaver.showing.value) { if (ev.action == MotionEvent.ACTION_DOWN) AiSaver.hide(); return true }
+        BurnIn.touch(); return super.dispatchTouchEvent(ev)
+    }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean = when (keyCode) {
         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { Playback.toggle(); true }

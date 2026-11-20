@@ -26,7 +26,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** Một dịch vụ AI có gói miễn phí. [gemini] = true dùng API riêng của Google, còn lại theo chuẩn OpenAI (chat/completions). */
-class Prov(val id: String, val name: String, val keyUrl: String, val keyHint: String, val base: String, val models: List<String>, val gemini: Boolean = false)
+class Prov(val id: String, val name: String, val keyUrl: String, val keyHint: String, val base: String, val models: List<String>, val gemini: Boolean = false, val twoPart: Boolean = false)
 
 object AiProvs {
     val ALL = listOf(
@@ -35,11 +35,12 @@ object AiProvs {
         Prov("groq", "Groq", "https://console.groq.com/keys", "gsk_…", "https://api.groq.com/openai/v1",
             listOf("llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant")),
         Prov("openrouter", "OpenRouter", "https://openrouter.ai/keys", "sk-or-…", "https://openrouter.ai/api/v1",
-            listOf("openai/gpt-oss-120b:free", "meta-llama/llama-3.3-70b-instruct:free", "google/gemma-3n-e2b-it:free")),
-        Prov("mistral", "Mistral", "https://console.mistral.ai/api-keys", "", "https://api.mistral.ai/v1",
-            listOf("mistral-small-latest", "open-mistral-nemo")),
-        Prov("cerebras", "Cerebras", "https://cloud.cerebras.ai/", "csk-…", "https://api.cerebras.ai/v1",
-            listOf("llama3.3-70b", "gpt-oss-120b", "llama3.1-8b")),
+            listOf("openrouter/free", "google/gemma-4-31b-it:free", "nvidia/nemotron-3-ultra-550b-a55b:free", "google/gemma-4-26b-a4b-it:free")),
+        // Cloudflare cần 2 giá trị: Account ID và API token (Workers AI) — lưu gộp dạng "accountId:token".
+        Prov("cloudflare", "Cloudflare AI", "https://dash.cloudflare.com/profile/api-tokens", "ACCOUNT_ID:API_TOKEN", "https://api.cloudflare.com/client/v4/accounts/{acct}/ai/v1",
+            listOf("@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/meta/llama-3.1-8b-instruct", "@cf/google/gemma-3-12b-it"), twoPart = true),
+        Prov("nvidia", "NVIDIA AI", "https://build.nvidia.com/settings/api-keys", "nvapi-…", "https://integrate.api.nvidia.com/v1",
+            listOf("meta/llama-3.3-70b-instruct", "nvidia/llama-3.1-nemotron-ultra-253b-v1", "meta/llama-3.1-8b-instruct")),
     )
     fun get(id: String) = ALL.firstOrNull { it.id == id } ?: ALL[0]
 }
@@ -69,6 +70,7 @@ object Ai {
     fun init(ctx: Context) {
         if (::sp.isInitialized) return
         sp = ctx.applicationContext.getSharedPreferences("ai", Context.MODE_PRIVATE)
+        sp.edit().remove("key_mistral").remove("key_cerebras").apply()   // đã bỏ hai dịch vụ này
         refresh()
         typing.value = sp.getBoolean("typing", false)
         AiMeta.init(ctx)
@@ -86,7 +88,7 @@ object Ai {
     /** AI chính: mặc định dịch vụ đầu tiên có khóa. */
     val primary: String get() {
         val p = if (::sp.isInitialized) sp.getString("primary", "") ?: "" else ""
-        return if (p.isNotEmpty() && has(p)) p else AiProvs.ALL.firstOrNull { has(it.id) }?.id ?: "gemini"
+        return if (p.isNotEmpty() && AiProvs.ALL.any { it.id == p } && has(p)) p else AiProvs.ALL.firstOrNull { has(it.id) }?.id ?: "gemini"
     }
     fun setPrimary(id: String) { if (::sp.isInitialized) sp.edit().putString("primary", id).apply(); rev.value++ }
 
@@ -180,15 +182,16 @@ object Ai {
 
     // ---------------------------------------------------------------- Groq / OpenRouter / Mistral / Cerebras (chuẩn OpenAI)
     private suspend fun openai(p: Prov, prompt: String, system: String?, temp: Double): String = withContext(Dispatchers.IO) {
-        val key = keyOf(p.id)
+        val (base, key) = endpointOf(p)
         val msgs = JSONArray()
         if (system != null) msgs.put(JSONObject().put("role", "system").put("content", system))
         msgs.put(JSONObject().put("role", "user").put("content", prompt))
-        val models = (listOf(lastOk[p.id] ?: "") + p.models).filter { it.isNotBlank() }.distinct()
+        val extra = if (p.id == "openrouter") openRouterModels() else emptyList()
+        val models = (listOf(lastOk[p.id] ?: "") + p.models + extra).filter { it.isNotBlank() }.distinct().take(7)
         var lastErr = ""
         for (m in models) {
             val body = JSONObject().put("model", m).put("messages", msgs).put("temperature", temp)
-            val rb = Request.Builder().url(p.base + "/chat/completions").header("Authorization", "Bearer $key")
+            val rb = Request.Builder().url("$base/chat/completions").header("Authorization", "Bearer $key")
             if (p.id == "openrouter") rb.header("HTTP-Referer", "https://github.com/grape2play").header("X-Title", "GRAPE2Play")
             val (code, text) = try { http.newCall(rb.post(body.toString().toRequestBody("application/json".toMediaType())).build()).await() }
                 catch (e: IOException) { throw IOException("lỗi mạng (${e.javaClass.simpleName}: ${e.message ?: "không rõ"})") }
@@ -211,7 +214,34 @@ object Ai {
         throw IOException(lastErr.ifEmpty { "không phản hồi" })
     }
 
-    private fun hostOf(p: Prov) = java.net.URI(p.base).host
+    /** Địa chỉ gốc và khóa thật sự dùng khi gọi (Cloudflare: tách "accountId:token"). */
+    private fun endpointOf(p: Prov): Pair<String, String> {
+        val k = keyOf(p.id)
+        if (!p.twoPart) return p.base to k
+        val acct = k.substringBefore(':').trim(); val tok = k.substringAfter(':', "").trim()
+        if (acct.isEmpty() || tok.isEmpty()) throw IOException("khóa phải có dạng ACCOUNT_ID:API_TOKEN")
+        return p.base.replace("{acct}", acct) to tok
+    }
+
+    @Volatile private var orModels: Pair<Long, List<String>>? = null
+
+    /** Danh sách model miễn phí hiện có của OpenRouter (đổi liên tục nên hỏi trực tiếp, nhớ 6 giờ). */
+    private suspend fun openRouterModels(): List<String> {
+        orModels?.let { if (System.currentTimeMillis() - it.first < 6 * 3600_000L) return it.second }
+        val list = try {
+            val (code, text) = http.newBuilder().callTimeout(10, TimeUnit.SECONDS).build()
+                .newCall(Request.Builder().url("https://openrouter.ai/api/v1/models").build()).await()
+            if (code !in 200..299) emptyList() else {
+                val a = JSONObject(text).optJSONArray("data") ?: JSONArray()
+                (0 until a.length()).mapNotNull { a.optJSONObject(it) }.filter { it.optString("id").endsWith(":free") }
+                    .sortedByDescending { it.optInt("context_length") }.map { it.optString("id") }.take(5)
+            }
+        } catch (e: IOException) { emptyList() } catch (e: org.json.JSONException) { emptyList() }
+        if (list.isNotEmpty()) orModels = System.currentTimeMillis() to list
+        return list
+    }
+
+    private fun hostOf(p: Prov) = java.net.URI(p.base.replace("{acct}", "x")).host
 
     /** Đo thời gian từng bước kết nối tới dịch vụ [p] (DNS, TCP, Internet, khóa, tạo nội dung) để biết TV kẹt ở đâu. */
     suspend fun diagnose(p: Prov): String = withContext(Dispatchers.IO) {
@@ -238,6 +268,10 @@ object Ai {
     suspend fun test(id: String): String = withContext(Dispatchers.IO) {
         val p = AiProvs.get(id); val key = keyOf(id)
         if (key.isEmpty()) throw IOException("Chưa có khóa ${p.name}")
+        if (p.twoPart) {   // Cloudflare: thử một lệnh rất nhỏ
+            try { withTimeout(20_000) { openai(p, "OK", null, 0.0) }; return@withContext "OK" }
+            catch (e: TimeoutCancellationException) { throw IOException("Cloudflare không phản hồi sau 20 giây") }
+        }
         val c = http.newBuilder().callTimeout(15, TimeUnit.SECONDS).build()
         val req = when {
             p.gemini -> Request.Builder().url("${p.base}/models?pageSize=1").header("x-goog-api-key", key).build()
