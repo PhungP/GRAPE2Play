@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
 
@@ -127,12 +128,14 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
     var page by remember { mutableStateOf(if (!Ai.hasKey.value) "key" else Overlay.aiStart) }
     fun close() { Overlay.aiStart = "menu"; onClose() }
     fun play(l: List<Track>) { if (l.isNotEmpty()) { Playback.play(l, 0, false); onPlayed(); close() } }
+    fun playAt(l: List<Track>, i: Int) { if (l.isNotEmpty()) { Playback.play(l, i.coerceIn(0, l.lastIndex), false); onPlayed(); close() } }
     val goMenu = { page = "menu" }
     val wantMic by Overlay.aiListen
     LaunchedEffect(wantMic) { if (wantMic && Ai.hasKey.value) page = "ask" }
     when {
-        page == "key" -> AiFrame("Dịch vụ AI & khóa API", if (hasKey) "Menu" else null, goMenu, ::close) { ServicesPage { page = "key:$it" } }
+        page == "key" -> AiFrame("Dịch vụ AI & khóa API", "Menu", goMenu, ::close) { ServicesPage { page = "key:$it" } }
         page.startsWith("key:") -> AiFrame("Khóa " + AiProvs.get(page.removePrefix("key:")).name, "Dịch vụ", { page = "key" }, ::close) { KeyPage(AiProvs.get(page.removePrefix("key:"))) { page = "key" } }
+        page == "quick" -> AiFrame("Tìm nhanh", "Menu", goMenu, ::close) { QuickPage(rawTracks, ::playAt) { Overlay.aiAsk = it; page = "ask" } }
         page == "ask" -> AiFrame("Hỏi / tạo playlist", "Menu", goMenu, ::close) { AskPage(lib, ::play) }
         page == "plist" -> AiFrame("Playlist đã lưu", "Menu", goMenu, ::close) { SavedListsPage(lib, ::play) }
         page == "tags" -> AiFrame("Sửa tag, gộp trùng", "Menu", goMenu, ::close) { TagsPage(lib) }
@@ -144,7 +147,8 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
         else -> AiFrame("✨ Trợ lý AI (Gemini)", null, goMenu, ::close) {
             T("AI chỉ chạy khi bạn bấm. Thư viện không bị gửi lên mạng — chỉ gửi câu hỏi, vài tên nghệ sĩ/album hoặc tên thư mục cần xử lý.", 13, C.Muted, lines = 3)
             val dj by AiDj.on
-            Btn("🔎  Hỏi / tạo playlist bằng lời nói hoặc chữ") { page = "ask" }
+            Btn("⚡  Tìm nhanh bài hát / thư mục trong mọi nguồn") { page = "quick" }
+            Btn("🔎  Hỏi AI / tạo playlist bằng lời nói hoặc chữ") { page = "ask" }
             Btn("📂  Playlist đã lưu (${UserPlaylists.list.size})") { page = "plist" }
             Btn(if (dj) "📻  AI DJ: ĐANG BẬT — bấm để tắt" else "📻  AI DJ: tự thêm bài tiếp theo hợp mạch (đang tắt)") { AiDj.set(!dj) }
             if (dj && AiDj.note.value.isNotEmpty()) T("DJ: " + AiDj.note.value, 13, C.Muted, lines = 2)
@@ -253,58 +257,86 @@ private fun KeyPage(prov: Prov, onDone: () -> Unit) {
     T("Khóa lưu riêng trong app, trên thiết bị này. Máy chủ tạm chỉ chạy khi hộp thoại này mở.", 12, C.Muted, lines = 2)
 }
 
+/**
+ * Ô nhập chung. Điện thoại/máy tính bảng: có ô gõ chữ. TV: KHÔNG có ô gõ (gõ trên TV không khả thi) — chỉ có 🎤 nói và 📱 nhập bằng điện thoại.
+ * [onSubmit] được gọi khi người dùng bấm Tìm (nếu [showSubmit]) hoặc khi giọng nói / điện thoại gửi chữ tới.
+ */
 @Composable
-private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
-    val scope = rememberCoroutineScope()
-    var q by remember { mutableStateOf("") }
-    var busy by remember { mutableStateOf(false) }
-    var msg by remember { mutableStateOf("") }
-    var res by remember { mutableStateOf<AiSearch.Result?>(null) }
-    var url by remember { mutableStateOf<String?>(null) }
-    var saved by remember { mutableStateOf(false) }
-    fun run(text: String) {
-        if (busy || text.isBlank()) return
-        busy = true; msg = "Đang hỏi AI…"; res = null; saved = false
-        scope.launch {
-            try { res = AiSearch.run(text, lib); msg = if (res!!.tracks.isEmpty()) "Không tìm thấy bài phù hợp — thử nói khác đi." else "" }
-            catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
-            finally { busy = false }
-        }
-    }
+private fun AiInput(q: String, onQ: (String) -> Unit, hint: String, showSubmit: Boolean, autoMic: Boolean, onSubmit: (String) -> Unit) {
     val ctx = LocalContext.current
+    var msg by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf<String?>(null) }
     val listening by Voice.listening
     val partial by Voice.partial
+    fun got(t: String) { onQ(t); onSubmit(t) }
     fun listen() {
         if (Voice.listening.value) { Voice.stop(); return }
         if (!Voice.available(ctx)) { msg = "Thiết bị này chưa có dịch vụ nhận giọng nói (cần app Google / Google Assistant). Dùng nút 📱 để nói bằng điện thoại."; return }
-        msg = "🎙 Đang nghe… hãy nói yêu cầu của bạn"
-        Voice.start(ctx, { t -> ui.post { q = t; run(t) } }, { e -> ui.post { msg = e } })
+        msg = "🎙 Đang nghe… hãy nói"
+        Voice.start(ctx, { t -> ui.post { msg = ""; got(t) } }, { e -> ui.post { msg = e } })
     }
     val micPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) listen() else msg = "Bạn chưa cho phép micro. Vào Cài đặt hệ thống → Ứng dụng → GRAPE2Play → Quyền để bật, hoặc dùng điện thoại để nhập."
     }
     fun startMic() { if (Voice.hasPermission(ctx)) listen() else micPerm.launch(android.Manifest.permission.RECORD_AUDIO) }
-    val wantMic by Overlay.aiListen
-    LaunchedEffect(wantMic) { if (wantMic) { Overlay.aiListen.value = false; startMic() } }
+    if (autoMic) {
+        val wantMic by Overlay.aiListen
+        LaunchedEffect(wantMic) { if (wantMic) { Overlay.aiListen.value = false; startMic() } }
+    }
     DisposableEffect(Unit) { onDispose { Voice.stop() } }
-    val link = remember { AiPhoneLink(null, null) { s -> ui.post { q = s; run(s) } } }
+    val link = remember { AiPhoneLink(null, null) { s -> ui.post { got(s) } } }
     DisposableEffect(Unit) { onDispose { link.stop() } }
-    T("Ví dụ: “nhạc Trịnh nghe lúc mưa khoảng 1 giờ”, “10 bài DSD để thử dàn loa”, “jazz chưa nghe bao giờ”.", 14, C.Muted, lines = 2)
-    OutlinedTextField(q, { q = it }, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 18.sp), modifier = Modifier.fillMaxWidth(), placeholder = { T("Bạn muốn nghe gì?", 16, C.Muted) })
+    if (!Device.tv) OutlinedTextField(q, onQ, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 18.sp), modifier = Modifier.fillMaxWidth(), placeholder = { T(hint, 16, C.Muted) })
+    else if (q.isNotBlank()) T("“$q”", 18, C.Gold, lines = 3)
+    val typing by Ai.typing
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Focusable({ run(q) }) { T("Tìm", 17, C.Gold, Modifier.padding(18.dp, 9.dp), bold = true) }
+        if (!Device.tv && showSubmit) Focusable({ onSubmit(q) }) { T("Tìm", 17, C.Gold, Modifier.padding(18.dp, 9.dp), bold = true) }
         Focusable({ startMic() }) { T(if (listening) "■ Dừng nghe" else "🎤 Nói", 17, C.Gold, Modifier.padding(18.dp, 9.dp)) }
         if (Device.tv) Focusable({ if (link.start()) url = link.url else msg = "Không lấy được địa chỉ mạng." }) { T("📱 Nhập bằng điện thoại", 17, C.Gold, Modifier.padding(18.dp, 9.dp)) }
+        if (Device.tv) Focusable({ Ai.setTyping(!typing) }, selected = typing) { T(if (typing) "⌨ Ẩn ô gõ" else "⌨ Hiện ô gõ", 17, C.Gold, Modifier.padding(18.dp, 9.dp)) }
     }
     val u = url
     if (u != null) Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
-        QrCode(u, 150.dp)
+        QrCode(u, 140.dp)
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            T("Quét mã bằng điện thoại, gõ hoặc nói câu hỏi rồi bấm Gửi — kết quả hiện ở đây.", 15, lines = 3)
+            T("Quét mã bằng điện thoại, gõ hoặc nói rồi bấm Gửi — kết quả hiện ở đây.", 14, lines = 3)
             T(u, 12, C.Muted, lines = 2)
         }
     }
     if (listening && partial.isNotEmpty()) T("“$partial”", 17, lines = 3)
+    if (msg.isNotEmpty()) T(msg, 14, C.Gold, lines = 4)
+}
+
+/** TV: ô gõ chữ đặt ở cuối hộp thoại, chỉ hiện khi bật bằng nút ⌨ để không vướng khi di chuyển bằng điều khiển. */
+@Composable
+private fun AiTyping(q: String, onQ: (String) -> Unit, hint: String, showSubmit: Boolean, onSubmit: (String) -> Unit) {
+    val typing by Ai.typing
+    if (!Device.tv || !typing) return
+    OutlinedTextField(q, onQ, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 18.sp), modifier = Modifier.fillMaxWidth(), placeholder = { T(hint, 16, C.Muted) })
+    if (showSubmit) Focusable({ onSubmit(q) }) { T("Tìm", 17, C.Gold, Modifier.padding(18.dp, 9.dp), bold = true) }
+}
+
+@Composable
+private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var q by remember { mutableStateOf(Overlay.aiAsk) }
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf("") }
+    var res by remember { mutableStateOf<AiSearch.Result?>(null) }
+    var saved by remember { mutableStateOf(false) }
+    fun run(text: String) {
+        if (busy || text.isBlank()) return
+        busy = true; msg = "AI đang quét thư viện và đối chiếu…"; res = null; saved = false
+        scope.launch {
+            try { res = AiSearch.run(text, lib); msg = if (res!!.tracks.isEmpty()) "Không tìm thấy bài phù hợp — thử nói khác đi." else "" }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+            finally { busy = false }
+        }
+    }
+    LaunchedEffect(Unit) { if (Overlay.aiAsk.isNotBlank()) { val t = Overlay.aiAsk; Overlay.aiAsk = ""; run(t) } }
+    T("Ví dụ: “nhạc Trịnh nghe lúc mưa khoảng 1 giờ”, “10 bài DSD để thử dàn loa”, “jazz chưa nghe bao giờ”.", 14, C.Muted, lines = 2)
+    AiInput(q, { q = it }, "Bạn muốn nghe gì?", showSubmit = true, autoMic = true) { run(it) }
     if (msg.isNotEmpty()) T(msg, 15, if (msg.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 4)
     res?.let { r ->
         if (r.tracks.isNotEmpty()) {
@@ -320,6 +352,58 @@ private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
             T("${fmtTotal(r.tracks)} tổng thời lượng", 13, C.Muted)
         }
     }
+    AiTyping(q, { q = it }, "Bạn muốn nghe gì?", true) { run(it) }
+}
+
+/** Tìm nhanh bài hát và thư mục trong MỌI nguồn đã quét (bộ nhớ, USB, NAS/DLNA, đám mây). Chạy cục bộ, kết quả hiện ngay khi gõ/nói; không cần khóa AI. */
+@Composable
+private fun QuickPage(all: List<Track>, playAt: (List<Track>, Int) -> Unit, askAi: (String) -> Unit) {
+    var q by remember { mutableStateOf("") }
+    val snap by produceState<AiIndex.Snap?>(null, all) {
+        value = try { AiIndex.get(all) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null } catch (e: OutOfMemoryError) { null }
+    }
+    var hits by remember { mutableStateOf<AiIndex.Hits?>(null) }
+    LaunchedEffect(q, snap) {
+        val s = snap
+        if (s == null || q.isBlank()) { hits = null; return@LaunchedEffect }
+        delay(150)
+        hits = try { aiHeavy { AiIndex.search(s, q) } } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+    }
+    val s = snap
+    T(if (s == null) "Đang lập chỉ mục thư viện…" else "Đã lập chỉ mục ${s.entries.size} bài · ${s.folders.size} thư mục · " + s.srcCounts.take(4).joinToString(" · ") { "${it.first} ${it.second}" }, 13, C.Muted, lines = 2)
+    AiInput(q, { q = it }, "Tên bài, ca sĩ, album hoặc thư mục…", showSubmit = false, autoMic = false) { }
+    val h = hits
+    if (q.isBlank()) T(if (Device.tv) "Bấm 🎤 Nói hoặc 📱 để nhập tên bài, ca sĩ, album hay thư mục cần tìm." else "Gõ tên bài, ca sĩ, album hoặc thư mục — kết quả hiện ngay.", 14, C.Muted, lines = 2)
+    else if (h != null) {
+        if (h.folders.isEmpty() && h.tracks.isEmpty()) T("Không thấy — thử bớt chữ hoặc bấm “Hỏi AI”.", 15, C.Gold)
+        if (h.folders.isNotEmpty()) {
+            T("Thư mục (${h.totalFolders})", 15, C.Gold, bold = true)
+            h.folders.take(8).forEach { f ->
+                Focusable({ playAt(f.tracks.sortedWith(compareBy({ it.dir }, { it.no })), 0) }, Modifier.fillMaxWidth(), RoundedCornerShape(8.dp)) { foc ->
+                    Column(Modifier.padding(12.dp, 6.dp)) {
+                        TM("📁 " + f.name, 16, C.Text, Modifier.fillMaxWidth(), run = foc)
+                        T("${f.tracks.size} bài · ${f.src}" + if (f.where.isNotBlank()) " · " + f.where else "", 12, C.Muted)
+                    }
+                }
+            }
+            if (h.totalFolders > 8) T("… và ${h.totalFolders - 8} thư mục nữa — gõ thêm chữ để thu hẹp", 12, C.Muted)
+        }
+        if (h.tracks.isNotEmpty()) {
+            T("Bài hát (${h.totalTracks}) — bấm để phát, tiếp tục các bài khớp", 15, C.Gold, bold = true)
+            h.tracks.take(20).forEachIndexed { i, t ->
+                Focusable({ playAt(h.tracks, i) }, Modifier.fillMaxWidth(), RoundedCornerShape(8.dp)) { foc ->
+                    Column(Modifier.padding(12.dp, 6.dp)) {
+                        TM("♪ " + t.title, 16, C.Text, Modifier.fillMaxWidth(), run = foc)
+                        TM(listOf(t.artist, t.album).filter { it.isNotBlank() }.joinToString(" · ") + " · " + t.sourceName, 12, C.Muted, Modifier.fillMaxWidth(), run = foc)
+                    }
+                }
+            }
+            if (h.totalTracks > 20) T("… và ${h.totalTracks - 20} bài nữa", 12, C.Muted)
+            Btn("▶ Phát tất cả bài khớp (${h.tracks.size})") { playAt(h.tracks, 0) }
+        }
+        if (Ai.hasKey.value) Btn("✨ Hỏi AI về “$q” (hiểu ý, đối chiếu kỹ)") { askAi(q) }
+    }
+    AiTyping(q, { q = it }, "Tên bài, ca sĩ, album hoặc thư mục…", false) { }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -384,7 +468,7 @@ private fun InfoPage() {
 private fun CleanPage(lib: List<Track>) {
     val scope = rememberCoroutineScope()
     val done = AiMeta.map.size
-    val pending = remember(lib, done) { AiClean.pending(lib).size }
+    val pending by produceState(0, lib, done) { value = try { AiClean.pending(lib).size } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { 0 } catch (e: OutOfMemoryError) { 0 } }
     var busy by remember { mutableStateOf(false) }
     var prog by remember { mutableStateOf("") }
     var job by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
@@ -396,13 +480,13 @@ private fun CleanPage(lib: List<Track>) {
         if (pending > 0) Btn("▶ Bắt đầu làm sạch ($pending thư mục)") {
             busy = true; prog = "Đang xử lý…"
             job = scope.launch {
-                try { AiClean.run(lib) { d, n -> prog = "Đã xử lý $d / $n" }; prog = "Xong ✓" }
+                try { AiClean.run(lib) { d, n -> prog = "Đã xử lý $d / $n" }; AiIndex.drop(); prog = "Xong ✓" }
                 catch (e: kotlinx.coroutines.CancellationException) { prog = "Đã dừng" }
                 catch (e: Exception) { prog = "✗ " + (e.message ?: "Lỗi") + " — bấm Bắt đầu để tiếp tục phần còn lại." }
                 finally { busy = false }
             }
         }
-        if (done > 0) Btn("↺ Khôi phục tên gốc (xóa kết quả AI)") { AiMeta.clear(); prog = "Đã khôi phục" }
+        if (done > 0) Btn("↺ Khôi phục tên gốc (xóa kết quả AI)") { AiMeta.clear(); AiIndex.drop(); prog = "Đã khôi phục" }
     } else Btn("■ Dừng") { job?.cancel() }
 }
 

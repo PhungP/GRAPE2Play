@@ -392,3 +392,12 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 - Thanh sóng âm kiêm tua: mặc định bị khóa; chỉ tua khi bấm OK/chuột vào dải sóng (hiện khung sáng và gợi ý), bấm OK/Quay lại để khóa lại. Rời khỏi dải sóng tự khóa.
 - Ra lệnh bằng giọng nói: thêm quyền micro (xin khi bấm 🎤), nhận giọng nói ngay trong app; nút micro trên remote (nếu hệ thống chuyển phím cho app) mở trợ lý AI và nghe luôn.
 - Nhiều dịch vụ AI miễn phí: Gemini, Groq, OpenRouter, Mistral, Cerebras. Chọn AI chính, công tắc tự chuyển AI khi hết hạn mức hoặc không phản hồi sau 25 giây, ghi chú dịch vụ đang trả lời ở chân hộp thoại. Nhập khóa: TV quét QR bằng điện thoại, điện thoại dán trực tiếp.
+
+## Bản 2.2.0
+- Mới "⚡ Tìm nhanh": tìm bài hát và thư mục trong mọi nguồn đã quét (bộ nhớ, USB, NAS/DLNA, đám mây), không dấu cũng tìm được, kết quả hiện ngay khi gõ/nói, không cần khóa AI.
+- AI tìm chính xác hơn: lọc cục bộ trên chỉ mục toàn thư viện, rồi AI đối chiếu lại các album ứng viên trước khi trả kết quả.
+- Sửa app tự thoát khi AI chạy nặng: mọi phần quét thư viện chuyển sang luồng nền với chỉ mục dựng sẵn (trước đây chạy trên luồng chính, biên dịch lại regex hàng chục nghìn lần), bắt lỗi hết bộ nhớ thành thông báo.
+- Hộp hỏi AI trên TV: ẩn ô gõ chữ và nút Tìm; dùng 🎤 Nói hoặc 📱 nhập bằng điện thoại.
+
+## Bản 2.2.1
+- TV, hộp hỏi AI / Tìm nhanh: ô gõ chữ chuyển xuống cuối hộp thoại và mặc định ẩn; bật/tắt bằng nút "⌨ Hiện/Ẩn ô gõ" (nhớ lựa chọn).

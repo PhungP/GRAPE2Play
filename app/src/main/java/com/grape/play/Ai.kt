@@ -53,6 +53,9 @@ object Ai {
     val rev = mutableStateOf(0)
     /** Dịch vụ vừa trả lời + ghi chú khi phải chuyển AI (hiện ở chân hộp thoại AI). */
     val status = mutableStateOf("")
+    /** TV: hiện ô gõ chữ ở cuối hộp thoại hỏi AI (mặc định ẩn để không vướng khi dùng điều khiển). */
+    val typing = mutableStateOf(false)
+    fun setTyping(v: Boolean) { typing.value = v; if (::sp.isInitialized) sp.edit().putBoolean("typing", v).apply() }
     /** Thời gian chờ mỗi dịch vụ trước khi chuyển sang dịch vụ kế tiếp. */
     const val SWITCH_MS = 25_000L
 
@@ -67,6 +70,7 @@ object Ai {
         if (::sp.isInitialized) return
         sp = ctx.applicationContext.getSharedPreferences("ai", Context.MODE_PRIVATE)
         refresh()
+        typing.value = sp.getBoolean("typing", false)
         AiMeta.init(ctx)
     }
 

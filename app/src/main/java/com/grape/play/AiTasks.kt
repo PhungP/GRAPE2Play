@@ -6,12 +6,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import org.json.JSONArray
 import org.json.JSONObject
-import java.text.Normalizer
 import java.util.Calendar
 import kotlin.coroutines.coroutineContext
-
-/** Chuẩn hoá để so khớp không phân biệt dấu/hoa thường (tiếng Việt). */
-internal fun aiNorm(s: String): String = Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "").replace('đ', 'd')
 
 private val GENRES = "bolero, jazz, pop, rock, classical, folk, soundtrack, other"
 
@@ -24,14 +20,13 @@ internal fun timeOfDay(): String {
 
 /** 1. Làm sạch thư viện: tên hiển thị gọn + thể loại cho từng thư mục. */
 object AiClean {
-    /** Danh sách (tên thư mục, nghệ sĩ mẫu, album mẫu) chưa được AI xử lý. */
-    fun pending(lib: List<Track>): List<Triple<String, String, String>> {
-        val seen = LinkedHashMap<String, Track>()
-        for (t in lib) { val s = segs(t); for (n in s.drop(1).dropLast(1)) if (n.isNotBlank() && n !in seen && n !in AiMeta.map) seen[n] = t }
-        return seen.map { (n, t) -> Triple(n, t.artist, t.album) }
-    }
+    /** Danh sách (tên thư mục, nghệ sĩ mẫu, album mẫu) chưa được AI xử lý — lấy từ chỉ mục dựng sẵn ở luồng nền. */
+    suspend fun pending(lib: List<Track>): List<Triple<String, String, String>> =
+        AiIndex.get(lib).names.filter { it.key !in AiMeta.map }.map { (n, t) -> Triple(n, t.artist, t.album) }
 
-    suspend fun run(lib: List<Track>, onProgress: (done: Int, total: Int) -> Unit): Int {
+    suspend fun run(lib: List<Track>, onProgress: (done: Int, total: Int) -> Unit): Int = aiHeavy { runNow(lib, onProgress) }
+
+    private suspend fun runNow(lib: List<Track>, onProgress: (done: Int, total: Int) -> Unit): Int {
         val todo = pending(lib)
         var done = 0; var ok = 0
         onProgress(0, todo.size)
@@ -61,48 +56,70 @@ object AiClean {
     }
 }
 
-/** 2. Hiểu yêu cầu tự nhiên → bộ lọc cục bộ (thư viện không bị gửi lên mạng, chỉ gửi câu hỏi và vài tên nghệ sĩ). */
+/** 2. Hỏi / tìm nhạc: AI hiểu yêu cầu → truy xuất cục bộ trên chỉ mục mọi nguồn → AI đối chiếu lại các album ứng viên cho chính xác. Thư viện không bị gửi lên mạng, chỉ gửi câu hỏi và danh sách ứng viên rút gọn. */
 object AiSearch {
     class Result(val explain: String, val tracks: List<Track>, val name: String = "")
 
     suspend fun run(query: String, lib: List<Track>): Result {
-        val artists = lib.groupingBy { it.artist }.eachCount().entries.sortedByDescending { it.value }.take(120).map { it.key }.filter { it.isNotBlank() }
-        val formats = lib.map { it.ext }.filter { it.isNotEmpty() }.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(8).map { it.key }
+        val snap = AiIndex.get(lib)
         val sys = "Bạn phân tích yêu cầu nghe nhạc thành bộ lọc cho app phát nhạc hi-fi. Chỉ trả JSON dạng " +
             "{\"explain\":<1 câu mô tả bạn hiểu yêu cầu thế nào>, \"artists\":[tên nghệ sĩ, ưu tiên đúng tên trong danh sách có sẵn], \"keywords\":[từ khoá tên bài/album/thư mục], " +
             "\"genres\":[từ: $GENRES], \"formats\":[vd dsd, flac, wav, mp3], \"sort\":<relevance|most_played|least_played|never_played|recent|random>, \"limit\":<số bài 10-120>, \"minutes\":<tổng thời lượng mong muốn tính bằng phút nếu người dùng nói, nếu không thì 0>, \"name\":<tên playlist ngắn gọn, gợi cảm>}. " +
             "Các trường không liên quan để mảng rỗng. Tâm trạng (buồn, nhẹ nhàng, sôi động...) hãy chuyển thành genres/keywords hợp lý. ${Ai.langHint()}"
-        val prompt = "Yêu cầu: $query\nBây giờ: ${timeOfDay()}\nĐịnh dạng trong thư viện: ${formats.joinToString()}\nNghệ sĩ có trong thư viện: ${artists.joinToString(" | ")}"
+        val prompt = "Yêu cầu: $query\nBây giờ: ${timeOfDay()}\nĐịnh dạng trong thư viện: ${snap.formats.joinToString()}\nNghệ sĩ có trong thư viện (${snap.topArtists.size}/${snap.artistCount} nghệ sĩ nhiều bài nhất): ${snap.topArtists.joinToString(" | ")}"
         val o = Ai.parseJson(Ai.generate(prompt, sys, json = true, temp = 0.2)) as JSONObject
-        fun list(k: String) = o.optJSONArray(k)?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() } } ?: emptyList()
-        val terms = (list("artists") + list("keywords")).map { aiNorm(it) }
-        val genres = list("genres").map { aiNorm(it) }.filter { it != "other" }
-        val fmts = list("formats").map { it.lowercase().removePrefix(".") }
-        val limit = if (o.optInt("minutes", 0) > 0) 400 else o.optInt("limit", 60).coerceIn(10, 200)
-        var r = lib.filter { t ->
-            if (terms.isEmpty() && genres.isEmpty()) return@filter true
-            val hay = aiNorm(t.artist + " " + t.title + " " + t.album + " " + t.dir)
-            val byTerm = terms.any { it in hay }
-            val g = aiNorm(t.genre + " " + (segs(t).drop(1).dropLast(1).mapNotNull { AiMeta.map[it]?.genre }.joinToString(" ")))
-            byTerm || genres.any { it in g }
+        val (cand0, semantic) = aiHeavy { candidates(query, o, snap) }
+        var cand = cand0
+        var note = ""
+        if (semantic) {
+            val groups = aiHeavy { cand0.groupBy { it.artist.trim() + "\u0000" + it.album.trim() }.values.sortedByDescending { it.size }.take(150) }
+            if (groups.size >= 2) try {
+                val lines = groups.mapIndexed { i, g -> val t = g.first(); "$i|${t.artist}|${t.album}|${segs(t).dropLast(1).lastOrNull() ?: ""}|${g.size} bài|${t.ext}" }
+                val vsys = "Bạn kiểm tra lại kết quả tìm nhạc. Cho yêu cầu của người dùng và danh sách album ứng viên (id|nghệ sĩ|album|thư mục|số bài|định dạng), chỉ giữ những album THỰC SỰ khớp ý (đúng nghệ sĩ, thể loại, tâm trạng, định dạng...). Yêu cầu chung chung thì giữ nhiều. Chỉ trả JSON {\"ids\":[id...]}."
+                val v = Ai.parseJson(Ai.generate("Yêu cầu: $query\nAlbum:\n${lines.joinToString("\n")}", vsys, json = true, temp = 0.0)) as JSONObject
+                val ids = v.optJSONArray("ids")
+                val keep = if (ids == null) emptyList() else (0 until ids.length()).mapNotNull { groups.getOrNull(ids.optInt(it, -1)) }.flatten()
+                if (keep.isNotEmpty()) { cand = keep; note = " (AI đã đối chiếu ${keep.map { it.album }.distinct().size}/${groups.size} album)" }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { /* bước đối chiếu là phụ: lỗi thì dùng kết quả lọc cục bộ */ }
         }
+        return aiHeavy { finish(o, cand, note) }
+    }
+
+    private fun list(o: JSONObject, k: String) = o.optJSONArray(k)?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() } } ?: emptyList()
+
+    /** Lọc ứng viên trên chỉ mục: nghệ sĩ/từ khoá/thể loại của AI, thêm tìm theo chính câu hỏi nếu AI không ra gì. */
+    private fun candidates(query: String, o: JSONObject, snap: AiIndex.Snap): Pair<List<Track>, Boolean> {
+        val terms = (list(o, "artists") + list(o, "keywords")).map { aiNorm(it) }.filter { it.isNotBlank() }
+        val genres = list(o, "genres").map { aiNorm(it) }.filter { it.isNotBlank() && it != "other" }
+        val fmts = list(o, "formats").map { it.lowercase().removePrefix(".") }
+        val semantic = terms.isNotEmpty() || genres.isNotEmpty()
+        var r: List<Track> = if (!semantic) snap.entries.map { it.t }
+            else snap.entries.filter { e -> terms.any { it in e.nt || it in e.nr } || genres.any { it in e.ng } }.map { it.t }
+        if (r.isEmpty() && semantic) r = AiIndex.search(snap, query, maxTracks = 400).tracks
         if (fmts.isNotEmpty()) r = r.filter { t -> val e = t.ext; fmts.any { f -> e == f || (f == "dsd" && (e == "dsf" || e == "dff")) } }
-        r = when (o.optString("sort")) {
-            "most_played" -> r.sortedByDescending { UsageStats.plays(it.path) }.filter { UsageStats.plays(it.path) > 0 }.ifEmpty { r.shuffled() }
-            "least_played" -> r.filter { UsageStats.plays(it.path) > 0 }.sortedBy { UsageStats.plays(it.path) }.ifEmpty { r.shuffled() }
-            "never_played" -> r.filter { UsageStats.plays(it.path) == 0 }.shuffled()
-            "recent" -> r.filter { UsageStats.tracks[it.path] != null }.sortedByDescending { UsageStats.tracks[it.path]?.last ?: 0L }.ifEmpty { r.shuffled() }
-            "random" -> r.shuffled()
-            else -> if (r.size > limit) r.shuffled() else r.sortedWith(compareBy({ it.dir }, { it.no }))
-        }
+        return r to (semantic && r.isNotEmpty())
+    }
+
+    private fun finish(o: JSONObject, cand: List<Track>, note: String): Result {
         val mins = o.optInt("minutes", 0)
+        val limit = if (mins > 0) 400 else o.optInt("limit", 60).coerceIn(10, 200)
+        val sort = o.optString("sort")
+        val r = when (sort) {
+            "most_played" -> cand.sortedByDescending { UsageStats.plays(it.path) }.filter { UsageStats.plays(it.path) > 0 }.ifEmpty { cand.shuffled() }
+            "least_played" -> cand.filter { UsageStats.plays(it.path) > 0 }.sortedBy { UsageStats.plays(it.path) }.ifEmpty { cand.shuffled() }
+            "never_played" -> cand.filter { UsageStats.plays(it.path) == 0 }.shuffled()
+            "recent" -> cand.filter { UsageStats.tracks[it.path] != null }.sortedByDescending { UsageStats.tracks[it.path]?.last ?: 0L }.ifEmpty { cand.shuffled() }
+            "random" -> cand.shuffled()
+            else -> if (cand.size > limit) cand.shuffled() else cand.sortedWith(compareBy({ it.dir }, { it.no }))
+        }
+        val name = o.optString("name"); val explain = o.optString("explain") + note
         if (mins > 0) {
-            val src = if (o.optString("sort").let { it == "relevance" || it.isEmpty() }) r.shuffled() else r
+            val src = if (sort == "relevance" || sort.isEmpty()) r.shuffled() else r
             var acc = 0L; val out = ArrayList<Track>()
             for (t in src) { if (acc >= mins * 60_000L) break; out += t; acc += t.durationMs }
-            return Result(o.optString("explain"), out, o.optString("name"))
+            return Result(explain, out, name)
         }
-        return Result(o.optString("explain"), r.take(limit), o.optString("name"))
+        return Result(explain, r.take(limit), name)
     }
 }
 
@@ -110,9 +127,11 @@ object AiSearch {
 object AiSuggest {
     class Playlist(val title: String, val reason: String, val tracks: List<Track>)
 
-    suspend fun run(lib: List<Track>, context: String = ""): List<Playlist> {
-        val albums = lib.groupBy { it.artist.trim() + "\u0000" + it.album.trim() }.filter { it.key.length > 1 }
-        val withPlays = albums.entries.map { it to it.value.sumOf { t -> UsageStats.plays(t.path) } }
+    suspend fun run(lib: List<Track>, context: String = ""): List<Playlist> = aiHeavy { runNow(lib, context) }
+
+    private suspend fun runNow(lib: List<Track>, context: String): List<Playlist> {
+        val albums = AiIndex.get(lib).albums
+        val withPlays = albums.map { it to it.value.sumOf { t -> UsageStats.plays(t.path) } }
         val pool = (withPlays.sortedByDescending { it.second }.take(25) + withPlays.shuffled().take(110)).distinctBy { it.first.key }.map { it.first }
         val lines = pool.mapIndexed { i, e -> val t = e.value.first(); "$i|${t.artist}|${t.album}|${t.ext}" }
         val topArtists = lib.filter { UsageStats.plays(it.path) > 0 }.groupBy { it.artist }.entries.sortedByDescending { e -> e.value.sumOf { UsageStats.plays(it.path) } }.take(8).map { it.key }
@@ -143,17 +162,18 @@ object AiInfo {
     }
 }
 
-private fun albumPool(lib: List<Track>, picker: (List<Map.Entry<String, List<Track>>>) -> List<Map.Entry<String, List<Track>>>): Pair<List<Map.Entry<String, List<Track>>>, List<String>> {
-    val albums = lib.groupBy { it.artist.trim() + "\u0000" + it.album.trim() }.filter { it.key.length > 1 }.entries.toList()
-    val pool = picker(albums)
+private suspend fun albumPool(lib: List<Track>, picker: (List<AiIndex.Alb>) -> List<AiIndex.Alb>): Pair<List<AiIndex.Alb>, List<String>> {
+    val pool = picker(AiIndex.get(lib).albums)
     return pool to pool.mapIndexed { i, e -> val t = e.value.first(); "$i|${t.artist}|${t.album}|${t.ext}" }
 }
 
-private fun albumTracks(e: Map.Entry<String, List<Track>>) = e.value.sortedWith(compareBy({ it.dir }, { it.no })).take(150)
+private fun albumTracks(e: AiIndex.Alb) = e.value.sortedWith(compareBy({ it.dir }, { it.no })).take(150)
 
 /** 2. AI DJ: chọn tiếp các bài hợp mạch với những bài vừa phát. */
 object AiDjTask {
-    suspend fun more(lib: List<Track>, queue: List<Track>, idx: Int, context: String): List<Track> {
+    suspend fun more(lib: List<Track>, queue: List<Track>, idx: Int, context: String): List<Track> = aiHeavy { moreNow(lib, queue, idx, context) }
+
+    private suspend fun moreNow(lib: List<Track>, queue: List<Track>, idx: Int, context: String): List<Track> {
         val inQueue = queue.map { it.path }.toHashSet()
         val recentAlbums = queue.drop((idx - 8).coerceAtLeast(0)).take(10).map { it.artist + "\u0000" + it.album }.toSet()
         val (pool, lines) = albumPool(lib) { all ->
@@ -178,7 +198,9 @@ object AiTags {
         var on by androidx.compose.runtime.mutableStateOf(true)
     }
 
-    private fun key(s: String) = aiNorm(s).replace(Regex("[^a-z0-9]"), "")
+    private val kcache = HashMap<String, String>()
+    private val nonAlnum = Regex("[^a-z0-9]")
+    private fun key(s: String) = kcache.getOrPut(s) { aiNorm(s).replace(nonAlnum, "") }
     private fun accents(s: String) = s.count { it.code > 127 }
     private fun shouting(s: String) = s.any { it.isLetter() } && s == s.uppercase()
 
@@ -193,7 +215,10 @@ object AiTags {
         return out
     }
 
-    suspend fun scan(lib: List<Track>): List<Fix> {
+    suspend fun scan(lib: List<Track>): List<Fix> = aiHeavy { scanNow(lib) }
+
+    private suspend fun scanNow(lib: List<Track>): List<Fix> {
+        kcache.clear()
         val fixes = ArrayList<Fix>()
         fixes += variants(lib.map { it.artist }, "artist")
         // album: chỉ gom khi cùng nghệ sĩ
@@ -228,12 +253,14 @@ object AiTags {
 
 /** 6. Album bị bỏ quên: album chất lượng cao ít/không được nghe, AI chọn vài album hợp hôm nay. */
 object AiForgotten {
-    suspend fun run(lib: List<Track>, context: String): List<AiSuggest.Playlist> {
+    suspend fun run(lib: List<Track>, context: String): List<AiSuggest.Playlist> = aiHeavy { runNow(lib, context) }
+
+    private suspend fun runNow(lib: List<Track>, context: String): List<AiSuggest.Playlist> {
         val now = System.currentTimeMillis()
         val (pool, lines) = albumPool(lib) { all ->
-            fun plays(e: Map.Entry<String, List<Track>>) = e.value.sumOf { UsageStats.plays(it.path) }
-            fun last(e: Map.Entry<String, List<Track>>) = e.value.maxOf { UsageStats.tracks[it.path]?.last ?: 0L }
-            fun hi(e: Map.Entry<String, List<Track>>) = e.value.any { it.bits > 16 || it.sr > 48000 || it.ext == "dsf" || it.ext == "dff" }
+            fun plays(e: AiIndex.Alb) = e.value.sumOf { UsageStats.plays(it.path) }
+            fun last(e: AiIndex.Alb) = e.value.maxOf { UsageStats.tracks[it.path]?.last ?: 0L }
+            fun hi(e: AiIndex.Alb) = e.value.any { it.bits > 16 || it.sr > 48000 || it.ext == "dsf" || it.ext == "dff" }
             val never = all.filter { plays(it) == 0 }
             val old = all.filter { plays(it) > 0 }.sortedBy { last(it) }.take(35)
             (never.filter { hi(it) }.shuffled().take(55) + never.shuffled().take(30) + old).distinctBy { it.key }
