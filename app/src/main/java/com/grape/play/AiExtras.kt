@@ -238,7 +238,7 @@ object AiTestSet {
         }
         val sys = "Bạn là chuyên gia hi-fi dựng buổi thử dàn loa/tai nghe. Từ danh sách album (id|nghệ sĩ|album|định dạng/chất lượng|số bài) hãy chọn tối đa 8 mục, mỗi mục một album KHÁC nhau, ứng với các nhóm: " +
             "giọng nữ, giọng nam, guitar/piano acoustic, trầm sâu, động lực (giao hưởng/trống), không gian & sân khấu (live), chi tiết dải cao (violin/cymbal), nhạc đời thường. " +
-            "Ưu tiên bản thu tốt, hi-res, nổi tiếng về chất âm có trong danh sách. Chỉ trả JSON {\"items\":[{\"category\":<nhóm>,\"id\":<id>,\"tip\":<1 câu: nghe chú ý điều gì>}]}. Chỉ dùng id có trong danh sách. ${Ai.langHint()}"
+            "Ưu tiên bản thu tốt, hi-res, nổi tiếng về chất âm có trong danh sách. Chỉ trả JSON {\"items\":[{\"category\":<nhóm>,\"id\":<id>,\"tip\":<tối đa 12 từ: nghe chú ý điều gì>}]}. Chỉ dùng id có trong danh sách. ${Ai.langHint()}"
         val o = Ai.parseJson(Ai.generate("Trọng tâm: $focus\nAlbum:\n${lines.joinToString("\n")}", sys, json = true, temp = 0.6)) as JSONObject
         val arr = o.optJSONArray("items") ?: return emptyList()
         val used = HashSet<Int>(); val out = ArrayList<Item>()

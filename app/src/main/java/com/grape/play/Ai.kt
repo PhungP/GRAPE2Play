@@ -190,7 +190,7 @@ object Ai {
         val models = (listOf(lastOk[p.id] ?: "") + p.models + extra).filter { it.isNotBlank() }.distinct().take(7)
         var lastErr = ""
         for (m in models) {
-            val body = JSONObject().put("model", m).put("messages", msgs).put("temperature", temp)
+            val body = JSONObject().put("model", m).put("messages", msgs).put("temperature", temp).put("max_tokens", 4096).put("max_completion_tokens", 4096)
             val rb = Request.Builder().url("$base/chat/completions").header("Authorization", "Bearer $key")
             if (p.id == "openrouter") rb.header("HTTP-Referer", "https://github.com/grape2play").header("X-Title", "GRAPE2Play")
             val (code, text) = try { http.newCall(rb.post(body.toString().toRequestBody("application/json".toMediaType())).build()).await() }
@@ -291,7 +291,34 @@ object Ai {
         if (a > 0) t = t.substring(a)
         val b = t.indexOfLast { it == '}' || it == ']' }
         if (b in 0 until t.length - 1) t = t.substring(0, b + 1)
-        return if (t.startsWith("[")) JSONArray(t) else JSONObject(t)
+        return try { if (t.startsWith("[")) JSONArray(t) else JSONObject(t) }
+        catch (e: org.json.JSONException) {
+            try { val r = repairJson(t); if (r.startsWith("[")) JSONArray(r) else JSONObject(r) }
+            catch (e2: org.json.JSONException) { salvage(s, t.startsWith("[")) }
+        }
+    }
+
+    /** Phương án cuối: nhặt từng đối tượng {...} phẳng còn nguyên vẹn trong câu trả lời bị cắt. */
+    private fun salvage(raw: String, asArray: Boolean): Any {
+        val arr = JSONArray()
+        Regex("\\{[^{}]*\\}").findAll(raw).forEach { m -> runCatching { arr.put(JSONObject(m.value)) } }
+        if (arr.length() == 0) throw org.json.JSONException("Câu trả lời của AI bị cắt, thử lại")
+        return if (asArray) arr else JSONObject().put("items", arr)
+    }
+
+    /** Sửa JSON bị cắt giữa chừng (model hết token): cắt tới phần tử đầy đủ cuối cùng rồi đóng ngoặc. */
+    private fun repairJson(t: String): String {
+        val st = ArrayList<Char>(); var inStr = false; var esc = false; var lastOk = -1; var okStack = ""
+        for ((i, c) in t.withIndex()) {
+            if (inStr) { if (esc) esc = false else if (c == '\\') esc = true else if (c == '"') inStr = false; continue }
+            when (c) {
+                '"' -> inStr = true
+                '{', '[' -> st.add(c)
+                '}', ']' -> { if (st.isNotEmpty()) st.removeAt(st.lastIndex); if (st.isNotEmpty()) { lastOk = i; okStack = st.joinToString("") } }
+            }
+        }
+        if (lastOk < 0) throw org.json.JSONException("Câu trả lời của AI bị cắt, thử lại")
+        return t.substring(0, lastOk + 1) + okStack.reversed().map { if (it == '{') '}' else ']' }.joinToString("")
     }
 
     fun langHint(): String = if (Lang.en.value) "Answer in English." else "Trả lời bằng tiếng Việt."

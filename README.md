@@ -411,3 +411,7 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 - 🎚 Buổi thử dàn: AI chọn tối đa 8 bài thử âm (giọng hát, trầm, động lực, không gian, chi tiết dải cao…) từ chính thư viện, kèm lời nhắc nghe gì; phát cả buổi hoặc lưu playlist.
 - 😴 Hẹn giờ ngủ thông minh: 15/30/45/60/90 phút, "hết bài này", hoặc nói/gõ tự nhiên ("ru ngủ 30 phút"); âm lượng nhỏ dần ở cuối rồi tạm dừng; có thể kèm phát nhạc ru ngủ do AI chọn.
 - 🌙 Màn hình chờ thông minh: nền đen, ảnh bìa + tên bài + thời tiết + âm lịch/ngày lễ + câu giới thiệu album do AI viết, nội dung dịch chỗ chậm (chống in bóng OLED).
+
+## Bản 2.4.1
+- Sửa lỗi "Unterminated array" (Cloudflare/AI trả JSON bị cắt): thêm max_completion_tokens, cứu các mục còn nguyên vẹn thay vì báo lỗi, rút gọn lời nhắc của AI.
+- Thông báo lỗi AI được rút gọn một dòng; cửa sổ AI nhỏ gọn hơn (rộng 560, nút và lề gọn hơn).

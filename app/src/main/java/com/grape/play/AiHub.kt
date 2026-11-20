@@ -95,16 +95,16 @@ private val ui = Handler(Looper.getMainLooper())
 private fun AiFrame(title: String, back: String?, onBack: () -> Unit, onClose: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val first = remember { FocusRequester() }
     LaunchedEffect(title) { runCatching { first.requestFocus() } }
-    val maxH = if (Device.tv) 640.dp else (LocalConfiguration.current.screenHeightDp * 0.9f).dp
+    val maxH = if (Device.tv) 520.dp else (LocalConfiguration.current.screenHeightDp * 0.9f).dp
     Dialog(onDismissRequest = { if (back != null) onBack() else onClose() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        val base = Modifier.dlgW(720).heightIn(max = maxH)
+        val base = Modifier.dlgW(560).heightIn(max = maxH)
         val surf = when (Themes.style.value) {
             5, 6, 7, 8, 9, 10 -> base.clip(RoundedCornerShape(12.dp)).background(C.Bg).sfPanel(12.dp)
             4 -> base.clip(RoundedCornerShape(4.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.Panel, C.Side))).border(1.dp, C.Line, RoundedCornerShape(4.dp))
             1 -> base.clip(RoundedCornerShape(22.dp)).background(C.Panel)
             else -> base.clip(RoundedCornerShape(12.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(12.dp))
         }
-        Column(surf.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(surf.padding(18.dp, 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (back != null) Focusable(onBack, requester = first) { T("◂ $back", 14, C.Gold, Modifier.padding(12.dp, 5.dp)) }
                 T(title.uppercase(), 13, C.Muted, spaced = true, modifier = Modifier.weight(1f))
@@ -119,7 +119,7 @@ private fun AiFrame(title: String, back: String?, onBack: () -> Unit, onClose: (
 
 @Composable
 private fun Btn(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) =
-    Focusable(onClick, modifier.fillMaxWidth(), RoundedCornerShape(10.dp)) { T(text, 16, C.Gold, Modifier.padding(14.dp, 9.dp), bold = true, lines = 2) }
+    Focusable(onClick, modifier.fillMaxWidth(), RoundedCornerShape(8.dp)) { T(text, 15, C.Gold, Modifier.padding(12.dp, 7.dp), bold = true, lines = 2) }
 
 @Composable
 fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
@@ -339,7 +339,7 @@ private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
         scope.launch {
             try { res = AiSearch.run(text, lib); msg = if (res!!.tracks.isEmpty()) "Không tìm thấy bài phù hợp — thử nói khác đi." else "" }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+            catch (e: Exception) { msg = "✗ " + errText(e).lines().first().take(120) }
             finally { busy = false }
         }
     }
@@ -364,6 +364,15 @@ private fun AskPage(lib: List<Track>, play: (List<Track>) -> Unit) {
     AiTyping(q, { q = it }, "Bạn muốn nghe gì?", true) { run(it) }
 }
 
+/** Rút gọn thông báo lỗi để không tràn cửa sổ (bỏ phần trích nguyên văn JSON). */
+internal fun errText(e: Throwable): String {
+    var m = e.message ?: "Lỗi"
+    val i = m.indexOf(" of {"); if (i > 0) m = m.substring(0, i)
+    val j = m.indexOf(" of ["); if (j > 0) m = m.substring(0, j)
+    if (m.startsWith("Unterminated") || m.startsWith("Expected") || m.startsWith("Value ") || m.startsWith("End of input")) m = "AI trả về dữ liệu chưa đầy đủ, thử lại"
+    return m.lineSequence().first().take(140)
+}
+
 private fun fmtMs(ms: Long): String { val s = ms / 1000; return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s % 3600 / 60, s % 60) else "%d:%02d".format(s / 60, s % 60) }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -385,7 +394,7 @@ private fun SleepPage(lib: List<Track>, play: (List<Track>) -> Unit) {
             scope.launch {
                 try { play(AiSearch.run("nhạc nhẹ nhàng ru ngủ thư giãn, khoảng ${if (p.minutes > 0) p.minutes else 30} phút", lib).tracks) }
                 catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                catch (e: Exception) { msg = "Đã hẹn giờ, nhưng chọn nhạc lỗi: " + (e.message ?: "") }
+                catch (e: Exception) { msg = "Đã hẹn giờ, nhưng chọn nhạc lỗi: " + errText(e) }
             }
         }
     }
@@ -395,7 +404,7 @@ private fun SleepPage(lib: List<Track>, play: (List<Track>) -> Unit) {
         scope.launch {
             try { go(AiSleep.parse(t)) }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+            catch (e: Exception) { msg = "✗ " + errText(e).lines().first().take(120) }
             finally { busy = false }
         }
     }
@@ -450,7 +459,7 @@ private fun TestPage(lib: List<Track>, playAt: (List<Track>, Int) -> Unit) {
         msg = "AI đang chọn bài thử âm từ thư viện của bạn…"; items = emptyList(); saved = false
         try { items = AiTestSet.run(lib, focus); msg = if (items.isEmpty()) "AI chưa chọn được bài nào." else "" }
         catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+        catch (e: Exception) { msg = "✗ " + errText(e).lines().first().take(120) }
     }
     T("Mỗi mục là một bài thử một khía cạnh của dàn loa/tai nghe, kèm lời nhắc nghe điều gì. Chọn từ chính thư viện của bạn, ưu tiên bản thu hi-res.", 13, C.Muted, lines = 3)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -542,7 +551,7 @@ private fun SuggestPage(lib: List<Track>, play: (List<Track>) -> Unit) {
             head = AiContext.headline(info)
             lists = AiSuggest.run(lib, AiContext.describe(info, mood))
             msg = if (lists.isEmpty()) "AI chưa chọn được danh sách nào." else ""
-        } catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+        } catch (e: Exception) { msg = "✗ " + errText(e).lines().first().take(120) }
     }
     if (head.isNotEmpty()) T(head, 14, C.Muted, lines = 2)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -573,7 +582,7 @@ private fun InfoPage() {
     if (t == null) { T("Chưa có bài nào đang phát.", 16, C.Muted); return }
     LaunchedEffect(t.path) {
         text = ""; err = ""
-        try { text = AiInfo.run(t) } catch (e: Exception) { err = "✗ " + (e.message ?: "Lỗi") }
+        try { text = AiInfo.run(t) } catch (e: Exception) { err = "✗ " + errText(e) }
     }
     T(t.title, 20, bold = true, lines = 2)
     T("${t.artist} · ${t.album}", 15, C.Muted, lines = 2)
@@ -603,7 +612,7 @@ private fun CleanPage(lib: List<Track>) {
             job = scope.launch {
                 try { AiClean.run(lib) { d, n -> prog = "Đã xử lý $d / $n" }; AiIndex.drop(); prog = "Xong ✓" }
                 catch (e: kotlinx.coroutines.CancellationException) { prog = "Đã dừng" }
-                catch (e: Exception) { prog = "✗ " + (e.message ?: "Lỗi") + " — bấm Bắt đầu để tiếp tục phần còn lại." }
+                catch (e: Exception) { prog = "✗ " + errText(e) + " — bấm Bắt đầu để tiếp tục phần còn lại." }
                 finally { busy = false }
             }
         }
@@ -647,7 +656,7 @@ private fun TagsPage(lib: List<Track>) {
             busy = true; msg = "Đang quét và hỏi AI…"
             scope.launch {
                 try { val r = AiTags.scan(lib).take(80); fixes = r; msg = if (r.isEmpty()) "Không thấy tên nào cần sửa ✓" else "" }
-                catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+                catch (e: Exception) { msg = "✗ " + errText(e).lines().first().take(120) }
                 finally { busy = false }
             }
         }
@@ -677,7 +686,7 @@ private fun ForgottenPage(lib: List<Track>, play: (List<Track>) -> Unit) {
         try {
             lists = AiForgotten.run(lib, AiContext.describe(AiContext.load(), ""))
             msg = if (lists.isEmpty()) "Chưa chọn được album nào." else ""
-        } catch (e: Exception) { msg = "✗ " + (e.message ?: "Lỗi") }
+        } catch (e: Exception) { msg = "✗ " + errText(e).lines().first().take(120) }
     }
     T("Album chất lượng cao hoặc lâu rồi chưa nghe, AI chọn những cái hợp với hôm nay.", 14, C.Muted, lines = 2)
     if (msg.isNotEmpty()) T(msg, 15, if (msg.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 4)
@@ -736,13 +745,13 @@ private fun LyricsPage() {
         Focusable({
             busy = true; err = ""
             scope.launch {
-                try { trans = AiLyrics.translate(ly, t); showTrans = true; pageNo = 0 } catch (e: Exception) { err = "✗ " + (e.message ?: "Lỗi") } finally { busy = false }
+                try { trans = AiLyrics.translate(ly, t); showTrans = true; pageNo = 0 } catch (e: Exception) { err = "✗ " + errText(e) } finally { busy = false }
             }
         }) { T("🌐 Dịch", 15, C.Gold, Modifier.padding(14.dp, 8.dp), bold = true) }
         Focusable({
             busy = true; err = ""
             scope.launch {
-                try { meaning = AiLyrics.meaning(ly, t) } catch (e: Exception) { err = "✗ " + (e.message ?: "Lỗi") } finally { busy = false }
+                try { meaning = AiLyrics.meaning(ly, t) } catch (e: Exception) { err = "✗ " + errText(e) } finally { busy = false }
             }
         }) { T("💡 Giải nghĩa", 15, C.Gold, Modifier.padding(14.dp, 8.dp), bold = true) }
     }
@@ -764,7 +773,7 @@ fun AiDjEffect() {
             val more = AiDjTask.more(lib, queue, idx, AiContext.describe(AiContext.load(), ""))
             if (more.isNotEmpty()) Playback.append(more)
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-        catch (e: Exception) { AiDj.note.value = "✗ " + (e.message ?: "Lỗi") }
+        catch (e: Exception) { AiDj.note.value = "✗ " + errText(e) }
         finally { AiDj.busy = false }
     }
 }
