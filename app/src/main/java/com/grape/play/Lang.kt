@@ -34,24 +34,32 @@ object Lang {
     fun set(english: Boolean) { en.value = english; if (::sp.isInitialized) sp.edit().putString("ui", if (english) "en" else "vi").apply() }
 
     private val marker = Regex("^((?:●|○|▶|⤮|🔍|📂|\\+|✓|⚠|◂|▸)\\s*)")
+    /** Ký hiệu / emoji / khoảng trắng đứng đầu chuỗi (không phải chữ hay số). */
+    private val lead = Regex("^([^\\p{L}\\p{N}]+)")
 
     fun tr(s: String): String {
         if (!en.value || s.isEmpty()) return s
+        val whole = tr1(s)
+        if (whole != s) return whole
         val m = marker.find(s)
         if (m != null) return m.value + tr1(s.substring(m.value.length))
-        return tr1(s)
+        val l = lead.find(s)
+        if (l != null) { val rest = tr1(s.substring(l.value.length)); if (rest != s.substring(l.value.length)) return l.value + rest }
+        return s
     }
 
     private fun tr1(s: String): String {
         MAP[s]?.let { return it }
+        LangExtra.MAP[s]?.let { return it }
         for ((rx, rep) in RULES) { val m = rx.matchEntire(s) ?: continue; return fill(rep, m) }
+        for ((rx, rep) in LangExtra.RULES) { val m = rx.matchEntire(s) ?: continue; return fill(rep, m) }
         // câu ghép "A · B": dịch từng phần
-        if (s.contains(" · ")) { val parts = s.split(" · "); val t = parts.map { MAP[it] ?: it }; if (t != parts) return t.joinToString(" · ") }
+        if (s.contains(" · ")) { val parts = s.split(" · "); val t = parts.map { tr1(it) }; if (t != parts) return t.joinToString(" · ") }
         return s
     }
     private fun fill(rep: String, m: MatchResult): String {
         var r = rep
-        for (i in m.groupValues.size - 1 downTo 1) r = r.replace("$" + i, m.groupValues[i])
+        for (i in m.groupValues.size - 1 downTo 1) r = r.replace("$" + i, tr1(m.groupValues[i]))
         return r
     }
 

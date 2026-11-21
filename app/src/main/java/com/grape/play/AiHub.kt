@@ -127,7 +127,7 @@ private fun AiFrame(title: String, back: String?, onBack: () -> Unit, onClose: (
         Column(surf.padding(18.dp, 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (back != null) Focusable(onBack, requester = first) { T("◂ $back", 14, C.Gold, Modifier.padding(12.dp, 5.dp)) }
-                T(title.uppercase(), 13, C.Muted, spaced = true, modifier = Modifier.weight(1f))
+                T(Lang.tr(title).uppercase(), 13, C.Muted, spaced = true, modifier = Modifier.weight(1f))
                 Focusable(onClose, requester = if (back == null) first else null) { T("Đóng", 14, C.Muted, Modifier.padding(12.dp, 5.dp)) }
             }
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)

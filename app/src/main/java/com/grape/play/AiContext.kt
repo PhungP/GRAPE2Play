@@ -205,10 +205,10 @@ object AiContext {
         if (i != null) {
             val place = listOf(i.city, i.country).filter { it.isNotBlank() }.joinToString(", ")
             if (place.isNotEmpty()) parts += "📍 $place"
-            if (i.weather.isNotEmpty()) parts += i.weather + (i.temp?.let { " ${Math.round(it)}°C" } ?: "")
+            if (i.weather.isNotEmpty()) parts += Lang.tr(i.weather) + (i.temp?.let { " ${Math.round(it)}°C" } ?: "")
         }
-        parts += lunarText()
-        daysToTet()?.let { parts += if (it == 0) "hôm nay là Tết" else "$it ngày nữa là Tết" }
+        parts += Lang.tr(lunarText())
+        daysToTet()?.let { parts += Lang.tr(if (it == 0) "hôm nay là Tết" else "$it ngày nữa là Tết") }
         return parts.joinToString("  ·  ")
     }
 

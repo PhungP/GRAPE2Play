@@ -436,3 +436,7 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 
 ## Bản 2.7.0
 - Liquid Glass có chế độ sáng / tối (Cài đặt → Giao diện → thẻ Liquid Glass). Chế độ tối: nền gần đen, cực quang dịu, kính nhạt hơn.
+
+## Bản 2.7.1
+- Trang Cài đặt: thêm điểm dừng đầu trang để di chuyển lên tới tiêu đề "Cài đặt" thì cuộn hẳn về đầu; bỏ dòng chữ về Sony Bravia.
+- English: rà soát và dịch thêm ~350 chuỗi + ~140 mẫu (menu Trợ lý AI, Hẹn giờ ngủ, Màn hình chờ, Buổi thử dàn, Cài đặt, lỗi kết nối…); tiêu đề cửa sổ AI dịch trước khi viết hoa; Lang.tr dịch cả chuỗi có biểu tượng/emoji đầu dòng và các phần ghép "A · B".

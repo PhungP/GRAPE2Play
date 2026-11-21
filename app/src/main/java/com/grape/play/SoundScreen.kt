@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -35,7 +36,8 @@ fun SoundScreen(onNav: (Screen) -> Unit, onSources: () -> Unit, onOut: () -> Uni
         Rail(Screen.SOUND, onNav, onSources, onOut)
         val sfOn = Themes.style.value == 5
         Row(Modifier.weight(1f).fillMaxHeight().padding(horizontal = if (sfOn) 18.dp else 40.dp, vertical = if (sfOn) 12.dp else 0.dp), horizontalArrangement = Arrangement.spacedBy(if (sfOn) 18.dp else 32.dp)) {
-            Column(Modifier.weight(0.85f).fillMaxHeight().then(if (sfOn) Modifier.sfPanel().padding(vertical = 16.dp) else Modifier).verticalScroll(rememberScrollState()).then(if (sfOn) Modifier.padding(horizontal = 20.dp, vertical = 4.dp) else Modifier.padding(vertical = 28.dp)), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.weight(0.85f).fillMaxHeight().then(if (sfOn) Modifier.sfPanel().padding(vertical = 16.dp) else Modifier).verticalScroll(rememberScrollState()).then(if (sfOn) Modifier.padding(horizontal = 20.dp, vertical = 4.dp) else Modifier.padding(bottom = 28.dp)), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Box(Modifier.fillMaxWidth().height(if (sfOn) 2.dp else 28.dp).focusable())   // điểm dừng đầu trang: di chuyển lên tới đây sẽ cuộn hẳn về đầu
                 T("Cài đặt", 44, serif = true)
                 AppearanceCards()
                 DisplayCard()
