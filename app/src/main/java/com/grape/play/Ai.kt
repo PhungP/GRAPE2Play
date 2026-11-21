@@ -129,7 +129,9 @@ object Ai {
         val first = ready.firstOrNull { it.id == primary } ?: ready.first()
         val order = if (auto) listOf(first) + ready.filter { it !== first } else listOf(first)
         val budget = if (order.size > 1) SWITCH_MS else 60_000L
-        val sys = if (json) ((system ?: "") + " Chỉ trả JSON hợp lệ, không thêm chữ nào khác, không dùng hàng rào ```.").trim() else system
+        // Giao diện English: bắt AI viết mọi nội dung hiển thị bằng tiếng Anh (trừ tác vụ cần giữ dấu tiếng Việt).
+        val sysBase = if (Lang.en.value && system?.contains("tiếng Việt") != true) ((system ?: "") + " IMPORTANT: write every human-readable text field of your answer in English (keep JSON keys and ids unchanged).").trim() else system
+        val sys = if (json) ((sysBase ?: "") + " Chỉ trả JSON hợp lệ, không thêm chữ nào khác, không dùng hàng rào ```.").trim() else sysBase
         val fails = ArrayList<String>()
         for (p in order) {
             try {

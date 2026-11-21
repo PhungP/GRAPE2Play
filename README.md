@@ -443,3 +443,6 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 
 ## Bản 2.7.2
 - English: dịch nhãn ô thông số trang Đang phát (Format, Bit depth, Frequency, Channels, Source), dòng Tín hiệu "(file gốc, thiết bị tự giải mã)" và nhãn "Làm mờ nền phía sau (cần Android 12…)".
+
+## Bản 2.7.3
+- Giao diện English: AI được yêu cầu trả lời mọi nội dung hiển thị bằng tiếng Anh (trước đây nhiều tác vụ chỉ có lời nhắc tiếng Việt nên AI trả tiếng Việt).
