@@ -430,3 +430,6 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 
 ## Bản 2.6.2
 - Liquid Glass: các cửa sổ AI là kính trắng mờ (vẫn theo mức 100/85/70% và làm mờ nền).
+
+## Bản 2.6.3
+- Cửa sổ AI trong Liquid Glass: thêm lựa chọn Kính trắng / Kính tối trong "Dịch vụ AI & khóa API"; mặc định kính tối trên Android dưới 12 (không làm mờ nền được).

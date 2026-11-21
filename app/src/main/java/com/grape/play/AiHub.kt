@@ -118,7 +118,7 @@ private fun AiFrame(title: String, back: String?, onBack: () -> Unit, onClose: (
         val al = gl / 100f
         val base = Modifier.dlgW(560).heightIn(max = maxH)
         val surf = when (Themes.style.value) {
-            GlassTheme.ID -> base.clip(RoundedCornerShape(30.dp)).background(Color.Black.copy(alpha = 0.16f)).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color.White.copy(alpha = 0.18f + (al - 0.7f) * 1.07f), Color.White.copy(alpha = (0.18f + (al - 0.7f) * 1.07f) * 0.5f)))).border(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0x99FFFFFF), Color(0x1AFFFFFF), Color(0x4DFFFFFF))), RoundedCornerShape(30.dp))
+            GlassTheme.ID -> if (Ai.dark.value) base.clip(RoundedCornerShape(30.dp)).background(Color(0xFF141226).copy(alpha = al * 0.8f)).border(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0x99FFFFFF), Color(0x1AFFFFFF), Color(0x4DFFFFFF))), RoundedCornerShape(30.dp)) else base.clip(RoundedCornerShape(30.dp)).background(Color.Black.copy(alpha = 0.16f)).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color.White.copy(alpha = 0.18f + (al - 0.7f) * 1.07f), Color.White.copy(alpha = (0.18f + (al - 0.7f) * 1.07f) * 0.5f)))).border(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0x99FFFFFF), Color(0x1AFFFFFF), Color(0x4DFFFFFF))), RoundedCornerShape(30.dp))
             5, 6, 7, 8, 9, 10 -> base.clip(RoundedCornerShape(12.dp)).background(C.Bg.copy(alpha = al)).sfPanel(12.dp)
             4 -> base.clip(RoundedCornerShape(4.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.Panel.copy(alpha = al), C.Side.copy(alpha = al)))).border(1.dp, C.Line, RoundedCornerShape(4.dp))
             1 -> base.clip(RoundedCornerShape(22.dp)).background(C.Panel.copy(alpha = al))
@@ -209,6 +209,13 @@ private fun ServicesPage(open: (String) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(100 to "Đặc 100%", 85 to "Trong 85%", 70 to "Trong 70%").forEach { (v, n) ->
             Focusable({ Ai.setGlass(v) }, Modifier, RoundedCornerShape(8.dp), selected = gl == v) { T(n, 14, if (gl == v) C.Gold else C.Text, Modifier.padding(12.dp, 6.dp)) }
+        }
+    }
+    val dk by Ai.dark
+    T("Màu kính (giao diện Liquid Glass):", 13, C.Muted)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf(false to "Kính trắng", true to "Kính tối").forEach { (v, n) ->
+            Focusable({ Ai.setDark(v) }, Modifier, RoundedCornerShape(8.dp), selected = dk == v) { T(n, 14, if (dk == v) C.Gold else C.Text, Modifier.padding(12.dp, 6.dp)) }
         }
     }
     T("Làm mờ nền phía sau" + (if (Build.VERSION.SDK_INT < 31) " (cần Android 12 trở lên — máy này chưa hỗ trợ)" else "") + ":", 13, C.Muted, lines = 2)

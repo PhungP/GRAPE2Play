@@ -59,6 +59,9 @@ object Ai {
     /** Độ đặc của cửa sổ AI (100/85/70 %) và mức làm mờ nền (0 tắt, 1 nhẹ, 2 vừa, 3 mạnh). */
     val glass = androidx.compose.runtime.mutableStateOf(85)
     val blur = androidx.compose.runtime.mutableStateOf(0)
+    /** Màu kính của cửa sổ AI trong giao diện Liquid Glass: 0 trắng, 1 tối (mặc định tối trên Android < 12 vì không làm mờ nền được). */
+    val dark = androidx.compose.runtime.mutableStateOf(android.os.Build.VERSION.SDK_INT < 31)
+    fun setDark(v: Boolean) { dark.value = v; if (::sp.isInitialized) sp.edit().putBoolean("glassDark", v).apply() }
     fun setGlass(v: Int) { glass.value = v; if (::sp.isInitialized) sp.edit().putInt("glass", v).apply() }
     fun setBlur(v: Int) { blur.value = v; if (::sp.isInitialized) sp.edit().putInt("blur", v).apply() }
     fun setTyping(v: Boolean) { typing.value = v; if (::sp.isInitialized) sp.edit().putBoolean("typing", v).apply() }
@@ -78,7 +81,7 @@ object Ai {
         sp.edit().remove("key_mistral").remove("key_cerebras").apply()   // đã bỏ hai dịch vụ này
         refresh()
         typing.value = sp.getBoolean("typing", false)
-        glass.value = sp.getInt("glass", 85); blur.value = sp.getInt("blur", 0)
+        dark.value = sp.getBoolean("glassDark", android.os.Build.VERSION.SDK_INT < 31); glass.value = sp.getInt("glass", 85); blur.value = sp.getInt("blur", 0)
         AiMeta.init(ctx)
     }
 
