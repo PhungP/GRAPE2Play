@@ -56,6 +56,7 @@ fun Rail(cur: Screen, onNav: (Screen) -> Unit, onSources: () -> Unit = {}, onOut
         4 -> Modifier.width(132.dp).fillMaxHeight().background(Brush.verticalGradient(listOf(C.Panel, C.Side))).drawBehind {
             drawLine(Brush.verticalGradient(listOf(Color.Transparent, C.Gold.copy(alpha = .5f), Color.Transparent)), Offset(size.width - 1f, 0f), Offset(size.width - 1f, size.height), 2f)
         }
+        GlassTheme.ID -> Modifier.padding(start = 16.dp, top = 16.dp, bottom = 16.dp).width(132.dp).fillMaxHeight().glassPanel(36.dp)
         else -> Modifier.width(132.dp).fillMaxHeight().background(C.Side)
     }
     Column(

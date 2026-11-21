@@ -3,7 +3,11 @@ package com.grape.play
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Handler
+import android.view.WindowManager
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
 import android.os.Looper
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -20,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -97,12 +102,27 @@ private fun AiFrame(title: String, back: String?, onBack: () -> Unit, onClose: (
     LaunchedEffect(title) { runCatching { first.requestFocus() } }
     val maxH = if (Device.tv) 520.dp else (LocalConfiguration.current.screenHeightDp * 0.9f).dp
     Dialog(onDismissRequest = { if (back != null) onBack() else onClose() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val gl by Ai.glass
+        val bl by Ai.blur
+        val view = LocalView.current
+        SideEffect {
+            val w = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+            w.setDimAmount(if (gl < 100) 0.15f else 0.5f)
+            if (Build.VERSION.SDK_INT >= 31) {
+                if (bl > 0) {
+                    w.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                    val lp = w.attributes; lp.blurBehindRadius = intArrayOf(0, 16, 32, 56)[bl.coerceIn(0, 3)]; w.attributes = lp
+                } else w.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+            }
+        }
+        val al = gl / 100f
         val base = Modifier.dlgW(560).heightIn(max = maxH)
         val surf = when (Themes.style.value) {
-            5, 6, 7, 8, 9, 10 -> base.clip(RoundedCornerShape(12.dp)).background(C.Bg).sfPanel(12.dp)
-            4 -> base.clip(RoundedCornerShape(4.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.Panel, C.Side))).border(1.dp, C.Line, RoundedCornerShape(4.dp))
-            1 -> base.clip(RoundedCornerShape(22.dp)).background(C.Panel)
-            else -> base.clip(RoundedCornerShape(12.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(12.dp))
+            GlassTheme.ID -> base.clip(RoundedCornerShape(30.dp)).background(Color(0xFF141226).copy(alpha = al * 0.8f)).border(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0x99FFFFFF), Color(0x1AFFFFFF), Color(0x4DFFFFFF))), RoundedCornerShape(30.dp))
+            5, 6, 7, 8, 9, 10 -> base.clip(RoundedCornerShape(12.dp)).background(C.Bg.copy(alpha = al)).sfPanel(12.dp)
+            4 -> base.clip(RoundedCornerShape(4.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.Panel.copy(alpha = al), C.Side.copy(alpha = al)))).border(1.dp, C.Line, RoundedCornerShape(4.dp))
+            1 -> base.clip(RoundedCornerShape(22.dp)).background(C.Panel.copy(alpha = al))
+            else -> base.clip(RoundedCornerShape(12.dp)).background(C.Panel.copy(alpha = al)).border(1.dp, C.Line, RoundedCornerShape(12.dp))
         }
         Column(surf.padding(18.dp, 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -181,6 +201,20 @@ private fun ServicesPage(open: (String) -> Unit) {
         Column(Modifier.padding(14.dp, 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             T((if (auto) "● " else "○ ") + "Tự chuyển AI: " + (if (auto) "BẬT" else "TẮT"), 16, C.Gold, bold = true)
             T("Khi AI chính hết hạn mức hoặc không phản hồi sau ${Ai.SWITCH_MS / 1000} giây, tự thử AI kế tiếp và ghi chú dịch vụ nào đang trả lời.", 12, C.Muted, lines = 3)
+        }
+    }
+    val gl by Ai.glass
+    val bl by Ai.blur
+    T("Độ đặc cửa sổ AI:", 13, C.Muted)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf(100 to "Đặc 100%", 85 to "Trong 85%", 70 to "Trong 70%").forEach { (v, n) ->
+            Focusable({ Ai.setGlass(v) }, Modifier, RoundedCornerShape(8.dp), selected = gl == v) { T(n, 14, if (gl == v) C.Gold else C.Text, Modifier.padding(12.dp, 6.dp)) }
+        }
+    }
+    T("Làm mờ nền phía sau" + (if (Build.VERSION.SDK_INT < 31) " (cần Android 12 trở lên — máy này chưa hỗ trợ)" else "") + ":", 13, C.Muted, lines = 2)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("Tắt", "Nhẹ", "Vừa", "Mạnh").forEachIndexed { v, n ->
+            Focusable({ Ai.setBlur(v) }, Modifier, RoundedCornerShape(8.dp), selected = bl == v) { T(n, 14, if (bl == v) C.Gold else C.Text, Modifier.padding(12.dp, 6.dp)) }
         }
     }
     AiProvs.ALL.forEach { p ->

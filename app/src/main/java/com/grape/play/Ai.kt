@@ -56,6 +56,11 @@ object Ai {
     val status = mutableStateOf("")
     /** TV: hiện ô gõ chữ ở cuối hộp thoại hỏi AI (mặc định ẩn để không vướng khi dùng điều khiển). */
     val typing = mutableStateOf(false)
+    /** Độ đặc của cửa sổ AI (100/85/70 %) và mức làm mờ nền (0 tắt, 1 nhẹ, 2 vừa, 3 mạnh). */
+    val glass = androidx.compose.runtime.mutableStateOf(85)
+    val blur = androidx.compose.runtime.mutableStateOf(0)
+    fun setGlass(v: Int) { glass.value = v; if (::sp.isInitialized) sp.edit().putInt("glass", v).apply() }
+    fun setBlur(v: Int) { blur.value = v; if (::sp.isInitialized) sp.edit().putInt("blur", v).apply() }
     fun setTyping(v: Boolean) { typing.value = v; if (::sp.isInitialized) sp.edit().putBoolean("typing", v).apply() }
     /** Thời gian chờ mỗi dịch vụ trước khi chuyển sang dịch vụ kế tiếp. */
     const val SWITCH_MS = 25_000L
@@ -73,6 +78,7 @@ object Ai {
         sp.edit().remove("key_mistral").remove("key_cerebras").apply()   // đã bỏ hai dịch vụ này
         refresh()
         typing.value = sp.getBoolean("typing", false)
+        glass.value = sp.getInt("glass", 85); blur.value = sp.getInt("blur", 0)
         AiMeta.init(ctx)
     }
 

@@ -122,11 +122,11 @@ class MainActivity : ComponentActivity() {
                     var screen by remember { mutableStateOf(Screen.LIB) }
                     var askBg by remember { mutableStateOf(!BackgroundAccess.asked && !BackgroundAccess.ignoringBattery(applicationContext)) }
                     LaunchedEffect(openNow) { if (openNow) { screen = Screen.NOW; openNow = false } }
-                    Box(Modifier.fillMaxSize().background(C.Bg).then(if (Themes.style.value == 5) Modifier.sfBackdrop() else if (Themes.style.value >= 6) Modifier.brandFace() else Modifier)) { BurnIn.Guard {
+                    Box(Modifier.fillMaxSize().background(C.Bg).then(if (Themes.style.value == 5) Modifier.sfBackdrop() else if (GlassTheme.on) Modifier.glassBackdrop() else if (Themes.style.value in 6..15) Modifier.brandFace() else Modifier)) { BurnIn.Guard {
                         if (!tv) MobileApp(perm, { req.launch(storagePerm) }, screen, { screen = it }, { screen = Screen.SOURCES }, { screen = Screen.OUTPUT })
                         else {
                         val pages: @Composable () -> Unit = { when (screen) {
-                            Screen.NOW -> if (Themes.style.value == 0 || Themes.style.value == 4 || Themes.style.value >= 5) NowPlaying({ screen = it }, { screen = Screen.SOURCES }, { screen = Screen.OUTPUT }, alu = Themes.style.value == 4, sf = Themes.style.value >= 5)
+                            Screen.NOW -> if (Themes.style.value == 0 || Themes.style.value == 4 || GlassTheme.on || Themes.style.value in 5..15) NowPlaying({ screen = it }, { screen = Screen.SOURCES }, { screen = Screen.OUTPUT }, alu = Themes.style.value == 4, sf = Themes.style.value in 5..15)
                                 else SymNow(Themes.style.value, { screen = it }) { screen = Screen.OUTPUT }
                             Screen.LIB -> LibraryScreen(perm, { req.launch(storagePerm) }, { screen = it }, { screen = Screen.SOURCES }, { screen = Screen.OUTPUT })
                             Screen.SOUND -> SoundScreen({ screen = it }, { screen = Screen.SOURCES }, { screen = Screen.OUTPUT })
@@ -137,7 +137,7 @@ class MainActivity : ComponentActivity() {
                             Box(Modifier.fillMaxSize().brushedAluminum().padding(horizontal = 28.dp, vertical = 24.dp)) {
                                 Box(Modifier.fillMaxSize().aluScreen(dark = true).clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))) { pages() }
                             }
-                        else if (Themes.style.value >= 6 && screen != Screen.NOW)
+                        else if (Themes.style.value in 6..15 && screen != Screen.NOW)
                             Box(Modifier.fillMaxSize().brandFace().padding(horizontal = 28.dp, vertical = 24.dp)) {
                                 val bz = Brands.cur
                                 Box(Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.RoundedCornerShape((bz?.radius ?: 8).dp)).border(3.dp, bz?.bezel ?: C.Line, androidx.compose.foundation.shape.RoundedCornerShape((bz?.radius ?: 8).dp))) { pages() }

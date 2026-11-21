@@ -243,6 +243,7 @@ fun TrackRow(i: Int, t: Track, current: Boolean, compact: Boolean = false, onCli
 fun uiShapeOf(shape: Shape): Shape {
     if (shape === androidx.compose.foundation.shape.CircleShape || shape !is RoundedCornerShape) return shape
     return when (Themes.style.value) {
+        GlassTheme.ID -> RoundedCornerShape(18.dp)
         5 -> ChamferShape(7.dp)
         in 6..15 -> RoundedCornerShape((Brands.cur?.radius ?: 8).dp)
         4 -> RoundedCornerShape(3.dp)
@@ -253,7 +254,7 @@ fun uiShapeOf(shape: Shape): Shape {
 
 /** Nền một trang: giao diện Robot có nền lưới + vân quét, còn lại là màu nền. */
 @Composable
-fun Modifier.pageBg(): Modifier = if (Themes.style.value == 5) this.sfBackdrop() else this.background(C.Bg)
+fun Modifier.pageBg(): Modifier = if (Themes.style.value == 5) this.sfBackdrop() else if (GlassTheme.on) this else this.background(C.Bg)
 
 @Composable
 fun uiShape(r: androidx.compose.ui.unit.Dp): Shape = uiShapeOf(RoundedCornerShape(r))

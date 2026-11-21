@@ -78,7 +78,7 @@ fun MobileApp(hasPerm: Boolean, askPerm: () -> Unit, screen: Screen, onNav: (Scr
         }
     }
 
-    if (Themes.style.value >= 5) SciFiPhoneShell(screen, onNav) {
+    if (Themes.style.value in 5..15) SciFiPhoneShell(screen, onNav) {
         Box(Modifier.weight(1f).fillMaxWidth()) { Page(Modifier.fillMaxSize()) }
         if (cur != null && screen != Screen.NOW) Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).sfPanel(10.dp)) { MiniPlayer(cur, onNav) }
     }
@@ -329,9 +329,9 @@ private fun MobileNow(onOut: () -> Unit) {
     val land = cfg.screenWidthDp > cfg.screenHeightDp
     var showQueue by remember { mutableStateOf(false) }
     val style by Themes.style
-    if (style >= 5) { SciFiPhoneNow(onOut) { showQueue = true }; if (showQueue) QueueDialog { showQueue = false }; return }
+    if (style in 5..15) { SciFiPhoneNow(onOut) { showQueue = true }; if (showQueue) QueueDialog { showQueue = false }; return }
     if (style == 4) { AluPhoneNow(onOut) { showQueue = true }; if (showQueue) QueueDialog { showQueue = false }; return }
-    if (style != 0) { SymNow(style, {}, onOut); return }
+    if (style != 0 && style != GlassTheme.ID) { SymNow(style, {}, onOut); return }
     if (t == null) {
         Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
             T("Chưa có bài nào đang phát. Mở Thư viện để chọn nhạc.", 20, C.Muted, lines = 3)

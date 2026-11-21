@@ -66,6 +66,7 @@ fun Card(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> U
     val st = Themes.style.value
     val base = modifier.fillMaxWidth()
     val m = when (st) {
+        GlassTheme.ID -> base.glassPanel(26.dp)
         5, 6, 7, 8, 9, 10 -> base.sfPanel(12.dp)
         4 -> base.clip(RoundedCornerShape(4.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.Panel, C.Side))).border(1.dp, C.Line, RoundedCornerShape(4.dp))
         1 -> base.clip(RoundedCornerShape(22.dp)).background(C.Panel)
@@ -100,6 +101,7 @@ fun AppearanceCards() {
         4 -> AluStyleCard()
         5 -> SciFiStyleCard()
         in 6..15 -> { ThemeNone(); BrandStyleCard() }
+        GlassTheme.ID -> ThemeNone()
         else -> ThemeCard()
     }
 }
@@ -110,7 +112,7 @@ private fun ThemeNone() {}
 @Composable
 fun StyleCard() {
     val cur by Themes.style
-    val styles = listOf(0 to "Mặc định", 4 to "Nhôm phay xước", 5 to "Robot / Sci-Fi", 1 to "Cổ điển")
+    val styles = listOf(0 to "Mặc định", 4 to "Nhôm phay xước", 5 to "Robot / Sci-Fi", 1 to "Cổ điển", GlassTheme.ID to "Liquid Glass")
     Card {
         T("GIAO DIỆN", 13, C.Muted, spaced = true)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

@@ -415,3 +415,10 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 ## Bản 2.4.1
 - Sửa lỗi "Unterminated array" (Cloudflare/AI trả JSON bị cắt): thêm max_completion_tokens, cứu các mục còn nguyên vẹn thay vì báo lỗi, rút gọn lời nhắc của AI.
 - Thông báo lỗi AI được rút gọn một dòng; cửa sổ AI nhỏ gọn hơn (rộng 560, nút và lề gọn hơn).
+
+## Bản 2.5.0
+- Cửa sổ AI mặc định trong suốt 85%; trong "Dịch vụ AI & khóa API" chọn Đặc 100% / Trong 85% / Trong 70%.
+- Thêm làm mờ nền phía sau cửa sổ AI (Tắt / Nhẹ / Vừa / Mạnh), cần Android 12+.
+
+## Bản 2.6.0
+- Giao diện mới **Liquid Glass** (Cài đặt → Giao diện): nền cực quang nhiều màu, thanh bên/thẻ/hộp thoại là kính mờ bo tròn lớn có viền sáng chéo, chữ trắng, màn Đang phát dùng bố cục mặc định với khung kính.

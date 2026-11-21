@@ -40,7 +40,7 @@ object Themes {
     /** Chữ đơn cách cho Robot / Denon, chữ serif cho các hãng cổ điển. */
     val isMono: Boolean get() = style.value == 5 || Brands.cur?.mono == true
     val isSerif: Boolean get() = Brands.cur?.serif == true
-    val eff: Palette get() = when (style.value) { 5 -> SciFi.palette; in 6..15 -> Brands.palette; 4 -> AluTheme.palette; else -> cur.value }
+    val eff: Palette get() = when (style.value) { 5 -> SciFi.palette; GlassTheme.ID -> GlassTheme.palette; in 6..15 -> Brands.palette; 4 -> AluTheme.palette; else -> cur.value }
     /** Bố cục màn Đang phát: 0 mặc định, 1 Cổ điển, 2 Toàn ảnh (đã bỏ), 3 Nền màu (kiểu Symfonium), 4 Nhôm phay xước (chỉ TV/máy tính bảng ngang; điện thoại dùng bố cục mặc định). */
     val style = mutableStateOf(0)
     private lateinit var sp: SharedPreferences
@@ -53,7 +53,7 @@ object Themes {
         Brands.init(ctx)
         val id = sp.getString("id", "grape")
         cur.value = ALL.firstOrNull { it.id == id } ?: ALL[0]
-        style.value = sp.getInt("nowStyle", 0).coerceIn(0, 15).let { if (it == 2 || it == 3 || it > 5) 0 else it }   // kiểu "Toàn ảnh" đã bỏ
+        style.value = sp.getInt("nowStyle", 0).coerceIn(0, 20).let { if (it == 2 || it == 3 || it in 6..19) 0 else it }   // kiểu "Toàn ảnh" đã bỏ
     }
     fun setStyle(i: Int) { style.value = i; if (::sp.isInitialized) sp.edit().putInt("nowStyle", i).apply() }
     fun set(id: String) {
