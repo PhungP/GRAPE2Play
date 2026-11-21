@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 object GlassTheme {
     const val ID = 20
     val palette = Palette("glass", "Liquid Glass",
-        Color(0xFF0E0D22), Color(0x8C2B2552), Color(0x661E1A3F), Color(0x59FFFFFF), Color(0x66FFFFFF), Color(0x59FFFFFF),
+        Color(0xFF0E0D22), Color(0x33FFFFFF), Color(0x24FFFFFF), Color(0x59FFFFFF), Color(0x66FFFFFF), Color(0x59FFFFFF),
         Color(0xFFFFF1DA), Color(0xFFFFFFFF), Color(0xB8FFFFFF), Color(0xFF7A5CFF), Color(0xFFB9A8FF))
     val base = Color(0xFF0E0D22)
     val on: Boolean get() = Themes.style.value == ID

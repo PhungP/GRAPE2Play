@@ -422,3 +422,11 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 
 ## Bản 2.6.0
 - Giao diện mới **Liquid Glass** (Cài đặt → Giao diện): nền cực quang nhiều màu, thanh bên/thẻ/hộp thoại là kính mờ bo tròn lớn có viền sáng chéo, chữ trắng, màn Đang phát dùng bố cục mặc định với khung kính.
+
+## Bản 2.6.1
+- Nút "Quét lại" chuyển từ menu trái vào đầu trang Thư viện (menu có thêm chỗ, nút Thoát không còn bị khuất).
+- Liquid Glass: ô nhập, khung Đường tín hiệu, khung phổ tần đổi từ đen sang kính trong suốt; panel nhạt hơn; hộp thoại nhỏ dùng nền tối đặc để dễ đọc.
+- Trang Cài đặt: nội dung cuộn tới sát mép màn hình, không còn bị cắt ngang; bỏ dòng "DSD, đầu ra và tinh chỉnh chỉ dùng cho Sony Bravia".
+
+## Bản 2.6.2
+- Liquid Glass: các cửa sổ AI là kính trắng mờ (vẫn theo mức 100/85/70% và làm mờ nền).

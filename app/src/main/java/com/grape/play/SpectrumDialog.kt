@@ -131,7 +131,7 @@ fun SpectrumDialog(onClose: () -> Unit) {
             if (t != null) T(if (t.path.startsWith("/")) t.path.substringAfterLast('/') else t.title, if (compact) 16 else 12, C.Gold)
 
             // TV: khung phổ chiếm đúng phần còn lại của hộp thoại (tiêu đề + nút luôn thấy, không phải cuộn nên không mất mép 22 kHz).
-            Box(Modifier.fillMaxWidth().then(if (compact) Modifier.height((screenH * 0.5f).coerceIn(240f, 440f).dp) else Modifier.weight(1f).heightIn(min = 150.dp)).clip(RoundedCornerShape(8.dp)).background(Color.Black)) {
+            Box(Modifier.fillMaxWidth().then(if (compact) Modifier.height((screenH * 0.5f).coerceIn(240f, 440f).dp) else Modifier.weight(1f).heightIn(min = 150.dp)).clip(RoundedCornerShape(8.dp)).background(if (GlassTheme.on) C.Inset else Color.Black)) {
                 val ims = images
                 if (d != null && ims != null) {
                     Canvas(Modifier.fillMaxSize()) {
@@ -242,7 +242,7 @@ fun ExitDialog(onStay: () -> Unit, onExit: () -> Unit) {
     LaunchedEffect(Unit) { runCatching { stay.requestFocus() } }
     Dialog(onDismissRequest = onStay, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            Modifier.dlgFrac(0.3f).clip(RoundedCornerShape(14.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(14.dp)).dlgPad(24, 16),
+            Modifier.dlgFrac(0.3f).clip(RoundedCornerShape(14.dp)).background(C.Dlg).border(1.dp, C.Line, RoundedCornerShape(14.dp)).dlgPad(24, 16),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             T("Thoát GRAPEPlay?", 20, serif = true)

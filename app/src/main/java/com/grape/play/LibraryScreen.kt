@@ -71,6 +71,7 @@ fun LibraryScreen(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen) -> Unit
                 Spacer(Modifier.weight(1f))
                 if (all.isNotEmpty() && tab != Tab.HABIT) {
                     Focusable({ Playback.playMixed(all); onNav(Screen.NOW) }) { T("⤮ Trộn & phát", 15, C.Gold, Modifier.padding(12.dp, 6.dp)) }
+                    if (!scanning) Focusable({ Library.rescanAllAsync(ctx) }) { T("⟳ Quét lại", 15, C.Gold, Modifier.padding(12.dp, 6.dp)) }
                     Focusable({ Playback.playShuffled(all); onNav(Screen.NOW) }) { T("🎲 Ngẫu nhiên", 15, C.Gold, Modifier.padding(12.dp, 6.dp)) }
                 }
                 T(if (status.isNotEmpty()) "${all.size} bài · $status" else "${all.size} bài", 15, C.Muted, Modifier.widthIn(max = 620.dp), lines = 2)

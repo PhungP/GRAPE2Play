@@ -27,7 +27,7 @@ fun SourceVisibilityDialog(sources: List<Source>, onClose: () -> Unit) {
     val rows = SourceOrder.ordered(ids).also { order.size }.map { id -> base.first { it.first == id } }
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            Modifier.dlgFrac(0.5f).clip(RoundedCornerShape(14.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(14.dp)).padding(18.dp),
+            Modifier.dlgFrac(0.5f).clip(RoundedCornerShape(14.dp)).background(C.Dlg).border(1.dp, C.Line, RoundedCornerShape(14.dp)).padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             T("NGUỒN HIỂN THỊ & THỨ TỰ ƯU TIÊN", 11, C.Muted, spaced = true)

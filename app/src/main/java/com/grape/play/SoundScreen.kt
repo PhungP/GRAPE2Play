@@ -34,10 +34,9 @@ fun SoundScreen(onNav: (Screen) -> Unit, onSources: () -> Unit, onOut: () -> Uni
     Row(Modifier.fillMaxSize().pageBg()) {
         Rail(Screen.SOUND, onNav, onSources, onOut)
         val sfOn = Themes.style.value == 5
-        Row(Modifier.weight(1f).fillMaxHeight().padding(horizontal = if (sfOn) 18.dp else 40.dp, vertical = if (sfOn) 12.dp else 28.dp), horizontalArrangement = Arrangement.spacedBy(if (sfOn) 18.dp else 32.dp)) {
-            Column(Modifier.weight(0.85f).fillMaxHeight().then(if (sfOn) Modifier.sfPanel().padding(vertical = 16.dp) else Modifier).verticalScroll(rememberScrollState()).then(if (sfOn) Modifier.padding(horizontal = 20.dp, vertical = 4.dp) else Modifier), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(Modifier.weight(1f).fillMaxHeight().padding(horizontal = if (sfOn) 18.dp else 40.dp, vertical = if (sfOn) 12.dp else 0.dp), horizontalArrangement = Arrangement.spacedBy(if (sfOn) 18.dp else 32.dp)) {
+            Column(Modifier.weight(0.85f).fillMaxHeight().then(if (sfOn) Modifier.sfPanel().padding(vertical = 16.dp) else Modifier).verticalScroll(rememberScrollState()).then(if (sfOn) Modifier.padding(horizontal = 20.dp, vertical = 4.dp) else Modifier.padding(vertical = 28.dp)), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 T("Cài đặt", 44, serif = true)
-                T("DSD, đầu ra và tinh chỉnh chỉ dùng cho Sony Bravia", 16, C.Muted)
                 AppearanceCards()
                 DisplayCard()
                 BurnInCard()
@@ -55,7 +54,7 @@ fun SoundScreen(onNav: (Screen) -> Unit, onSources: () -> Unit, onOut: () -> Uni
                 }
                 ScrollTail()
             }
-            EqPanel(Modifier.weight(1.15f).fillMaxHeight())
+            EqPanel(Modifier.weight(1.15f).fillMaxHeight().then(if (sfOn) Modifier else Modifier.padding(vertical = 28.dp)))
         }
     }
     if (showAbout) AboutDialog { showAbout = false }
@@ -450,7 +449,7 @@ private fun AboutBody(modifier: Modifier, big: Boolean) {
         T("Dùng để cứu vãn vòng đời của chiếc TV Sony Bravia 2015 hiện đã bị sọc màn 🙏🙏🙏🤣", f(18), C.Muted, lines = 3)
         Spacer(Modifier.height(2.dp))
         Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Bg).padding(horizontal = if (big) 20.dp else 12.dp, vertical = if (big) 14.dp else 8.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Inset).padding(horizontal = if (big) 20.dp else 12.dp, vertical = if (big) 14.dp else 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             AboutRow("NHÀ PHÁT TRIỂN", "Phan Kim Phụng", big)

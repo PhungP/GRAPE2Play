@@ -183,7 +183,7 @@ fun BackgroundDialog(onAllow: () -> Unit, onLater: () -> Unit) {
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
     Dialog(onDismissRequest = onLater, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            Modifier.dlgW(1000).dlgH(900).clip(RoundedCornerShape(16.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(16.dp)).verticalScroll(rememberScrollState()).dlgPad(48, 36),
+            Modifier.dlgW(1000).dlgH(900).clip(RoundedCornerShape(16.dp)).background(C.Dlg).border(1.dp, C.Line, RoundedCornerShape(16.dp)).verticalScroll(rememberScrollState()).dlgPad(48, 36),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             T("Cho phép GRAPEPlay chạy ngầm", 38, serif = true)

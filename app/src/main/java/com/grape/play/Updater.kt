@@ -267,7 +267,7 @@ fun UpdateDialog() {
     fun f(n: Int) = if (big) n else (n * 0.62f).toInt().coerceAtLeast(10)
     Dialog(onDismissRequest = { if (st != Updater.St.DOWNLOADING) Updater.prompt.value = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            (if (compact) Modifier.dlgW(520) else Modifier.dlgFrac(0.4f)).clip(RoundedCornerShape(14.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(14.dp)).dlgPad(26, 18),
+            (if (compact) Modifier.dlgW(520) else Modifier.dlgFrac(0.4f)).clip(RoundedCornerShape(14.dp)).background(C.Dlg).border(1.dp, C.Line, RoundedCornerShape(14.dp)).dlgPad(26, 18),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             T("CẬP NHẬT ỨNG DỤNG", f(13), C.Muted, spaced = true)

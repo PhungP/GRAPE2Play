@@ -181,7 +181,6 @@ internal fun AluRail(cur: Screen, onNav: (Screen) -> Unit, remoteActive: Boolean
                 AluMenuItem(Icons.Outlined.AutoAwesome, "Trợ lý AI", false) { Overlay.aiStart = "menu"; Overlay.ai.value = true }
                 AluMenuItem(Icons.Outlined.Settings, "Cài đặt", cur == Screen.SOUND) { onNav(Screen.SOUND) }
                 if (scanning) T("Đang quét… ${count.size} bài", 13, AluAmberInk, Modifier.padding(12.dp, 10.dp))
-                else AluMenuItem(Icons.Outlined.Refresh, "Quét lại", false) { Library.rescanAllAsync(ctx.applicationContext) }
             }
         }
         // Hàng nút cứng: nút Bật/Tắt nằm giữa khoảng từ mép dưới màn hình tới mép ngoài dải nhôm (cùng đường ngang với hàng nút phát nhạc)

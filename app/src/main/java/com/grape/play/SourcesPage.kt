@@ -50,7 +50,7 @@ private fun Field(label: String, value: String, onChange: (String) -> Unit, modi
     var f by remember { mutableStateOf(false) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         T(label, 14, C.Muted)
-        Box(Modifier.fillMaxWidth().border(if (f) 2.dp else 1.dp, if (f) C.Gold else C.Dim, RoundedCornerShape(10.dp)).background(C.Bg, RoundedCornerShape(10.dp)).padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Box(Modifier.fillMaxWidth().border(if (f) 2.dp else 1.dp, if (f) C.Gold else C.Dim, RoundedCornerShape(10.dp)).background(C.Inset, RoundedCornerShape(10.dp)).padding(horizontal = 16.dp, vertical = 12.dp)) {
             BasicTextField(
                 value, onChange, singleLine = true,
                 textStyle = TextStyle(color = C.Text, fontSize = 19.sp), cursorBrush = SolidColor(C.Gold),

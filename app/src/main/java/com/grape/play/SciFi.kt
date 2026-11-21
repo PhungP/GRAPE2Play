@@ -427,7 +427,6 @@ internal fun SciFiNow(onNav: (Screen) -> Unit, onOut: () -> Unit) {
                     SfMenuItem("Trợ lý AI", false) { Overlay.aiStart = "menu"; Overlay.ai.value = true }
                     SfMenuItem("Cài đặt", false, mod = if (scanning) lastMenu else Modifier) { onNav(Screen.SOUND) }
                     if (scanning) S("Đang quét… ${lib.size} bài", 12, C.Gold, Modifier.padding(14.dp, 10.dp), lines = 2)
-                    else SfMenuItem("Quét lại", false, mod = lastMenu) { Library.rescanAllAsync(ctx.applicationContext) }
                     Spacer(Modifier.weight(1f))
                     S("// SYSTEM", 11, C.Gold, spaced = true)
                     S("LIB   ${lib.size}", 12, C.Muted)

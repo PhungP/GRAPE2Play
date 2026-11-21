@@ -147,7 +147,7 @@ class MainActivity : ComponentActivity() {
                         val slowMsg by Playback.slow.collectAsState()
                         slowMsg?.let { m ->
                             Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.BottomCenter) {
-                                Box(Modifier.padding(bottom = 56.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).background(C.Panel)
+                                Box(Modifier.padding(bottom = 56.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).background(C.Dlg)
                                     .border(1.dp, C.Gold, androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).padding(horizontal = 16.dp, vertical = 8.dp)) { T(m, 14, C.Gold, lines = 2) }
                             }
                         }

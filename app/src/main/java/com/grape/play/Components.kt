@@ -45,6 +45,10 @@ object C {
     // Màu lấy từ giao diện đang chọn (Themes). Đọc state nên khi đổi giao diện toàn bộ màn hình tự vẽ lại.
     val Bg: Color get() = Themes.eff.bg
     val Panel: Color get() = Themes.eff.panel
+    /** Nền hộp thoại: Liquid Glass dùng nền tối đặc hơn để chữ rõ. */
+    val Dlg: Color get() = if (GlassTheme.on) Color(0xE61D1A3E) else Themes.eff.panel
+    /** Nền ô nhập / khung lõm: Liquid Glass dùng kính trắng rất nhạt thay cho màu đen. */
+    val Inset: Color get() = if (GlassTheme.on) Color(0x24FFFFFF) else Themes.eff.bg
     val Side: Color get() = Themes.eff.side
     val Line: Color get() = Themes.eff.line
     val Dim: Color get() = Themes.eff.dim

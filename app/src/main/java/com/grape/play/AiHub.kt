@@ -107,7 +107,7 @@ private fun AiFrame(title: String, back: String?, onBack: () -> Unit, onClose: (
         val view = LocalView.current
         SideEffect {
             val w = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
-            w.setDimAmount(if (gl < 100) 0.15f else 0.5f)
+            w.setDimAmount(if (GlassTheme.on) 0.08f else if (gl < 100) 0.15f else 0.5f)
             if (Build.VERSION.SDK_INT >= 31) {
                 if (bl > 0) {
                     w.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
@@ -118,7 +118,7 @@ private fun AiFrame(title: String, back: String?, onBack: () -> Unit, onClose: (
         val al = gl / 100f
         val base = Modifier.dlgW(560).heightIn(max = maxH)
         val surf = when (Themes.style.value) {
-            GlassTheme.ID -> base.clip(RoundedCornerShape(30.dp)).background(Color(0xFF141226).copy(alpha = al * 0.8f)).border(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0x99FFFFFF), Color(0x1AFFFFFF), Color(0x4DFFFFFF))), RoundedCornerShape(30.dp))
+            GlassTheme.ID -> base.clip(RoundedCornerShape(30.dp)).background(Color.Black.copy(alpha = 0.16f)).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color.White.copy(alpha = 0.18f + (al - 0.7f) * 1.07f), Color.White.copy(alpha = (0.18f + (al - 0.7f) * 1.07f) * 0.5f)))).border(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0x99FFFFFF), Color(0x1AFFFFFF), Color(0x4DFFFFFF))), RoundedCornerShape(30.dp))
             5, 6, 7, 8, 9, 10 -> base.clip(RoundedCornerShape(12.dp)).background(C.Bg.copy(alpha = al)).sfPanel(12.dp)
             4 -> base.clip(RoundedCornerShape(4.dp)).background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(C.Panel.copy(alpha = al), C.Side.copy(alpha = al)))).border(1.dp, C.Line, RoundedCornerShape(4.dp))
             1 -> base.clip(RoundedCornerShape(22.dp)).background(C.Panel.copy(alpha = al))

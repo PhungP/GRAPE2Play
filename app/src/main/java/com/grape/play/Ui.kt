@@ -117,7 +117,7 @@ fun SpecRow(label: String, value: String) {
 /** Khung ghi chú nền tối (đường tín hiệu, cảnh báo…). */
 @Composable
 fun NoteBox(content: @Composable ColumnScope.() -> Unit) =
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Bg).padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp), content = content)
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Inset).padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp), content = content)
 
 /** Chấm trạng thái tròn nhỏ. */
 @Composable

@@ -59,13 +59,13 @@ fun LogDialog(onClose: () -> Unit) {
 
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            (if (compact) Modifier.dlgW(620) else Modifier.dlgFrac(0.5f)).clip(RoundedCornerShape(14.dp)).background(C.Panel)
+            (if (compact) Modifier.dlgW(620) else Modifier.dlgFrac(0.5f)).clip(RoundedCornerShape(14.dp)).background(C.Dlg)
                 .border(1.dp, C.Line, RoundedCornerShape(14.dp)).dlgPad(26, 18),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             T("NHẬT KÝ LỖI", f(13), C.Muted, spaced = true)
             T("Nhật ký sử dụng ứng dụng", f(26), serif = true, bold = true, lines = 2)
-            Box(Modifier.fillMaxWidth().height(if (compact) 220.dp else 260.dp).clip(RoundedCornerShape(8.dp)).background(C.Bg).border(1.dp, C.Line, RoundedCornerShape(8.dp)).padding(8.dp)) {
+            Box(Modifier.fillMaxWidth().height(if (compact) 220.dp else 260.dp).clip(RoundedCornerShape(8.dp)).background(C.Inset).border(1.dp, C.Line, RoundedCornerShape(8.dp)).padding(8.dp)) {
                 val sc = rememberScrollState()
                 LaunchedEffect(lines.size) { sc.scrollTo(sc.maxValue) }
                 Column(Modifier.verticalScroll(sc)) {
