@@ -48,6 +48,7 @@ object Themes {
     fun init(ctx: Context) {
         if (::sp.isInitialized) return
         sp = ctx.getSharedPreferences("theme", Context.MODE_PRIVATE)
+        GlassTheme.init(ctx)
         AluTheme.init(ctx)
         SciFi.init(ctx)
         Brands.init(ctx)

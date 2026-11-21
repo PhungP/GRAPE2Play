@@ -19,10 +19,23 @@ import androidx.compose.ui.unit.dp
  */
 object GlassTheme {
     const val ID = 20
-    val palette = Palette("glass", "Liquid Glass",
+    private val light = Palette("glass", "Liquid Glass",
         Color(0xFF0E0D22), Color(0x33FFFFFF), Color(0x24FFFFFF), Color(0x59FFFFFF), Color(0x66FFFFFF), Color(0x59FFFFFF),
         Color(0xFFFFF1DA), Color(0xFFFFFFFF), Color(0xB8FFFFFF), Color(0xFF7A5CFF), Color(0xFFB9A8FF))
-    val base = Color(0xFF0E0D22)
+    private val darkP = Palette("glassdark", "Liquid Glass tối",
+        Color(0xFF05050D), Color(0x1FFFFFFF), Color(0x14FFFFFF), Color(0x33FFFFFF), Color(0x4DFFFFFF), Color(0x3DFFFFFF),
+        Color(0xFFF3DDB8), Color(0xFFF2F2F7), Color(0xA6FFFFFF), Color(0xFF6A4FE0), Color(0xFFA796F0))
+    /** Chế độ tối: nền gần đen, cực quang mờ (hợp OLED), kính trắng nhạt hơn. */
+    val dark = androidx.compose.runtime.mutableStateOf(false)
+    private var sp: android.content.SharedPreferences? = null
+    fun init(ctx: android.content.Context) {
+        if (sp != null) return
+        sp = ctx.getSharedPreferences("glass", android.content.Context.MODE_PRIVATE)
+        dark.value = sp!!.getBoolean("dark", false)
+    }
+    fun setDark(v: Boolean) { dark.value = v; sp?.edit()?.putBoolean("dark", v)?.apply() }
+    val palette: Palette get() = if (dark.value) darkP else light
+    val base: Color get() = if (dark.value) Color(0xFF05050D) else Color(0xFF0E0D22)
     val on: Boolean get() = Themes.style.value == ID
 }
 
@@ -32,16 +45,17 @@ fun Modifier.glassBackdrop(): Modifier = this.drawBehind {
     drawRect(GlassTheme.base)
     fun blob(cx: Float, cy: Float, rad: Float, c: Color) =
         drawCircle(Brush.radialGradient(listOf(c, Color.Transparent), Offset(cx * w, cy * h), rad * r), rad * r, Offset(cx * w, cy * h))
-    blob(.15f, .22f, .55f, Color(0xCCFF8A5C))
-    blob(.82f, .18f, .55f, Color(0xCC7A5CFF))
-    blob(.62f, .88f, .55f, Color(0xBB19C3B3))
-    blob(.08f, .92f, .45f, Color(0xB3C2417C))
+    val k = if (GlassTheme.dark.value) 0.32f else 1f
+    blob(.15f, .22f, .55f, Color(0xFFFF8A5C).copy(alpha = .8f * k))
+    blob(.82f, .18f, .55f, Color(0xFF7A5CFF).copy(alpha = .8f * k))
+    blob(.62f, .88f, .55f, Color(0xFF19C3B3).copy(alpha = .73f * k))
+    blob(.08f, .92f, .45f, Color(0xFFC2417C).copy(alpha = .7f * k))
 }
 
 /** Khối kính: nền trắng mờ chuyển sắc + viền sáng chéo. */
 fun Modifier.glassPanel(r: Dp = 24.dp): Modifier {
     val sh = RoundedCornerShape(r)
     return this.clip(sh)
-        .background(Brush.linearGradient(listOf(Color(0x3DFFFFFF), Color(0x14FFFFFF))))
+        .background(Brush.linearGradient(if (GlassTheme.dark.value) listOf(Color(0x26FFFFFF), Color(0x0AFFFFFF)) else listOf(Color(0x3DFFFFFF), Color(0x14FFFFFF))))
         .border(1.dp, Brush.linearGradient(listOf(Color(0x99FFFFFF), Color(0x1AFFFFFF), Color(0x4DFFFFFF))), sh)
 }

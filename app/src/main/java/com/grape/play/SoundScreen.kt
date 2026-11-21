@@ -100,13 +100,26 @@ fun AppearanceCards() {
         4 -> AluStyleCard()
         5 -> SciFiStyleCard()
         in 6..15 -> { ThemeNone(); BrandStyleCard() }
-        GlassTheme.ID -> ThemeNone()
+        GlassTheme.ID -> GlassStyleCard()
         else -> ThemeCard()
     }
 }
 
 @Composable
 private fun ThemeNone() {}
+
+@Composable
+private fun GlassStyleCard() {
+    val dk by GlassTheme.dark
+    Card {
+        T("LIQUID GLASS", 13, C.Muted, spaced = true)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Opt("Chế độ sáng", !dk) { GlassTheme.setDark(false) }
+            Opt("Chế độ tối", dk) { GlassTheme.setDark(true) }
+        }
+        T("Chế độ tối: nền gần đen, cực quang dịu, kính nhạt hơn — dịu mắt khi xem ban đêm và hợp màn OLED.", 14, C.Muted, lines = 3)
+    }
+}
 
 @Composable
 fun StyleCard() {
