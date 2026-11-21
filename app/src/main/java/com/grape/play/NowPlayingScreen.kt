@@ -391,7 +391,7 @@ private fun Spark(sk: Skin, v: List<Int>, modifier: Modifier) = Canvas(modifier)
 
 @Composable
 private fun Spec(sk: Skin, label: String, value: String, modifier: Modifier, size: Int = 17) = Column(modifier.height(56.dp).clip(RoundedCornerShape(8.dp)).then(if (sk.alu) Modifier.background(AluTheme.g.fill) else Modifier).border(1.dp, sk.line, RoundedCornerShape(8.dp)).padding(9.dp, 6.dp)) {
-    T(label.uppercase(), 10, sk.muted)
+    T(Lang.tr(label).uppercase(), 10, sk.muted)
     T(value, size, sk.text)
 }
 

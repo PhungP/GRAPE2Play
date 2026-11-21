@@ -280,6 +280,7 @@ object Lang {
         Regex("Phiên bản (.+)") to "Version $1",
         Regex("GẦN BIT-PERFECT · hạ (\\d+)→16-bit") to "NEAR BIT-PERFECT · reduced $1→16-bit",
         Regex("Liên hệ: (.+)") to "Contact: $1",
+        Regex("Tín hiệu: (.+) → (.+) \\(file gốc, thiết bị tự giải mã\\)") to "Signal: $1 → $2 (original file, receiver decodes it)",
         Regex("Tín hiệu: (.+)") to "Signal: $1",
         Regex("Đang đưa ra: (.+)") to "Now outputting: $1",
         Regex("Đang stream tới: (.+)") to "Streaming to: $1",

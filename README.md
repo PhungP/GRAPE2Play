@@ -440,3 +440,6 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 ## Bản 2.7.1
 - Trang Cài đặt: thêm điểm dừng đầu trang để di chuyển lên tới tiêu đề "Cài đặt" thì cuộn hẳn về đầu; bỏ dòng chữ về Sony Bravia.
 - English: rà soát và dịch thêm ~350 chuỗi + ~140 mẫu (menu Trợ lý AI, Hẹn giờ ngủ, Màn hình chờ, Buổi thử dàn, Cài đặt, lỗi kết nối…); tiêu đề cửa sổ AI dịch trước khi viết hoa; Lang.tr dịch cả chuỗi có biểu tượng/emoji đầu dòng và các phần ghép "A · B".
+
+## Bản 2.7.2
+- English: dịch nhãn ô thông số trang Đang phát (Format, Bit depth, Frequency, Channels, Source), dòng Tín hiệu "(file gốc, thiết bị tự giải mã)" và nhãn "Làm mờ nền phía sau (cần Android 12…)".

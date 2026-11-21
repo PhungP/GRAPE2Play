@@ -495,6 +495,8 @@ internal object LangExtra {
         Regex("Mất kết nối: (\\d+)") to "Dropouts: \$1",
         Regex("(\\d+) bài · (.+)") to "\$1 tracks · \$2",
         Regex("UI (.+)") to "UI \$1",
+        Regex("Làm mờ nền phía sau \\(cần Android 12 trở lên — máy này chưa hỗ trợ\\):") to "Blur the background behind (needs Android 12 or newer — not supported on this device):",
+        Regex("Làm mờ nền phía sau:") to "Blur the background behind:",
         Regex("Tự chuyển AI: (.+)") to "Auto-switch AI: \$1",
         Regex("Màn hình chờ thông minh: (.+)") to "Smart screensaver: \$1",
         Regex("Mở trang tạo khóa của (.+)") to "Open the key page of \$1",
