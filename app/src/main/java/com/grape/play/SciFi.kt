@@ -425,7 +425,7 @@ internal fun SciFiNow(onNav: (Screen) -> Unit, onOut: () -> Unit) {
                     SfMenuItem("Đầu ra", false, remote != null) { onNav(Screen.OUTPUT) }
                     SfMenuItem("Phổ tần", false) { Overlay.spectrum.value = true }
                     SfMenuItem("Trợ lý AI", false) { Overlay.aiStart = "menu"; Overlay.ai.value = true }
-                    SfMenuItem("Cài đặt", false, mod = if (scanning) lastMenu else Modifier) { onNav(Screen.SOUND) }
+                    SfMenuItem("Cài đặt", false, mod = lastMenu) { onNav(Screen.SOUND) }   // luôn gắn lastReq: nút Power trỏ "lên" tới đây, nếu chưa gắn thì Compose báo lỗi và app thoát
                     if (scanning) S("Đang quét… ${lib.size} bài", 12, C.Gold, Modifier.padding(14.dp, 10.dp), lines = 2)
                     Spacer(Modifier.weight(1f))
                     S("// SYSTEM", 11, C.Gold, spaced = true)

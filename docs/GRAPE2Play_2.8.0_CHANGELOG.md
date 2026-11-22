@@ -61,3 +61,11 @@ Sleep Timer giờ chỉ đếm ngược rồi dừng phát; không đọc hay gh
 ## Quyết định phát hành
 - Shazam/ShazamKit: bỏ khỏi phạm vi 2.8.0 (không có mã Shazam nào trong dự án).
 - Gói phát hành: GRAPEPlay-2.8.0.zip (mã nguồn, chưa build). Chưa có APK/AAB.
+
+## Sửa sau phản hồi (2.8.0, chưa build)
+- `AiIndex.kt`: sửa lỗi biên dịch tên biến `lib` → `l` trong `sigOf`.
+- `MainActivity.kt`: thêm `BackHandler` (TV): Back/chuột phải ở các trang ngoài Thư viện về Đang phát; ở Đang phát hiện hộp xác nhận Thoát thay vì đóng app ngay. Nguyên nhân thực sự của lỗi "chuyển focus từ Thoát lên Cài đặt thì app thoát" CHƯA xác định được (không tái hiện được) — cần thông tin theo dõi thêm.
+- `LangExtra.kt`: thêm ~45 quy tắc dịch cho thông báo lỗi/trạng thái động (AI, đám mây, UPnP/Cast, giải mã, cập nhật, quét thư viện) để UI English không còn hiện tiếng Việt.
+- `SciFi.kt`: sửa lỗi giao diện Robot — nút "Cài đặt" chỉ gắn FocusRequester khi đang quét, trong khi nút Bật/Tắt luôn trỏ `up` tới nó → khi không quét, focus trỏ vào requester chưa gắn gây lỗi. Nay luôn gắn.
+- Chẩn đoán (chỉ nhật ký, không đổi hành vi): `Playback.kt` ghi lý do tạm dừng không do người dùng; `MainActivity.kt` ghi onStop/onDestroy. Nguyên nhân nhạc dừng khi bấm Home CHƯA xác định.
+- `build.gradle.kts`: versionName 2.8.1, versionCode 85 (để cập nhật đè lên 2.8.0).

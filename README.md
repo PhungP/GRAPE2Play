@@ -444,10 +444,12 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 ## Bản 2.7.2
 - English: dịch nhãn ô thông số trang Đang phát (Format, Bit depth, Frequency, Channels, Source), dòng Tín hiệu "(file gốc, thiết bị tự giải mã)" và nhãn "Làm mờ nền phía sau (cần Android 12…)".
 
-## Bản 2.8.0 (Standard)
-- Hẹn giờ ngủ: bỏ hoàn toàn Fade Out; dừng nhạc trực tiếp, không đụng âm lượng/EQ/DSP.
-- Thư viện: chỉ đọc lại file khi đổi; cache ghi nguyên tử + `.bak`; giữ bản ghi khi ổ vắng/quét bị dừng/nguồn lỗi; thẻ mở rộng (năm, đĩa, nghệ sĩ album, nhà soạn nhạc); tìm kiếm theo thể loại/nghệ sĩ album/năm; tự nối lại Yêu thích/Gần đây/thống kê khi file bị di chuyển.
-- Chưa build/kiểm thử trên thiết bị — xem docs/GRAPE2Play_2.8.0_TEST_REPORT.md.
-
 ## Bản 2.7.3
 - Giao diện English: AI được yêu cầu trả lời mọi nội dung hiển thị bằng tiếng Anh (trước đây nhiều tác vụ chỉ có lời nhắc tiếng Việt nên AI trả tiếng Việt).
+
+## Bản 2.8.3
+- Sửa lỗi giao diện Robot/Sci-Fi trên TV: bấm phím lên từ nút Power (thoát) tới nút Cài đặt làm app tự thoát. Nguyên nhân: nút Power chỉ tới "mục menu cuối" bằng một FocusRequester chỉ được gắn khi thư viện đang quét; lúc không quét, Compose báo FocusRequester chưa khởi tạo và app dừng. Nay Cài đặt luôn được gắn FocusRequester đó.
+
+## Bản 2.8.4
+- Bỏ tính năng **Hẹn giờ ngủ (sleep timer)** khỏi menu Trợ lý AI (xoá mã, trang hẹn giờ và các chuỗi dịch liên quan).
+

@@ -157,7 +157,6 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
     when {
         page == "key" -> AiFrame("Dịch vụ AI & khóa API", "Menu", goMenu, ::close) { ServicesPage { page = "key:$it" } }
         page.startsWith("key:") -> AiFrame("Khóa " + AiProvs.get(page.removePrefix("key:")).name, "Dịch vụ", { page = "key" }, ::close) { KeyPage(AiProvs.get(page.removePrefix("key:"))) { page = "key" } }
-        page == "sleep" -> AiFrame("Hẹn giờ ngủ", "Menu", goMenu, ::close) { SleepPage(lib, ::play) }
         page == "saver" -> AiFrame("Màn hình chờ", "Menu", goMenu, ::close) { SaverPage { close(); AiSaver.showing.value = true } }
         page == "testset" -> AiFrame("Buổi thử dàn", "Menu", goMenu, ::close) { TestPage(lib, ::playAt) }
         page == "quick" -> AiFrame("Tìm nhanh", "Menu", goMenu, ::close) { QuickPage(rawTracks, ::playAt) { Overlay.aiAsk = it; page = "ask" } }
@@ -180,7 +179,6 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
             Btn("🌤  Gợi ý theo thời tiết, lễ hội, tâm trạng") { page = "suggest" }
             Btn("💎  Album bị bỏ quên — đáng nghe lại hôm nay") { page = "forgot" }
             Btn("🎚  Buổi thử dàn — AI chọn bài thử âm từ thư viện") { page = "testset" }
-            Btn("😴  Hẹn giờ ngủ thông minh" + if (SleepTimer.active.value) " — còn ${fmtMs(SleepTimer.remainingMs.value)}" else "") { page = "sleep" }
             Btn("🌙  Màn hình chờ thông minh: " + if (AiSaver.on.value) "BẬT (${AiSaver.minutes.value} phút)" else "TẮT") { page = "saver" }
             Btn("ℹ  Giới thiệu bài / album / nghệ sĩ đang phát") { page = "info" }
             Btn("📝  Lời bài hát: xem, dịch, giải nghĩa") { page = "lyrics" }
@@ -414,60 +412,6 @@ internal fun errText(e: Throwable): String {
     return m.lineSequence().first().take(140)
 }
 
-private fun fmtMs(ms: Long): String { val s = ms / 1000; return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s % 3600 / 60, s % 60) else "%d:%02d".format(s / 60, s % 60) }
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SleepPage(lib: List<Track>, play: (List<Track>) -> Unit) {
-    val scope = rememberCoroutineScope()
-    val active by SleepTimer.active
-    val left by SleepTimer.remainingMs
-    val note by SleepTimer.note
-    var q by remember { mutableStateOf("") }
-    var music by remember { mutableStateOf(false) }
-    var msg by remember { mutableStateOf("") }
-    var busy by remember { mutableStateOf(false) }
-    fun go(p: AiSleep.Plan) {
-        if (p.endOfTrack) SleepTimer.startEndOfTrack() else SleepTimer.start(p.minutes)
-        msg = p.say
-        if ((music || p.music) && lib.isNotEmpty()) {
-            if (!Ai.hasKey.value) { msg = "Đã hẹn giờ. Cần khóa AI để chọn nhạc ru ngủ."; return }
-            scope.launch {
-                try { play(AiSearch.run("nhạc nhẹ nhàng ru ngủ thư giãn, khoảng ${if (p.minutes > 0) p.minutes else 30} phút", lib).tracks) }
-                catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                catch (e: Exception) { msg = "Đã hẹn giờ, nhưng chọn nhạc lỗi: " + errText(e) }
-            }
-        }
-    }
-    fun submit(t: String) {
-        if (busy || t.isBlank()) return
-        busy = true; msg = "Đang hiểu yêu cầu…"
-        scope.launch {
-            try { go(AiSleep.parse(t)) }
-            catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (e: Exception) { msg = "✗ " + errText(e).lines().first().take(120) }
-            finally { busy = false }
-        }
-    }
-    T("Dừng nhạc sau một khoảng thời gian. Nói hoặc gõ tự nhiên: “ru ngủ 30 phút”, “1 giờ 15”, “hết bài này”.", 13, C.Muted, lines = 3)
-    if (active) {
-        T("😴 Còn ${fmtMs(left)}", 22, C.Gold, bold = true)
-        if (note.isNotEmpty()) T(note, 13, C.Muted, lines = 2)
-        Btn("✕ Hủy hẹn giờ") { SleepTimer.cancel(); msg = "Đã hủy hẹn giờ" }
-    }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        listOf(15, 30, 45, 60, 90).forEach { m ->
-            Focusable({ go(AiSleep.Plan(m, false, false, "Đã hẹn giờ $m phút")) }, Modifier, RoundedCornerShape(8.dp)) { T("$m phút", 16, C.Gold, Modifier.padding(14.dp, 8.dp)) }
-        }
-        Focusable({ go(AiSleep.Plan(0, true, false, "Sẽ dừng khi hết bài này")) }, Modifier, RoundedCornerShape(8.dp)) { T("Hết bài này", 16, C.Gold, Modifier.padding(14.dp, 8.dp)) }
-    }
-    Focusable({ music = !music }, Modifier.fillMaxWidth(), RoundedCornerShape(8.dp), selected = music) {
-        T((if (music) "● " else "○ ") + "Kèm phát nhạc ru ngủ từ thư viện (AI chọn)", 15, if (music) C.Gold else C.Text, Modifier.padding(14.dp, 8.dp), lines = 2)
-    }
-    AiInput(q, { q = it }, "Ví dụ: ru ngủ 30 phút", showSubmit = true, autoMic = false) { submit(it) }
-    if (msg.isNotEmpty()) T(msg, 15, if (msg.startsWith("✗")) androidx.compose.ui.graphics.Color(0xFFE5575A) else C.Gold, lines = 3)
-    AiTyping(q, { q = it }, "Ví dụ: ru ngủ 30 phút", true) { submit(it) }
-}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

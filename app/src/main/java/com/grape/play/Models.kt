@@ -10,12 +10,6 @@ data class Track(
     val sr: Int = 0, val bits: Int = 0, val ch: Int = 0, val kbps: Int = 0,
     /** MIME gốc do máy chủ DLNA báo (vd. thư viện WiiM); dùng lại khi gửi chính URL đó cho loa. */
     val mime: String = "",
-    /** Dấu vết file lúc đọc thẻ (kích thước, thời điểm sửa) — để chỉ đọc lại file khi thật sự đổi. 0 = chưa biết (cache cũ / nguồn từ xa). */
-    val size: Long = 0L, val mtime: Long = 0L,
-    /** Thẻ mở rộng — chỉ ghi khi file thật sự có (0/rỗng = không có). */
-    val year: Int = 0, val disc: Int = 0, val albumArtist: String = "", val composer: String = "",
-    /** Phiên bản lược đồ metadata lúc đọc; bản ghi cũ hơn [Library.META_VER] sẽ được đọc lại. */
-    val ver: Int = 0,
 ) {
     val folder: String get() = if (dir.isNotEmpty()) "$src|$dir" else path.substringBeforeLast('/')
     val ext: String get() = if (format.isNotEmpty()) format else path.substringAfterLast('.', "").lowercase().let { if (it.length in 1..5) it else "" }

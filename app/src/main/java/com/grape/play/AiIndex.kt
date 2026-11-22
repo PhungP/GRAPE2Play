@@ -37,7 +37,7 @@ object AiIndex {
     @Volatile private var cache: Snap? = null
     fun drop() { cache = null }
 
-    private fun sigOf(l: List<Track>) = "${l.size}|${l.firstOrNull()?.path}|${l.lastOrNull()?.path}|${TagFix.count}|${AiMeta.map.size / 200}|${l.sumOf { it.year }}"
+    private fun sigOf(l: List<Track>) = "${l.size}|${l.firstOrNull()?.path}|${l.lastOrNull()?.path}|${TagFix.count}|${AiMeta.map.size / 200}"
 
     suspend fun get(lib: List<Track>): Snap = withContext(Dispatchers.Default) {
         val sig = sigOf(lib)
@@ -59,7 +59,7 @@ object AiIndex {
             val fname = mid.lastOrNull() ?: s.firstOrNull() ?: ""
             val aiTitles = mid.mapNotNull { AiMeta.map[it]?.title }
             val aiGenres = mid.mapNotNull { AiMeta.map[it]?.genre }
-            entries += Entry(t, aiNorm(t.title), aiNorm(t.artist + " " + t.albumArtist + " " + t.album + (if (t.year > 0) " ${t.year}" else "") + " " + mid.joinToString(" ") + " " + aiTitles.joinToString(" ")).take(400), aiNorm(t.genre + " " + aiGenres.joinToString(" ")))
+            entries += Entry(t, aiNorm(t.title), aiNorm(t.artist + " " + t.album + " " + mid.joinToString(" ") + " " + aiTitles.joinToString(" ")).take(400), aiNorm(t.genre + " " + aiGenres.joinToString(" ")))
             val fk = t.folder
             folderTracks.getOrPut(fk) { ArrayList() }.add(t)
             if (fk !in folderInfo) folderInfo[fk] = Triple(AiMeta.map[fname]?.title ?: fname, s.dropLast(1).dropLast(1).joinToString(" › "), t.sourceName)
@@ -86,7 +86,7 @@ object AiIndex {
             val out = ArrayList<Pair<Entry, Int>>()
             for (e in s.entries) {
                 var hit = 0; var inTitle = 0
-                for (t in toks) { val a = t in e.nt; if (a) inTitle++; if (a || t in e.nr || t in e.ng) hit++ }
+                for (t in toks) { val a = t in e.nt; if (a) inTitle++; if (a || t in e.nr) hit++ }
                 if (hit >= need) out += e to (hit * 10 + inTitle * 3 + if (e.nt.startsWith(toks[0])) 2 else 0)
             }
             return out
