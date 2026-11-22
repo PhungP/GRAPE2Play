@@ -428,7 +428,7 @@ private fun SleepPage(lib: List<Track>, play: (List<Track>) -> Unit) {
     var msg by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     fun go(p: AiSleep.Plan) {
-        if (p.endOfTrack) SleepTimer.startEndOfTrack() else SleepTimer.start(p.minutes, p.fadeSec)
+        if (p.endOfTrack) SleepTimer.startEndOfTrack() else SleepTimer.start(p.minutes)
         msg = p.say
         if ((music || p.music) && lib.isNotEmpty()) {
             if (!Ai.hasKey.value) { msg = "Đã hẹn giờ. Cần khóa AI để chọn nhạc ru ngủ."; return }
@@ -449,7 +449,7 @@ private fun SleepPage(lib: List<Track>, play: (List<Track>) -> Unit) {
             finally { busy = false }
         }
     }
-    T("Dừng nhạc sau một khoảng thời gian, âm lượng nhỏ dần ở cuối rồi tạm dừng. Nói hoặc gõ tự nhiên: “ru ngủ 30 phút”, “1 giờ 15”, “hết bài này”.", 13, C.Muted, lines = 3)
+    T("Dừng nhạc sau một khoảng thời gian. Nói hoặc gõ tự nhiên: “ru ngủ 30 phút”, “1 giờ 15”, “hết bài này”.", 13, C.Muted, lines = 3)
     if (active) {
         T("😴 Còn ${fmtMs(left)}", 22, C.Gold, bold = true)
         if (note.isNotEmpty()) T(note, 13, C.Muted, lines = 2)
@@ -457,9 +457,9 @@ private fun SleepPage(lib: List<Track>, play: (List<Track>) -> Unit) {
     }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(15, 30, 45, 60, 90).forEach { m ->
-            Focusable({ go(AiSleep.Plan(m, 60, false, false, "Đã hẹn giờ $m phút")) }, Modifier, RoundedCornerShape(8.dp)) { T("$m phút", 16, C.Gold, Modifier.padding(14.dp, 8.dp)) }
+            Focusable({ go(AiSleep.Plan(m, false, false, "Đã hẹn giờ $m phút")) }, Modifier, RoundedCornerShape(8.dp)) { T("$m phút", 16, C.Gold, Modifier.padding(14.dp, 8.dp)) }
         }
-        Focusable({ go(AiSleep.Plan(0, 12, true, false, "Sẽ dừng khi hết bài này")) }, Modifier, RoundedCornerShape(8.dp)) { T("Hết bài này", 16, C.Gold, Modifier.padding(14.dp, 8.dp)) }
+        Focusable({ go(AiSleep.Plan(0, true, false, "Sẽ dừng khi hết bài này")) }, Modifier, RoundedCornerShape(8.dp)) { T("Hết bài này", 16, C.Gold, Modifier.padding(14.dp, 8.dp)) }
     }
     Focusable({ music = !music }, Modifier.fillMaxWidth(), RoundedCornerShape(8.dp), selected = music) {
         T((if (music) "● " else "○ ") + "Kèm phát nhạc ru ngủ từ thư viện (AI chọn)", 15, if (music) C.Gold else C.Text, Modifier.padding(14.dp, 8.dp), lines = 2)

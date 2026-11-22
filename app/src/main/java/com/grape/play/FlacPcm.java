@@ -16,7 +16,8 @@ public final class FlacPcm implements PcmStream {
         public long totalSamples;
         public long audioStart;
         public String title = "", artist = "", albumArtist = "", album = "", genre = "";
-        public int track;
+        public int track, disc, year;
+        public String composer = "";
         public byte[] picture;
         public long durationMs() { return sampleRate > 0 && totalSamples > 0 ? totalSamples * 1000L / sampleRate : 0L; }
     }
@@ -91,6 +92,13 @@ public final class FlacPcm implements PcmStream {
                     case "ARTIST": if (m.artist.isEmpty()) m.artist = v; break;
                     case "ALBUMARTIST": case "ALBUM ARTIST": m.albumArtist = v; break;
                     case "ALBUM": m.album = v; break;
+                    case "COMPOSER": if (m.composer.isEmpty()) m.composer = v; break;
+                    case "DISCNUMBER": case "DISC":
+                        try { m.disc = Integer.parseInt(v.split("/")[0].trim()); } catch (Exception ignore) { }
+                        break;
+                    case "DATE": case "YEAR": case "ORIGINALDATE":
+                        if (m.year == 0 && v.length() >= 4) { try { int y = Integer.parseInt(v.substring(0, 4)); if (y >= 1000 && y <= 2999) m.year = y; } catch (Exception ignore) { } }
+                        break;
                     case "GENRE": if (m.genre.isEmpty()) m.genre = v; break;
                     case "TRACKNUMBER": case "TRACK":
                         try { m.track = Integer.parseInt(v.split("/")[0].trim()); } catch (Exception ignore) { }

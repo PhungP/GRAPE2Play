@@ -40,36 +40,33 @@ import kotlin.math.roundToInt
 
 // ============================================================ 6. Hẹn giờ ngủ thông minh
 
-/** Hẹn giờ dừng nhạc: nhỏ dần âm lượng ở phần cuối rồi tạm dừng. Âm lượng nhỏ dần chỉ áp dụng khi phát trên chính thiết bị này. */
+/**
+ * Hẹn giờ dừng nhạc: đếm ngược rồi dừng phát. Tuyệt đối KHÔNG đọc/ghi âm lượng (ExoPlayer, hệ thống, thiết bị UPnP)
+ * và không đụng tới EQ/DSP/Preamp/Balance/Gain — không có Fade Out, không lưu/khôi phục âm lượng.
+ */
 object SleepTimer {
     val active = mutableStateOf(false)
     val remainingMs = mutableStateOf(0L)
     val note = mutableStateOf("")
     private var job: Job? = null
-    private var fadeMs = 60_000L
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private fun applyFade(left: Long) {
-        if (left <= fadeMs && !Playback.isRemote()) runCatching { Playback.exo.volume = (left.toFloat() / fadeMs).coerceIn(0f, 1f) }
-    }
-
-    fun start(minutes: Int, fadeSec: Int) {
+    fun start(minutes: Int) {
         cancel()
         val total = minutes.coerceIn(1, 600) * 60_000L
-        fadeMs = minOf(fadeSec.coerceIn(5, 600) * 1000L, total)
         remainingMs.value = total; active.value = true
-        note.value = "Dừng nhạc sau $minutes phút, nhỏ dần âm lượng ở ${fadeMs / 1000} giây cuối" + if (Playback.isRemote()) " (thiết bị phát ngoài: chỉ dừng, không nhỏ dần)" else ""
+        note.value = "Dừng nhạc sau $minutes phút"
         job = scope.launch {
             var left = total
-            while (left > 0) { delay(1000); left -= 1000; remainingMs.value = left.coerceAtLeast(0); applyFade(left) }
+            while (left > 0) { delay(1000); left -= 1000; remainingMs.value = left.coerceAtLeast(0) }
             finish()
         }
     }
 
     fun startEndOfTrack() {
         cancel()
-        fadeMs = 12_000L; active.value = true
-        note.value = "Dừng nhạc khi hết bài đang phát (nhỏ dần ở 12 giây cuối)"
+        active.value = true
+        note.value = "Dừng nhạc khi hết bài đang phát"
         val idx0 = Playback.index.value
         job = scope.launch {
             while (true) {
@@ -78,29 +75,27 @@ object SleepTimer {
                 val left = (dur - Playback.position.value).coerceAtLeast(0)
                 remainingMs.value = left
                 if (Playback.index.value != idx0) break
-                if (dur > 0) { applyFade(left); if (left <= 400) break }
+                if (dur > 0 && left <= 400) break
             }
             finish()
         }
     }
 
-    private suspend fun finish() {
+    /** Hết giờ: dừng phát trực tiếp, không làm gì khác. */
+    private fun finish() {
         if (Playback.playing.value) Playback.toggle()
-        delay(400)
-        runCatching { Playback.exo.volume = 1f }
         active.value = false; remainingMs.value = 0; note.value = "Đã dừng nhạc theo hẹn giờ"
     }
 
     fun cancel() {
         job?.cancel(); job = null
-        runCatching { Playback.exo.volume = 1f }
         active.value = false; remainingMs.value = 0; note.value = ""
     }
 }
 
 /** Hiểu câu hẹn giờ: tự phân tích "30 phút", "1 giờ 15", "hết bài này" ngay trên máy; câu khó hơn mới hỏi AI. */
 object AiSleep {
-    class Plan(val minutes: Int, val fadeSec: Int, val endOfTrack: Boolean, val music: Boolean, val say: String)
+    class Plan(val minutes: Int, val endOfTrack: Boolean, val music: Boolean, val say: String)
     private val hr = Regex("(\\d+(?:[.,]\\d+)?)\\s*(giờ|gio|tiếng|tieng|hours|hour|hr|h)(?!\\p{L})")
     private val mn = Regex("(\\d+)\\s*(phút|phut|min|ph|p)(?!\\p{L})")
     private val musicWords = listOf("ru ngủ", "ru ngu", "thư giãn", "thu gian", "nhẹ nhàng", "nhe nhang", "sleep", "relax", "lullaby")
@@ -108,20 +103,20 @@ object AiSleep {
     fun local(text: String): Plan? {
         val t = text.lowercase()
         val music = musicWords.any { it in t }
-        if ("hết bài" in t || "het bai" in t || "end of track" in t) return Plan(0, 12, true, music, "")
+        if ("hết bài" in t || "het bai" in t || "end of track" in t) return Plan(0, true, music, "")
         var m = 0.0
         hr.find(t)?.let { m += it.groupValues[1].replace(',', '.').toDouble() * 60 }
         mn.find(t)?.let { m += it.groupValues[1].toDouble() }
         if (m <= 0) return null
-        return Plan(m.roundToInt().coerceAtLeast(1), 60, false, music, "")
+        return Plan(m.roundToInt().coerceAtLeast(1), false, music, "")
     }
 
     suspend fun parse(text: String): Plan {
         local(text)?.let { return it }
-        val sys = "Phân tích yêu cầu hẹn giờ tắt nhạc. Chỉ trả JSON {\"minutes\":<số phút, 0 nếu dừng khi hết bài>, \"fade_seconds\":<10-300, thời gian nhỏ dần âm lượng>, \"end_of_track\":<true/false>, \"music\":<true nếu người dùng muốn phát nhạc ru ngủ/thư giãn>, \"say\":<1 câu xác nhận ngắn>}. ${Ai.langHint()}"
+        val sys = "Phân tích yêu cầu hẹn giờ tắt nhạc. Chỉ trả JSON {\"minutes\":<số phút, 0 nếu dừng khi hết bài>, \"end_of_track\":<true/false>, \"music\":<true nếu người dùng muốn phát nhạc ru ngủ/thư giãn>, \"say\":<1 câu xác nhận ngắn>}. ${Ai.langHint()}"
         val o = Ai.parseJson(Ai.generate(text, sys, json = true, temp = 0.1)) as JSONObject
         val eot = o.optBoolean("end_of_track", false) || o.optInt("minutes", 0) <= 0
-        return Plan(o.optInt("minutes", 30).coerceAtLeast(0), o.optInt("fade_seconds", 60).coerceIn(5, 300), eot, o.optBoolean("music", false), o.optString("say"))
+        return Plan(o.optInt("minutes", 30).coerceAtLeast(0), eot, o.optBoolean("music", false), o.optString("say"))
     }
 }
 

@@ -444,5 +444,10 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 ## Bản 2.7.2
 - English: dịch nhãn ô thông số trang Đang phát (Format, Bit depth, Frequency, Channels, Source), dòng Tín hiệu "(file gốc, thiết bị tự giải mã)" và nhãn "Làm mờ nền phía sau (cần Android 12…)".
 
+## Bản 2.8.0 (Standard)
+- Hẹn giờ ngủ: bỏ hoàn toàn Fade Out; dừng nhạc trực tiếp, không đụng âm lượng/EQ/DSP.
+- Thư viện: chỉ đọc lại file khi đổi; cache ghi nguyên tử + `.bak`; giữ bản ghi khi ổ vắng/quét bị dừng/nguồn lỗi; thẻ mở rộng (năm, đĩa, nghệ sĩ album, nhà soạn nhạc); tìm kiếm theo thể loại/nghệ sĩ album/năm; tự nối lại Yêu thích/Gần đây/thống kê khi file bị di chuyển.
+- Chưa build/kiểm thử trên thiết bị — xem docs/GRAPE2Play_2.8.0_TEST_REPORT.md.
+
 ## Bản 2.7.3
 - Giao diện English: AI được yêu cầu trả lời mọi nội dung hiển thị bằng tiếng Anh (trước đây nhiều tác vụ chỉ có lời nhắc tiếng Việt nên AI trả tiếng Việt).
