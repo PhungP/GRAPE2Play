@@ -12,7 +12,10 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /** Điều khiển UPnP AVTransport (WiiM Ultra, Network Player, TV…): đưa URL bài hát cho thiết bị tự kéo về phát. */
-class UpnpController(private val r: Renderer) : RemoteController() {
+class UpnpController(initial: Renderer) : RemoteController() {
+    /** Thiết bị đang điều khiển. Có thể đổi địa chỉ điều khiển sau khi loa tắt/bật lại (cổng/IP đổi) nên không để cố định. */
+    @Volatile private var r: Renderer = initial
+    @Volatile private var lastRefreshAt = 0L
     private val http = Http.client.newBuilder().connectTimeout(4, TimeUnit.SECONDS).readTimeout(6, TimeUnit.SECONDS).callTimeout(8, TimeUnit.SECONDS).build()
 
     @Volatile private var active = false
@@ -147,6 +150,30 @@ class UpnpController(private val r: Renderer) : RemoteController() {
         }
     }
 
+    /** Lỗi do không liên lạc được với loa (tắt, đang khởi động, đổi IP/cổng) chứ không phải loa trả mã lỗi UPnP. */
+    private fun isLinkError(e: Exception): Boolean = e !is CancellationException && !Regex("lỗi \\d{3}").containsMatchIn(e.message.orEmpty())
+
+    /**
+     * Loa tắt rồi bật lại thường nhận IP/cổng điều khiển mới nhưng địa chỉ app nhớ vẫn là địa chỉ cũ → "không nhận tín hiệu" cho tới khi người dùng
+     * chọn lại đầu ra để quét lại. Ở đây app tự quét lại, tìm đúng loa này (theo mã nhận dạng, rồi theo tên) và đổi sang địa chỉ mới.
+     * Trả về true nếu địa chỉ đã đổi. Không quét quá một lần mỗi 8 giây.
+     */
+    private suspend fun refreshRenderer(): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastRefreshAt < 8000) return false
+        lastRefreshAt = now
+        val ctx = Renderers.app ?: return false
+        val n = try { Renderers.refresh(ctx, r) } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
+        if (n == null) { AppLog.i("UPnP", "${r.name}: quét lại chưa thấy loa"); return false }
+        if (n.avCtrl != r.avCtrl || n.rcCtrl != r.rcCtrl || n.host != r.host || n.port != r.port) {
+            AppLog.i("UPnP", "${r.name}: địa chỉ điều khiển đã đổi (${r.host}:${r.port} → ${n.host}:${n.port}) — dùng địa chỉ mới")
+            r = n
+            return true
+        }
+        AppLog.i("UPnP", "${r.name}: quét lại thấy loa, địa chỉ không đổi")
+        return false
+    }
+
     /** Thiết bị đang bận (701/705…) thì thử lại vài lần, mỗi lần chờ lâu hơn một chút. */
     private suspend fun <T> retrying(my: Int, tries: Int = 6, block: () -> T): T {
         var last: Exception? = null
@@ -157,6 +184,8 @@ class UpnpController(private val r: Renderer) : RemoteController() {
                 val m = e.message.orEmpty()
                 // 714/715/716/718: thiết bị từ chối định dạng/nguồn này, thử lại cũng vô ích
                 if (listOf("(714)", "(715)", "(716)", "(718)").any { it in m }) throw e
+                // Không liên lạc được (loa vừa bật/tắt): quét lại để lấy địa chỉ mới, ở lần thử thứ 2 và thứ 5
+                if (isLinkError(e) && (n == 1 || n == 4)) refreshRenderer()
                 delay(300L * (n + 1))
             }
         }
@@ -314,6 +343,7 @@ class UpnpController(private val r: Renderer) : RemoteController() {
                 // mất kết nối thoáng qua: thử lại ở vòng sau (giãn dần); chỉ báo lỗi nếu mất lâu
                 fails++; record(0); lastSt = ""
                 if (fails == 1 || fails % 10 == 0) AppLog.w("UPnP", "${r.name}: poll lỗi (lần $fails): ${e.message} · giao diện=${if (Playback.uiVisible) "hiện" else "ẩn"}")
+                if (fails >= 3 && fails % 3 == 0) refreshRenderer()   // loa tắt/bật lại: thử lấy địa chỉ mới
                 publish("MẤT KẾT NỐI")
                 if (System.currentTimeMillis() - loadedAt > 60_000 && !sawPlaying) { active = false; AppLog.e("UPnP", "Mất kết nối tới ${r.name}: ${e.message}"); onError("Mất kết nối tới ${r.name}: ${e.message}") }
             }

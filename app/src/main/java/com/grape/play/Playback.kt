@@ -193,6 +193,7 @@ object Playback {
     fun init(ctx: Context) {
         if (::exo.isInitialized) return
         appCtx = ctx.applicationContext
+        Renderers.app = appCtx
         AppLog.init(appCtx)
         AudioSettings.init(appCtx)
         AudioSettings.applyStartup()   // đầu ra mặc định khi mở app (nếu người dùng đã chọn)

@@ -40,6 +40,15 @@ data class Renderer(
 }
 
 object Renderers {
+    /** Context ứng dụng, để bộ điều khiển UPnP tự quét lại loa khi địa chỉ đổi (đặt ở Playback.init). */
+    @Volatile var app: Context? = null
+
+    /** Quét lại và trả về đúng thiết bị này (theo mã nhận dạng, rồi theo tên) với địa chỉ điều khiển mới nhất; null nếu chưa thấy. */
+    suspend fun refresh(ctx: Context, old: Renderer): Renderer? {
+        val all = discover(ctx)
+        return all.firstOrNull { it.kind == old.kind && it.id == old.id } ?: all.firstOrNull { it.kind == old.kind && it.name == old.name }
+    }
+
     /** Ghi chú lần quét gần nhất (hiện dưới danh sách thiết bị để biết vì sao không thấy loa). */
     @Volatile var report = ""
         private set

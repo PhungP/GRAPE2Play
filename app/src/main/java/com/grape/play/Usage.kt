@@ -98,7 +98,7 @@ object UsageStats {
         sp = ctx.applicationContext.getSharedPreferences("usage", Context.MODE_PRIVATE)
         runCatching {
             val o = JSONObject(sp.getString("v", "{}") ?: "{}")
-            o.optJSONObject("t")?.let { t -> t.keys().forEach { k -> val a = t.getJSONArray(k); tracks[k] = Rec(a.getInt(0), a.getLong(1)) } }
+            o.optJSONObject("t")?.let { t -> t.keys().forEach { k -> runCatching { val a = t.getJSONArray(k); tracks[k] = Rec(a.getInt(0), a.getLong(1)) } } }
             o.optJSONObject("d")?.let { d -> d.keys().forEach { k -> days[k] = d.getLong(k) } }
         }
         CoroutineScope(Dispatchers.Default).launch {
@@ -122,6 +122,18 @@ object UsageStats {
         val t = JSONObject(); tracks.forEach { (k, v) -> t.put(k, JSONArray().put(v.plays).put(v.last)) }
         val d = JSONObject(); days.entries.sortedByDescending { it.key }.take(120).forEach { d.put(it.key, it.value) }
         sp.edit().putString("v", JSONObject().put("t", t).put("d", d).toString()).apply()
+    }
+    /** Chuyển thống kê sang đường dẫn mới khi file được di chuyển/đổi tên (cộng dồn nếu đã có). */
+    @Synchronized fun remap(m: Map<String, String>) {
+        if (!::sp.isInitialized) return
+        var ch = false
+        for ((from, to) in m) {
+            val r = tracks.remove(from) ?: continue
+            val e = tracks[to]
+            if (e == null) tracks[to] = r else { e.plays += r.plays; e.last = maxOf(e.last, r.last) }
+            ch = true
+        }
+        if (ch) { rev.value = rev.value + 1; save() }
     }
     fun plays(path: String) = tracks[path]?.plays ?: 0
     fun today() = days[dayKey()] ?: 0L

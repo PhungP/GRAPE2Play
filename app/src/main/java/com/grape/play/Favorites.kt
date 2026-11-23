@@ -36,6 +36,15 @@ object Favorites {
         return added
     }
 
+    /** Đổi đường dẫn khi file được di chuyển/đổi tên (đã đối chiếu an toàn ở [Library]). Giữ nguyên thứ tự; không xóa mục nào. */
+    fun remap(m: Map<String, String>) {
+        if (!::sp.isInitialized || paths.value.none { it in m }) return
+        val s = LinkedHashSet<String>(); paths.value.forEach { s.add(m[it] ?: it) }
+        paths.value = s
+        val a = JSONArray(); s.forEach { a.put(it) }
+        sp.edit().putString("v", a.toString()).apply()
+    }
+
     /** Các bài yêu thích có trong thư viện, bài mới thêm đứng đầu. */
     fun tracks(all: List<Track>): List<Track> {
         val m = HashMap<String, Track>(all.size * 2)
@@ -59,6 +68,13 @@ object Recents {
     @Synchronized fun add(path: String) {
         if (!::sp.isInitialized) return
         list = (listOf(path) + list.filter { it != path }).take(30)
+        val a = JSONArray(); list.forEach { a.put(it) }
+        sp.edit().putString("v", a.toString()).apply()
+    }
+
+    @Synchronized fun remap(m: Map<String, String>) {
+        if (!::sp.isInitialized || list.none { it in m }) return
+        list = list.map { m[it] ?: it }.distinct()
         val a = JSONArray(); list.forEach { a.put(it) }
         sp.edit().putString("v", a.toString()).apply()
     }

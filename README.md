@@ -467,3 +467,17 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 - Bỏ cách tự động phát lại của 2.8.7 (che mất nguyên nhân thật). Khi nhạc UPnP bị tạm dừng lúc bấm Home, app không còn tự gửi lệnh nào.
 - Nhật ký chẩn đoán để xác định chính xác ai làm loa tạm dừng: mỗi lần loa chuyển sang PAUSED/STOPPED, ghi TransportStatus của loa, thời điểm lệnh Tạm dừng cuối của app, của phím media/nút thông báo, và giao diện đã ẩn được bao lâu; ghi các sự kiện hệ thống quanh lúc bấm Home (phím Home, cắm/rút HDMI, thiết bị âm thanh thay đổi). Chỉ ghi nhật ký, không đổi hành vi phát.
 - Kết luận đến nay từ nhật ký: app KHÔNG gửi lệnh Tạm dừng nào khi bấm Home (lệnh duy nhất đến từ loa chuyển trạng thái), nên nguyên nhân nằm ngoài lệnh của app (loa/HDMI-CEC/mạng) — cần nhật ký mới để khẳng định.
+
+## Bản 2.8.9
+- Loa UPnP (ví dụ JBL L75ms) tắt rồi bật lại: loa thường nhận IP/cổng điều khiển mới nhưng app vẫn dùng địa chỉ cũ nên báo lỗi cho tới khi phải chọn lại đầu ra mặc định để quét lại. Nay khi không liên lạc được với loa lúc nạp bài (và khi mất kết nối lúc đang theo dõi), app tự quét lại, tìm đúng loa theo mã nhận dạng/tên và đổi sang địa chỉ điều khiển mới rồi thử lại, không cần chọn lại đầu ra.
+- Nhật ký ghi "địa chỉ điều khiển đã đổi" hoặc "quét lại chưa thấy loa" để biết cách xử lý có tác dụng hay không.
+
+## Bản 2.9.0 — Thư viện nhạc (cải tiến của 2.8.0)
+- Quét thư viện chỉ đọc lại file khi kích thước hoặc ngày sửa đổi; lần quét đầu sau khi cập nhật đọc lại toàn bộ thẻ một lần (nếu đọc lỗi thì giữ thẻ cũ).
+- Không làm mất bài khi USB rút / ổ không đọc được / quét NAS-DLNA-đám mây bị dừng, có thư mục lỗi hoặc nguồn trả về rỗng: giữ bản ghi cũ.
+- Cache thư viện ghi an toàn (file tạm → sao lưu `.bak` → đổi tên); nạp cache từng bản ghi nên một bản ghi hỏng không làm mất cả nguồn; tự dùng `.bak` nếu file chính hỏng. Cache cũ đọc bình thường, không cần chuyển đổi.
+- Thẻ mở rộng được lưu khi file có: năm, số đĩa, nghệ sĩ album, nhà soạn nhạc (FLAC và các định dạng đọc qua hệ thống). Chưa hiển thị ra giao diện.
+- Tìm nhanh (Trợ lý AI) khớp thêm thể loại, nghệ sĩ album và năm.
+- File bị di chuyển/đổi tên: Yêu thích, Gần đây và thống kê nghe tự chuyển sang đường dẫn mới khi đúng một file mới khớp (kích thước, thời lượng, tên, nghệ sĩ, album); mơ hồ thì không làm gì và không xóa gì.
+- Thống kê nghe đọc từng bản ghi; lưu thêm MIME của nguồn DLNA vào cache.
+

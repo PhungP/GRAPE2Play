@@ -359,6 +359,20 @@ internal object LangExtra {
     )
     val MAP: Map<String, String> = m0 + m1 + m2 + m3 + m4
     val RULES: List<Pair<Regex, String>> = listOf(
+        // Thư viện 2.9.0
+        Regex("giữ (\\d+) bài của ổ đang vắng") to "kept \$1 tracks from absent drives",
+        Regex("không đọc được, giữ dữ liệu cũ") to "unreadable, kept previous data",
+        Regex("(\\d+) thư mục lỗi") to "\$1 folders failed",
+        Regex("đã dừng") to "stopped",
+        Regex("(.+): không đọc được") to "\$1: unreadable",
+        Regex("Lỗi quét bộ nhớ: (.*)") to "Storage scan error: \$1",
+        Regex("cache (\\S+): dùng bản sao lưu") to "cache \$1: using the backup copy",
+        Regex("cache (\\S+) \\((.+?)\\) không đọc được: (.*)") to "cache \$1 (\$2) could not be read: \$3",
+        Regex("không ghi được cache (\\S+): (.*)") to "could not write cache \$1: \$2",
+        Regex("đã nối lại (\\d+) bài bị di chuyển/đổi tên") to "re-linked \$1 moved/renamed tracks",
+        Regex("relink lỗi: (.*)") to "relink error: \$1",
+        Regex("quét local: đọc lại (\\d+) file, (\\d+) file đọc lỗi \\(giữ thẻ cũ\\)") to "local scan: re-read \$1 files, \$2 unreadable (kept old tags)",
+        Regex("cache: bỏ qua (\\d+) bản ghi hỏng") to "cache: skipped \$1 corrupt records",
         Regex("(.+): chẩn đoán — trạng thái=(\\S+) · TransportStatus=(\\S+) · lệnh Tạm dừng của app: (.+) · phím media/nút thông báo: (.+) · giao diện ẩn: (.+)") to "\$1: diagnostics — state=\$2 · TransportStatus=\$3 · app Pause command: \$4 · media key/notification button: \$5 · UI hidden: \$6",
         Regex("(.+): lệnh Tạm dừng được gửi khi giao diện đang ẩn") to "\$1: a Pause command was sent while the UI was hidden",
         Regex("(\\d+)s trước") to "\$1s ago",
