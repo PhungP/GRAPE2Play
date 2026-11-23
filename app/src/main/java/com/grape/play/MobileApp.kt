@@ -457,11 +457,11 @@ private fun MobileSettings(onOut: () -> Unit) {
             DsdCard()
             MobileEq()
             BackgroundCard()
-            UpdateCard()
-            LogCard()
             CoverWebCard()
             AiCard()
             LanguageCard()
+            UpdateCard()
+            LogCard()
             MButton("Về ứng dụng (About)", Modifier.fillMaxWidth()) { showAbout = true }
             MButton("Thoát ứng dụng", Modifier.fillMaxWidth(), Color(0xFFE5575A)) { Overlay.exit.value = true }
             Spacer(Modifier.height(8.dp))

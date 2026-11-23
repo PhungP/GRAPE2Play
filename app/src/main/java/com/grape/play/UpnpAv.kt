@@ -209,8 +209,14 @@ class UpnpController(private val r: Renderer) : RemoteController() {
             }
         }
     }
+    @Volatile private var pauseCmdAt = 0L
     override fun play() { userStopped = false; scope.launch { runCatching { call("Play", "<Speed>1</Speed>") }.onFailure { onError("Lệnh Phát lỗi: ${it.message}") } } }
-    override fun pause() { scope.launch { runCatching { call("Pause", "") }.onFailure { onError("Lệnh Tạm dừng lỗi: ${it.message}") } } }
+    override fun pause() {
+        // Lệnh Tạm dừng do người dùng luôn xuất phát khi giao diện đang hiện; nếu gửi lúc giao diện ẩn thì ghi lại nơi gọi để chẩn đoán
+        if (Playback.uiVisible) pauseCmdAt = SystemClock.elapsedRealtime()
+        else AppLog.w("UPnP", "${r.name}: lệnh Tạm dừng được gửi khi giao diện đang ẩn", Throwable("caller"))
+        scope.launch { runCatching { call("Pause", "") }.onFailure { onError("Lệnh Tạm dừng lỗi: ${it.message}") } }
+    }
     override fun seek(ms: Long) { scope.launch { runCatching { call("Seek", "<Unit>REL_TIME</Unit><Target>${hms(ms)}</Target>") }.onFailure { onError("Tua lỗi: ${it.message}") } } }
     override fun stop() { userStopped = true; active = false; scope.launch { runCatching { call("Stop", "") } } }
 
@@ -252,6 +258,15 @@ class UpnpController(private val r: Renderer) : RemoteController() {
                 fails = 0; record(ms)
                 val pos = parseHms(tag(pi, "RelTime"))
                 val st = if (lastSt == "PLAYING" && tick++ % 3 != 0 && pos != lastPos) "PLAYING" else tag(call("GetTransportInfo", ""), "CurrentTransportState")
+                if (st != lastSt) AppLog.i("UPnP", "${r.name}: trạng thái ${lastSt.ifEmpty { "—" }} → $st · giao diện=${if (Playback.uiVisible) "hiện" else "ẩn"}")
+                // Chẩn đoán (chỉ ghi nhật ký): khi loa chuyển sang tạm dừng/dừng, ghi rõ app có gửi lệnh hay không và giao diện ẩn được bao lâu
+                if (st != lastSt && (st == "PAUSED_PLAYBACK" || st == "STOPPED")) {
+                    val now = SystemClock.elapsedRealtime()
+                    val ti = runCatching { call("GetTransportInfo", "") }.getOrDefault("")
+                    fun ago(t: Long) = if (t <= 0L) "chưa có" else "${(now - t) / 1000}s trước"
+                    AppLog.w("UPnP", "${r.name}: chẩn đoán — trạng thái=$st · TransportStatus=${tag(ti, "CurrentTransportStatus").ifEmpty { "?" }} · " +
+                        "lệnh Tạm dừng của app: ${ago(pauseCmdAt)} · phím media/nút thông báo: ${ago(Playback.userPauseAt)} · giao diện ẩn: ${if (Playback.hiddenAt > 0) ago(Playback.hiddenAt) else "đang hiện"}")
+                }
                 lastSt = st
                 val dur = parseHms(tag(pi, "TrackDuration")).takeIf { it > 0 } ?: trackDur
                 val prevPos = lastPos; lastPos = pos
@@ -298,6 +313,7 @@ class UpnpController(private val r: Renderer) : RemoteController() {
             } catch (e: Exception) {
                 // mất kết nối thoáng qua: thử lại ở vòng sau (giãn dần); chỉ báo lỗi nếu mất lâu
                 fails++; record(0); lastSt = ""
+                if (fails == 1 || fails % 10 == 0) AppLog.w("UPnP", "${r.name}: poll lỗi (lần $fails): ${e.message} · giao diện=${if (Playback.uiVisible) "hiện" else "ẩn"}")
                 publish("MẤT KẾT NỐI")
                 if (System.currentTimeMillis() - loadedAt > 60_000 && !sawPlaying) { active = false; AppLog.e("UPnP", "Mất kết nối tới ${r.name}: ${e.message}"); onError("Mất kết nối tới ${r.name}: ${e.message}") }
             }

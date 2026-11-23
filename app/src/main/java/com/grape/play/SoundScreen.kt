@@ -44,13 +44,13 @@ fun SoundScreen(onNav: (Screen) -> Unit, onSources: () -> Unit, onOut: () -> Uni
                 BurnInCard()
                 DsdCard()
                 BackgroundCard()
-                UpdateCard()
                 GaplessCard()
-                LogCard()
                 TvHomeCard()
                 CoverWebCard()
                 AiCard()
                 LanguageCard()
+                UpdateCard()
+                LogCard()
                 Focusable({ showAbout = true }, Modifier.fillMaxWidth(), RoundedCornerShape(12.dp)) {
                     T("Về ứng dụng (About)", 20, C.Gold, Modifier.padding(20.dp, 14.dp), bold = true)
                 }

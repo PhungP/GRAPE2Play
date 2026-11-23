@@ -359,6 +359,13 @@ internal object LangExtra {
     )
     val MAP: Map<String, String> = m0 + m1 + m2 + m3 + m4
     val RULES: List<Pair<Regex, String>> = listOf(
+        Regex("(.+): chẩn đoán — trạng thái=(\\S+) · TransportStatus=(\\S+) · lệnh Tạm dừng của app: (.+) · phím media/nút thông báo: (.+) · giao diện ẩn: (.+)") to "\$1: diagnostics — state=\$2 · TransportStatus=\$3 · app Pause command: \$4 · media key/notification button: \$5 · UI hidden: \$6",
+        Regex("(.+): lệnh Tạm dừng được gửi khi giao diện đang ẩn") to "\$1: a Pause command was sent while the UI was hidden",
+        Regex("(\\d+)s trước") to "\$1s ago",
+        Regex("chưa có") to "none",
+        Regex("đang hiện") to "visible",
+        Regex("Thiết bị âm thanh thêm: (.*)") to "Audio device added: \$1",
+        Regex("Thiết bị âm thanh bị gỡ: (.*)") to "Audio device removed: \$1",
         Regex("Đang quét… (\\d+) bài") to "Scanning… \$1 tracks",
         Regex("(\\d+) bài · (\\d+) thư mục chưa phát lần nào\\. Chọn một thư mục để mở:") to "\$1 tracks · \$2 folders never played. Pick a folder to open:",
         Regex("(\\d+) bài yêu thích · giữ OK để bỏ yêu thích") to "\$1 favorite tracks · hold OK to remove",

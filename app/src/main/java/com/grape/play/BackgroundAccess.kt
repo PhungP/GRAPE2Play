@@ -83,10 +83,13 @@ object BackgroundAccess {
 /** Dịch vụ nền (foreground, loại mediaPlayback): giữ app sống khi thoát ra màn hình chính để nhạc không bị ngắt. */
 class PlaybackService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
+    override fun onDestroy() { AppLog.w("Service", "Dịch vụ nền bị tắt · phát từ xa=${Playback.remote.value != null} · đang phát=${Playback.playing.value}"); super.onDestroy() }
+    override fun onTaskRemoved(rootIntent: Intent?) { AppLog.i("Service", "Task của app bị gỡ khỏi danh sách gần đây (nhạc vẫn chạy nhờ dịch vụ nền)"); super.onTaskRemoved(rootIntent) }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             BackgroundAccess.keep = false
+            Playback.userPauseAt = android.os.SystemClock.elapsedRealtime()
             runCatching { if (Playback.remote.value == null) Playback.exo.pause() else Playback.toggle() }
             stopForeground(true); stopSelf()
             return START_NOT_STICKY
@@ -157,6 +160,16 @@ object Keepalive {
             }
         }
         scope.launch { Playback.index.collect { if (Playback.playing.value) start(app) } }
+        // Nhịp tim khi giao diện đã ẩn mà đang phát tới thiết bị ngoài (tối đa ~4 phút sau khi rời app): cho biết lúc nào liên lạc/phát bị ngắt
+        scope.launch {
+            var beats = 0
+            while (true) {
+                delay(4000)
+                if (Playback.uiVisible) { beats = 0; continue }
+                if (Playback.remote.value != null && beats++ < 60)
+                    AppLog.i("Remote", "nền · ${Playback.remote.value?.label} · phát=${Playback.playing.value} · vị trí=${Playback.position.value / 1000}s · đã gửi=${StreamServer.bytesServed() / 1024} KB · khoá CPU=${wake?.isHeld} · khoá Wi-Fi=${wifiLock?.isHeld}")
+            }
+        }
         scope.launch {
             Playback.playing.combine(Playback.remote) { p, r -> p && r != null }.collect { holdLocks(app, it) }
         }

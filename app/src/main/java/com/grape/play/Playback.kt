@@ -51,6 +51,12 @@ object Playback {
     private var probeJob: Job? = null
     /** Thiết bị stream không dây đang nhận nhạc (null = phát ra đầu ra của TV). */
     val remote = MutableStateFlow<Renderer?>(null)
+    /** Giao diện đang hiện trên màn hình (false khi đã bấm Home/Back): dùng cho nhật ký chẩn đoán chạy nền. */
+    @Volatile var uiVisible = true
+    /** Lần cuối NGƯỜI DÙNG chủ động tạm dừng (phím media / nút thông báo) — để phân biệt với việc thiết bị UPnP tự tạm dừng khi app rời màn hình. */
+    @Volatile var userPauseAt = 0L
+    /** Thời điểm giao diện bị ẩn (onStop), 0 = đang hiện — chỉ để chẩn đoán. */
+    @Volatile var hiddenAt = 0L
     private var rc: RemoteController? = null
     private val main = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 

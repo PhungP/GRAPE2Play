@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
     /** Thoát hẳn: dừng nhạc, tắt dịch vụ nền / chạy ngầm, đóng app và gỡ khỏi danh sách gần đây. */
     fun exitApp() {
         BackgroundAccess.keep = false
+        Playback.userPauseAt = android.os.SystemClock.elapsedRealtime()
         runCatching { if (Playback.remote.value == null) Playback.exo.pause() else if (Playback.playing.value) Playback.toggle() }
         stopService(Intent(this, PlaybackService::class.java))
         finishAndRemoveTask()
@@ -97,6 +98,7 @@ class MainActivity : ComponentActivity() {
         BurnIn.init(applicationContext)
         SourceVisibility.init(applicationContext)
         Playback.init(applicationContext)
+        watchSystem()
         perm = ContextCompat.checkSelfPermission(this, storagePerm) == PackageManager.PERMISSION_GRANTED
         permDone = perm
         if (isTv) TvHome.schedule(applicationContext, 15_000)   // làm mới hàng trên trang chủ TV sau khi thư viện nạp xong
@@ -164,6 +166,48 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // ---- Theo dõi vòng đời để chẩn đoán nhạc phát tới thiết bị UPnP/Cast bị ngắt khi rời app ----
+    private fun playingRemote() = Playback.remote.value != null && Playback.playing.value
+    override fun onStart() { super.onStart(); Playback.uiVisible = true; Playback.hiddenAt = 0L }
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (playingRemote()) Keepalive.ensure(this)   // chắc chắn dịch vụ nền đang chạy trước khi rời app
+    }
+    override fun onStop() {
+        super.onStop()
+        Playback.uiVisible = false; Playback.hiddenAt = android.os.SystemClock.elapsedRealtime()
+        AppLog.i("App", "onStop · phát từ xa=${Playback.remote.value != null} · đang phát=${Playback.playing.value} · đóng=${isFinishing}")
+    }
+    // ---- Chẩn đoán (chỉ ghi nhật ký): sự kiện hệ thống quanh lúc bấm Home — phím Home, cắm/rút HDMI, thiết bị âm thanh thay đổi ----
+    private var sysRx: android.content.BroadcastReceiver? = null
+    private var devCb: android.media.AudioDeviceCallback? = null
+    private fun watchSystem() {
+        runCatching {
+            sysRx = object : android.content.BroadcastReceiver() {
+                override fun onReceive(c: android.content.Context, i: android.content.Intent) {
+                    AppLog.i("System", "${i.action} ${i.getStringExtra("reason") ?: ""}".trim())
+                }
+            }
+            val f = android.content.IntentFilter().apply {
+                addAction(android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS); addAction("android.media.action.HDMI_AUDIO_PLUG")
+                addAction("android.intent.action.HDMI_PLUGGED"); addAction(android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+            }
+            registerReceiver(sysRx, f)
+        }
+        runCatching {
+            val am = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
+            devCb = object : android.media.AudioDeviceCallback() {
+                override fun onAudioDevicesAdded(d: Array<out android.media.AudioDeviceInfo>) { AppLog.i("System", "Thiết bị âm thanh thêm: " + d.joinToString { "${it.productName}(loại ${it.type})" }) }
+                override fun onAudioDevicesRemoved(d: Array<out android.media.AudioDeviceInfo>) { AppLog.i("System", "Thiết bị âm thanh bị gỡ: " + d.joinToString { "${it.productName}(loại ${it.type})" }) }
+            }
+            am.registerAudioDeviceCallback(devCb, null)
+        }
+    }
+    override fun onDestroy() {
+        runCatching { sysRx?.let { unregisterReceiver(it) } }
+        runCatching { devCb?.let { (getSystemService(AUDIO_SERVICE) as android.media.AudioManager).unregisterAudioDeviceCallback(it) } }
+        super.onDestroy(); AppLog.i("App", "onDestroy · phát từ xa=${Playback.remote.value != null} · đang phát=${Playback.playing.value}") }
+
     // Ghi nhận lần thao tác cuối (cho chế độ tự giảm sáng chống lưu ảnh OLED)
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (AiSaver.showing.value) {
@@ -179,9 +223,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean = when (keyCode) {
-        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { Playback.toggle(); true }
+        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { Playback.userPauseAt = android.os.SystemClock.elapsedRealtime(); Playback.toggle(); true }
         KeyEvent.KEYCODE_MEDIA_PLAY -> { if (!Playback.playing.value) Playback.toggle(); true }
-        KeyEvent.KEYCODE_MEDIA_PAUSE -> { if (Playback.playing.value) Playback.toggle(); true }
+        KeyEvent.KEYCODE_MEDIA_PAUSE -> { Playback.userPauseAt = android.os.SystemClock.elapsedRealtime(); if (Playback.playing.value) Playback.toggle(); true }
         KeyEvent.KEYCODE_MEDIA_NEXT -> { Playback.next(); true }
         KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { Playback.prev(); true }
         // Nút micro trên điều khiển TV: mở trợ lý AI và nghe ngay (nếu hệ thống chuyển phím này cho app)

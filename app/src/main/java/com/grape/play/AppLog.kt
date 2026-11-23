@@ -47,6 +47,9 @@ object AppLog {
         i("App", "Khởi động ${header().lineSequence().first()}")
     }
 
+    /** Chọn chuỗi theo ngôn ngữ giao diện hiện tại. */
+    private fun s(vi: String, en: String) = if (Lang.en.value) en else vi
+
     fun i(tag: String, msg: String) = add("I", tag, msg, null)
     fun w(tag: String, msg: String, t: Throwable? = null) = add("W", tag, msg, t)
     fun e(tag: String, msg: String, t: Throwable? = null) = add("E", tag, msg, t)
@@ -83,12 +86,18 @@ object AppLog {
         val v = runCatching { app.packageManager.getPackageInfo(app.packageName, 0).versionName }.getOrNull() ?: "?"
         val sb = StringBuilder()
         sb.append("GRAPE2Play $v · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · ${Build.MANUFACTURER} ${Build.MODEL}\n")
-        sb.append("Chế độ: ${if (Device.tv) "TV" else "Điện thoại/máy tính bảng"} · ngôn ngữ ${if (Lang.en.value) "EN" else "VI"} · chạy ${(SystemClock.elapsedRealtime() - bootAt) / 1000} giây\n")
+        val up = (SystemClock.elapsedRealtime() - bootAt) / 1000
+        sb.append(s("Chế độ: ${if (Device.tv) "TV" else "Điện thoại/máy tính bảng"} · ngôn ngữ ${if (Lang.en.value) "EN" else "VI"} · chạy $up giây",
+            "Mode: ${if (Device.tv) "TV" else "Phone/tablet"} · language ${if (Lang.en.value) "EN" else "VI"} · running for $up s")).append("\n")
         runCatching {
-            sb.append("Đầu ra: ${Playback.outName.value} · phát tới: ${Playback.remote.value?.label ?: "chính thiết bị này"}\n")
-            sb.append("DSD: tần số ${AudioSettings.dsdRate} · gửi thiết bị ngoài ${if (AudioSettings.dsdRemote == AudioSettings.DSD_DOP) "DoP" else "file gốc"} · hi-res ${AudioSettings.hires} · gapless ${AudioSettings.gapless}\n")
+            val dop = AudioSettings.dsdRemote == AudioSettings.DSD_DOP
+            sb.append(s("Đầu ra: ${Playback.outName.value} · phát tới: ${Playback.remote.value?.label ?: "chính thiết bị này"}",
+                "Output: ${Playback.outName.value} · playing to: ${Playback.remote.value?.label ?: "this device"}")).append("\n")
+            sb.append(s("DSD: tần số ${AudioSettings.dsdRate} · gửi thiết bị ngoài ${if (dop) "DoP" else "file gốc"} · hi-res ${AudioSettings.hires} · gapless ${AudioSettings.gapless}",
+                "DSD: rate ${AudioSettings.dsdRate} · sent to external devices as ${if (dop) "DoP" else "original file"} · hi-res ${AudioSettings.hires} · gapless ${AudioSettings.gapless}")).append("\n")
             val t = Playback.queue.value.getOrNull(Playback.index.value)
-            if (t != null) sb.append("Bài đang chọn: ${t.ext} ${t.bits}-bit/${t.sr} Hz · nguồn ${t.sourceName.substringBefore(" · ")}\n")
+            if (t != null) sb.append(s("Bài đang chọn: ${t.ext} ${t.bits}-bit/${t.sr} Hz · nguồn ${t.sourceName.substringBefore(" · ")}",
+                "Selected track: ${t.ext} ${t.bits}-bit/${t.sr} Hz · source ${t.sourceName.substringBefore(" · ")}")).append("\n")
         }
         return sb.toString().trimEnd()
     }
@@ -98,13 +107,16 @@ object AppLog {
         if (!::dir.isInitialized) return ""
         io.submit {}.get()   // đợi các dòng đang xếp hàng ghi xong
         val sb = StringBuilder(header()).append("\n").append("—".repeat(40)).append("\n")
-        runCatching { if (old().exists()) sb.append(old().readText()) }
-        runCatching { if (cur().exists()) sb.append(cur().readText()) }
+        val body = StringBuilder()
+        runCatching { if (old().exists()) body.append(old().readText()) }
+        runCatching { if (cur().exists()) body.append(cur().readText()) }
+        // Nhật ký luôn được ghi bằng tiếng Việt; giao diện English thì dịch khi xuất (file gửi đi, trang xem qua LAN)
+        sb.append(if (Lang.en.value) LogLang.text(body.toString()) else body.toString())
         return sb.toString()
     }
 
     /** Vài chục dòng gần nhất để hiện trong cửa sổ. */
-    fun tail(n: Int = 40): List<String> = synchronized(ram) { ram.toList().takeLast(n) }
+    fun tail(n: Int = 40): List<String> = synchronized(ram) { ram.toList().takeLast(n) }.let { l -> if (Lang.en.value) l.map { LogLang.line(it) } else l }
 
     fun clear() {
         synchronized(ram) { ram.clear() }
@@ -124,12 +136,12 @@ object AppLog {
         val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".fileprovider", exportFile())
         val send = Intent(Intent.ACTION_SEND).setType("text/plain")
             .putExtra(Intent.EXTRA_EMAIL, arrayOf(DEV_EMAIL))
-            .putExtra(Intent.EXTRA_SUBJECT, "GRAPE2Play – nhật ký lỗi")
-            .putExtra(Intent.EXTRA_TEXT, "Mô tả lỗi (bạn đang làm gì, thiết bị nào, bài/định dạng nào):\n\n")
+            .putExtra(Intent.EXTRA_SUBJECT, s("GRAPE2Play – nhật ký lỗi", "GRAPE2Play – error log"))
+            .putExtra(Intent.EXTRA_TEXT, s("Mô tả lỗi (bạn đang làm gì, thiết bị nào, bài/định dạng nào):", "Describe the problem (what you were doing, which device, which track/format):") + "\n\n")
             .putExtra(Intent.EXTRA_STREAM, uri)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        val ch = Intent.createChooser(send, "Gửi nhật ký cho nhà phát triển").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (send.resolveActivity(ctx.packageManager) == null) "Thiết bị này không có ứng dụng gửi thư/chia sẻ. Hãy dùng cách mở bằng trình duyệt trên điện thoại."
+        val ch = Intent.createChooser(send, s("Gửi nhật ký cho nhà phát triển", "Send the log to the developer")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (send.resolveActivity(ctx.packageManager) == null) s("Thiết bị này không có ứng dụng gửi thư/chia sẻ. Hãy dùng cách mở bằng trình duyệt trên điện thoại.", "This device has no email/share app. Open the log in a browser on your phone instead.")
         else { ctx.startActivity(ch); null }
-    } catch (e: Exception) { "Không mở được chia sẻ: ${e.message}" }
+    } catch (e: Exception) { s("Không mở được chia sẻ: ${e.message}", "Could not open sharing: ${e.message}") }
 }

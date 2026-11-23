@@ -45,7 +45,8 @@ object Lang {
         if (m != null) return m.value + tr1(s.substring(m.value.length))
         val l = lead.find(s)
         if (l != null) { val rest = tr1(s.substring(l.value.length)); if (rest != s.substring(l.value.length)) return l.value + rest }
-        return s
+        // thông báo lỗi ghép động (tên thiết bị, mã lỗi, nội dung exception…): dịch theo cụm; chuỗi ngắn (tên bài…) bỏ qua
+        return if (s.length >= 20) LogLang.localize(s) else s
     }
 
     private fun tr1(s: String): String {

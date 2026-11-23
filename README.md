@@ -78,13 +78,11 @@ Lưu ý: refresh token lưu trong SharedPreferences của app (giống mật kh�
 - About: bố cục 2 cột, đủ lời giới thiệu, dòng "Phiên bản giới hạn, viết tặng cho Ngọc Nho và các anh em yêu âm thanh", nhà phát triển Phan Kim Phụng và email.
 - Dấu "Phiên bản giới hạn" (chữ serif nghiêng vàng chuyển sắc) ở góc dưới thanh điều hướng trái.
 
-## Bản 0.6.2
-- **Chạy ngầm**: nút Bật/Tắt ở Cài đặt ▸ Chạy ngầm có hiệu lực ngay (giữ dịch vụ nền luôn chạy, trạng thái sáng "✓ Đang bật chạy ngầm"); xin thêm quyền thông báo / miễn tối ưu pin nếu TV có màn hình đó, nếu không thì báo rõ.
-- Huy hiệu **Limited Edition** giữ nguyên tiếng Anh ở cả tiếng Việt và English; menu "Âm thanh" đổi thành **Cài đặt**.
-- **Ảnh bìa trên mạng**: album/bài không có ảnh tự tìm trên Deezer (dự phòng iTunes) theo nghệ sĩ + album, lưu trong filesDir/webcovers; tắt được ở Cài đặt ▸ Ảnh bìa trên mạng.
+## Bản 0.5.3
+- Đang phát: tên bài 44sp (hiện đủ 2 dòng), nút điều khiển to hơn (Play 124, các nút 96), 6 ô thông số cùng kích thước (Nguồn chỉ hiện tên dịch vụ), danh sách phát chữ nhỏ hơn nên thấy được nhiều bài hơn.
 
-## Bản 0.6.1 — 5 bố cục màn Đang phát (theo 5 concept thiết kế)
-Cài đặt ▸ Bố cục màn Đang phát: Mặc định · Tối giản (Purist) · Đĩa than (Vinyl) · Dữ liệu (Roon) · Tranh (Gallery) · Rạp tối (Noir Theatre). Toàn màn hình; Back = về Thư viện, OK = phát/dừng, ◂ ▸ = bài trước/sau (Rạp tối: tua ±10 giây), Menu = yêu thích; Tranh: ▴ đổi khung (trắng / gỗ / không viền), thông tin tự ẩn sau 5 giây. Code: NowStyles.kt. Chưa có: lời bài hát đồng bộ, credits, DR (cần dữ liệu ngoài).
+## Bản 0.5.4
+- Sửa hộp thoại đăng nhập OneDrive/Google: mã đăng nhập đưa lên đầu, QR nhỏ lại, hộp thoại Thêm nguồn cuộn được nên không bị cắt trên TV FHD.
 
 ## Bản 0.6.0
 - **Yêu thích**: bấm ♥ ở màn Đang phát, hoặc giữ nút OK (hay nút Menu) trên bất kỳ bài nào trong danh sách để thêm/bỏ. Tab **Yêu thích** trong Thư viện: phát tuần tự / ngẫu nhiên, bài mới thêm lên đầu. Bài yêu thích có icon ♥ trong mọi danh sách.
@@ -95,11 +93,13 @@ Cài đặt ▸ Bố cục màn Đang phát: Mặc định · Tối giản (Puri
 - **Giao diện**: Cài đặt ▸ Giao diện: Nho tím (mặc định), Xanh đêm, Rừng xanh, Hoàng hôn, Đen OLED, Sáng ngà. Thêm giao diện mới: thêm một `Palette` vào `Themes.ALL` (Themes.kt).
 - Chưa biên dịch trong môi trường soạn mã — nếu Gradle báo lỗi, gửi lại log.
 
-## Bản 0.5.4
-- Sửa hộp thoại đăng nhập OneDrive/Google: mã đăng nhập đưa lên đầu, QR nhỏ lại, hộp thoại Thêm nguồn cuộn được nên không bị cắt trên TV FHD.
+## Bản 0.6.1 — 5 bố cục màn Đang phát (theo 5 concept thiết kế)
+Cài đặt ▸ Bố cục màn Đang phát: Mặc định · Tối giản (Purist) · Đĩa than (Vinyl) · Dữ liệu (Roon) · Tranh (Gallery) · Rạp tối (Noir Theatre). Toàn màn hình; Back = về Thư viện, OK = phát/dừng, ◂ ▸ = bài trước/sau (Rạp tối: tua ±10 giây), Menu = yêu thích; Tranh: ▴ đổi khung (trắng / gỗ / không viền), thông tin tự ẩn sau 5 giây. Code: NowStyles.kt. Chưa có: lời bài hát đồng bộ, credits, DR (cần dữ liệu ngoài).
 
-## Bản 0.5.3
-- Đang phát: tên bài 44sp (hiện đủ 2 dòng), nút điều khiển to hơn (Play 124, các nút 96), 6 ô thông số cùng kích thước (Nguồn chỉ hiện tên dịch vụ), danh sách phát chữ nhỏ hơn nên thấy được nhiều bài hơn.
+## Bản 0.6.2
+- **Chạy ngầm**: nút Bật/Tắt ở Cài đặt ▸ Chạy ngầm có hiệu lực ngay (giữ dịch vụ nền luôn chạy, trạng thái sáng "✓ Đang bật chạy ngầm"); xin thêm quyền thông báo / miễn tối ưu pin nếu TV có màn hình đó, nếu không thì báo rõ.
+- Huy hiệu **Limited Edition** giữ nguyên tiếng Anh ở cả tiếng Việt và English; menu "Âm thanh" đổi thành **Cài đặt**.
+- **Ảnh bìa trên mạng**: album/bài không có ảnh tự tìm trên Deezer (dự phòng iTunes) theo nghệ sĩ + album, lưu trong filesDir/webcovers; tắt được ở Cài đặt ▸ Ảnh bìa trên mạng.
 
 ## Bản 0.6.3
 - Nút **Thoát** ở góc dưới bên trái thanh điều hướng (có hộp thoại xác nhận): dừng nhạc, tắt dịch vụ nền / chạy ngầm, đóng app.
@@ -138,7 +138,6 @@ Cài đặt ▸ Bố cục màn Đang phát: Mặc định · Tối giản (Puri
 - **Bố cục Đang phát**: bỏ 5 bố cục cũ (Tối giản, Đĩa than, Dữ liệu, Tranh, Rạp tối). Giữ **Mặc định** và thêm 3 bố cục kiểu Symfonium dùng chung cho điện thoại, máy tính bảng và TV: **Cổ điển**, **Toàn ảnh**, **Nền màu** (nền chuyển sắc theo màu ảnh bìa). Chọn ở Cài đặt ▸ Bố cục màn Đang phát (lựa chọn cũ được đặt lại về Mặc định).
 - **Nguồn nhạc** và **Đầu ra âm thanh** thành trang riêng (không còn hộp thoại): danh sách thẻ bên trái, bảng chi tiết bên phải; thêm bộ thành phần giao diện dùng chung (`Ui.kt`: PageHeader, OptionCard, DetailPanel, nút chính/phụ, thẻ nhãn, dòng thông số…). Đăng nhập Google Drive/OneDrive có chip các bước, mã QR và mã ghép nối cỡ lớn. Thanh bên trái (rail) dùng biểu tượng đường nét mảnh, gọn hơn.
 
-
 ## Bản 0.8.1 — Cập nhật ứng dụng + tách khoá bí mật khỏi mã nguồn
 
 ### Khoá đăng nhập đám mây (đổi chỗ)
@@ -159,7 +158,6 @@ Phát hành một bản mới:
 
 Lưu ý: bản 0.8.1 phải cài thủ công một lần; từ đó trở đi các bản sau tự cập nhật được.
 
-
 ## Bản 0.8.2 — Dò loa UPnP kỹ hơn (JBL L75ms…) và phát DSD qua PCM 24-bit
 
 ### Dò thiết bị UPnP
@@ -173,7 +171,6 @@ Lưu ý: bản 0.8.1 phải cài thủ công một lần; từ đó trở đi c�
 2. **DoP** (chỉ DSD64): dành cho DAC ngoài hỗ trợ DoP.
 3. **PCM 24-bit**: app giải mã DSF/DFF thành WAV 24-bit (tốc độ theo mục "Chuyển DSD sang PCM", nên chọn 176.4 kHz) rồi gửi qua HTTP, tua được. Phù hợp JBL L75ms (hãng ghi "DSD (chuyển PCM)", PCM tới 192 kHz).
 
-
 ## Bản 0.8.3
 
 - **Phát DSD tới thiết bị UPnP (JBL L75ms…)**: bỏ chế độ "PCM 24-bit" (còn "Gửi file DSD gốc" và "DoP"). Trước khi nạp bài mới app đưa thiết bị về trạng thái nghỉ (Stop, chờ STOPPED), chờ hết TRANSITIONING rồi mới Play và tự thử lại khi thiết bị báo bận (701/705). Đổi chế độ khi đang phát thì bài hiện tại nạp lại ngay, giữ nguyên vị trí; đang tạm dừng thì nạp lại ở lần bấm Phát kế tiếp. Bấm Phát sau khi thiết bị báo lỗi sẽ nạp lại cả bài (không chỉ gửi lệnh Play) nên không còn kẹt "không phát được" sau khi đổi chế độ.
@@ -181,7 +178,6 @@ Lưu ý: bản 0.8.1 phải cài thủ công một lần; từ đó trở đi c�
 - **Đang phát (4K)**: canvas 4K nhỏ lại 1760 → 1640 dp (toàn giao diện to hơn ~7%); riêng màn Đang phát được phóng đúng tỷ lệ bản FHD (ảnh bìa lớn, khoảng trống giữa hộp tín hiệu và sóng âm gọn lại); hộp tín hiệu có viền/khối giống các hộp Định dạng, Độ sâu bit…
 - **Thư viện**: mục Thư mục hiển thị dạng ô thư mục có ảnh bìa (nếu có); nút **⚙ Nguồn hiển thị** để hiện/ẩn từng nguồn (nguồn ẩn không lẫn vào "Tất cả"). Có trên cả TV và điện thoại.
 - **Phổ tần**: tiêu đề nhỏ lại (30 → 24) cho đồng bộ với các trang cài đặt.
-
 
 ## Bản 0.8.4
 
@@ -452,4 +448,22 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 
 ## Bản 2.8.4
 - Bỏ tính năng **Hẹn giờ ngủ (sleep timer)** khỏi menu Trợ lý AI (xoá mã, trang hẹn giờ và các chuỗi dịch liên quan).
+- Phát tới thiết bị UPnP/Cast: bấm **Home** (hoặc Recents) khi đang phát từ xa nay đóng giao diện giống hệt bấm **Back** (dịch vụ nền giữ app và nhạc phát tiếp), vì trường hợp Back đã chạy ổn còn Home làm nhạc ngừng trên TV của người dùng. Nhật ký có thêm các dòng onStop/onDestroy/dịch vụ nền để truy nguyên nhân thật nếu còn lỗi.
 
+## Bản 2.8.5
+- **Nhật ký sử dụng ứng dụng** (giao diện English) hiển thị bằng English: các dòng nhật ký, phần thông tin máy ở đầu, file gửi đi, trang xem qua LAN, email. Nhật ký vẫn được ghi bằng tiếng Việt và chỉ dịch lúc hiển thị/xuất (`LogLang.kt`). Thông báo lỗi ghép động hiện trên giao diện cũng được dịch.
+- Phiên bản 2.8.5 (versionCode 88) để người dùng cập nhật trực tuyến từ bản 2.8.4 (87).
+
+## Bản 2.8.6
+- Cài đặt: dời **Kiểm tra cập nhật** và **Nhật ký lỗi** xuống ngay trên mục **Về ứng dụng** (cả TV lẫn điện thoại).
+- Bỏ cách "đóng giao diện khi bấm Home" của bản 2.8.4/2.8.5: nhật ký cho thấy Activity bị đóng giống hệt Back mà nhạc vẫn ngừng, nên đó không phải nguyên nhân.
+- Nhật ký chẩn đoán nhạc ngừng khi rời app lúc phát tới thiết bị UPnP: ghi mọi lần đổi trạng thái của thiết bị (PLAYING/PAUSED/STOPPED…), lỗi liên lạc, và "nhịp tim" mỗi 4 giây (tối đa ~4 phút) khi giao diện đã ẩn: trạng thái phát, vị trí, số byte đã gửi, khoá CPU/Wi-Fi.
+
+## Bản 2.8.7
+- Thử tự gửi lại lệnh Phát khi loa UPnP tự tạm dừng lúc app ở nền (đã bỏ ở bản 2.8.8 vì không phù hợp).
+- README: sắp xếp lại các bản theo thứ tự tăng dần (bản mới nằm dưới).
+
+## Bản 2.8.8
+- Bỏ cách tự động phát lại của 2.8.7 (che mất nguyên nhân thật). Khi nhạc UPnP bị tạm dừng lúc bấm Home, app không còn tự gửi lệnh nào.
+- Nhật ký chẩn đoán để xác định chính xác ai làm loa tạm dừng: mỗi lần loa chuyển sang PAUSED/STOPPED, ghi TransportStatus của loa, thời điểm lệnh Tạm dừng cuối của app, của phím media/nút thông báo, và giao diện đã ẩn được bao lâu; ghi các sự kiện hệ thống quanh lúc bấm Home (phím Home, cắm/rút HDMI, thiết bị âm thanh thay đổi). Chỉ ghi nhật ký, không đổi hành vi phát.
+- Kết luận đến nay từ nhật ký: app KHÔNG gửi lệnh Tạm dừng nào khi bấm Home (lệnh duy nhất đến từ loa chuyển trạng thái), nên nguyên nhân nằm ngoài lệnh của app (loa/HDMI-CEC/mạng) — cần nhật ký mới để khẳng định.

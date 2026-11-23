@@ -55,6 +55,13 @@ internal object LogLang {
         "Chọn đầu ra: " to "Selected output: ", "TV/thiết bị này" to "this TV/device",
         " · đầu ra " to " · output ", " | đầu ra=" to " | output=", " @ bài kế tiếp" to " @ next track",
         " đang trả lời — " to " is answering — ",
+        " · phát từ xa=" to " · remote playback=", " · app tự mở màn khác=" to " · app opened another screen=", " · đóng=" to " · closing=",
+        " · đang phát=" to " · playing=",
+        "Dịch vụ nền bị tắt" to "Background service was stopped",
+        "Task của app bị gỡ khỏi danh sách gần đây (nhạc vẫn chạy nhờ dịch vụ nền)" to "The app task was removed from recents (music keeps playing thanks to the background service)",
+        ": trạng thái " to ": state ", " · giao diện=hiện" to " · UI=visible", " · giao diện=ẩn" to " · UI=hidden", "poll lỗi (lần " to "poll error (count ",
+        "nền · " to "background · ", " · phát=" to " · playing=", " · vị trí=" to " · position=", " · đã gửi=" to " · sent=",
+        " · khoá CPU=" to " · CPU lock=", " · khoá Wi-Fi=" to " · Wi-Fi lock=",
         // --- lỗi phát / bộ nhớ đệm
         "Lỗi khi đọc từ ổ — đang sao chép file sang bộ nhớ đệm để thử lại…" to "Error while reading from the drive — copying the file to the cache to retry…",
         "Đã phát lại từ bản sao trong bộ nhớ đệm (lỗi gốc: " to "Replayed from the cache copy (original error: ",
