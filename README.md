@@ -481,3 +481,9 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 - File bị di chuyển/đổi tên: Yêu thích, Gần đây và thống kê nghe tự chuyển sang đường dẫn mới khi đúng một file mới khớp (kích thước, thời lượng, tên, nghệ sĩ, album); mơ hồ thì không làm gì và không xóa gì.
 - Thống kê nghe đọc từng bản ghi; lưu thêm MIME của nguồn DLNA vào cache.
 
+
+## Bản 2.9.1 — Chọn ảnh bìa bằng AI (có xác nhận)
+- Trợ lý AI → "Chọn ảnh bìa bằng AI": chỉ chạy khi bấm "Đồng ý, tìm ảnh bìa". App lấy ảnh từ Deezer (`album.cover_xl`), MusicBrainz/Cover Art Archive (`front-500`) và iTunes (`artworkUrl100` đổi thành 600x600), đo độ phân giải, tỉ lệ vuông và phát hiện ảnh trống ngay trên máy.
+- AI (văn bản, không xem được ảnh) chỉ nhận tên bài/nghệ sĩ/album và các số đo, chọn 1 ảnh theo thứ tự: đúng nghệ sĩ/album → độ phân giải cao → vuông 1:1. Không có khóa AI hoặc AI trả kết quả sai thì dùng quy tắc tương tự trên máy. Cả ba đều là ảnh trống thì báo placeholder và không tạo ảnh mới.
+- Người dùng xem trước, có thể xem ảnh của nguồn khác, rồi bấm "Đồng ý dùng ảnh này" thì ảnh mới được lưu; "Không dùng" thì không lưu gì. Ảnh chỉ lưu trong app (thư mục `usercovers`), không ghi vào file nhạc, có thể bỏ lại bất cứ lúc nào ("Bỏ ảnh đã chọn").
+- Ảnh người dùng đã chọn được ưu tiên cao nhất khi hiển thị bìa.

@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -167,6 +168,7 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
         page == "lyrics" -> AiFrame("Lời bài hát", "Menu", goMenu, ::close) { LyricsPage() }
         page == "suggest" -> AiFrame("Gợi ý theo bối cảnh", "Menu", goMenu, ::close) { SuggestPage(lib, ::play) }
         page == "info" -> AiFrame("Giới thiệu bài đang phát", "Menu", goMenu, ::close) { InfoPage() }
+        page == "cover" -> AiFrame("Chọn ảnh bìa", "Menu", goMenu, ::close) { CoverPage() }
         page == "clean" -> AiFrame("Làm sạch thư viện", "Menu", goMenu, ::close) { CleanPage(lib) }
         else -> AiFrame("✨ Trợ lý AI (Gemini)", null, goMenu, ::close) {
             T("AI chỉ chạy khi bạn bấm. Thư viện không bị gửi lên mạng — chỉ gửi câu hỏi, vài tên nghệ sĩ/album hoặc tên thư mục cần xử lý.", 13, C.Muted, lines = 3)
@@ -183,6 +185,7 @@ fun AiHubDialog(onClose: () -> Unit, onPlayed: () -> Unit) {
             Btn("ℹ  Giới thiệu bài / album / nghệ sĩ đang phát") { page = "info" }
             Btn("📝  Lời bài hát: xem, dịch, giải nghĩa") { page = "lyrics" }
             Btn("🏷  Sửa tag, gộp tên nghệ sĩ/album bị trùng") { page = "tags" }
+            Btn("🖼  Chọn ảnh bìa bằng AI (có xem trước, hỏi xác nhận)") { page = "cover" }
             Btn("🧹  Làm sạch tên và thể loại thư mục") { page = "clean" }
             Btn("🔑  Dịch vụ AI & khóa API (Gemini, Groq, OpenRouter, Cloudflare, NVIDIA)") { page = "key" }
         }
@@ -577,6 +580,48 @@ private fun InfoPage() {
         T(text, 16, lines = 40)
         T("Nội dung do AI viết, có thể chưa chính xác.", 12, C.Muted)
     }
+}
+
+@Composable
+private fun CoverPage() {
+    val queue by Playback.queue.collectAsState()
+    val idx by Playback.index.collectAsState()
+    val t = queue.getOrNull(idx)
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var res by remember { mutableStateOf<AiCover.Result?>(null) }
+    var shown by remember { mutableStateOf<AiCover.Cand?>(null) }
+    var msg by remember { mutableStateOf("") }
+    var hasUser by remember { mutableStateOf(false) }
+    if (t == null) { T("Chưa có bài nào đang phát.", 16, C.Muted); return }
+    LaunchedEffect(t.path) { res = null; shown = null; msg = ""; hasUser = Covers.hasUser(t) }
+    T(t.title, 20, bold = true, lines = 2)
+    T("${t.artist} · ${t.album}", 15, C.Muted, lines = 2)
+    T("Khi bạn bấm tìm, app sẽ gửi tên bài, nghệ sĩ, album tới Deezer, MusicBrainz và iTunes để lấy ảnh bìa, rồi gửi tên và các số đo ảnh (không gửi ảnh) tới dịch vụ AI để chọn ảnh tốt nhất. Ảnh chỉ được lưu sau khi bạn đồng ý, chỉ lưu trong app, không ghi vào file nhạc.", 13, C.Muted, lines = 8)
+    if (!busy && shown == null) Btn("🔍 Đồng ý, tìm ảnh bìa") {
+        busy = true; msg = ""
+        scope.launch {
+            try { val r = AiCover.run(t); res = r; shown = r.chosen; if (r.chosen == null) msg = r.reason }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { msg = "✗ " + errText(e) }
+            busy = false
+        }
+    }
+    if (busy) T("Đang tìm và kiểm tra ảnh…", 15, C.Gold)
+    if (msg.isNotEmpty()) T(msg, 14, C.Gold, lines = 4)
+    val c = shown
+    val r = res
+    if (c != null && r != null) {
+        val bmp = remember(c.url) { Covers.preview(c.bytes) }
+        if (bmp != null) androidx.compose.foundation.Image(bmp.asImageBitmap(), null, Modifier.size(220.dp).clip(RoundedCornerShape(8.dp)))
+        T("Nguồn: ${c.label} · ${c.w}×${c.h}" + if (c.square) " · vuông" else "", 14, bold = true, lines = 2)
+        T(if (c === r.chosen) (if (r.byAi) "AI: " else "") + r.reason else "Ảnh do bạn chọn xem thêm.", 13, C.Muted, lines = 5)
+        Btn("✓ Đồng ý dùng ảnh này") { msg = if (Covers.setUser(t, c.bytes)) "Đã lưu ✓ — ảnh bìa mới sẽ hiện khi bài được vẽ lại." else "✗ Không lưu được ảnh."; hasUser = Covers.hasUser(t); shown = null; res = null }
+        r.cands.filter { it !== c && !it.placeholder }.forEach { o -> Btn("Xem ảnh khác: ${o.label} (${o.w}×${o.h})") { shown = o } }
+        if (c !== r.chosen && r.chosen != null) Btn("↺ Xem lại ảnh được chọn") { shown = r.chosen }
+        Btn("✕ Không dùng, giữ ảnh hiện tại") { shown = null; res = null; msg = "Đã giữ nguyên ảnh bìa hiện tại." }
+    }
+    if (hasUser && !busy) Btn("↩ Bỏ ảnh đã chọn, quay về ảnh gốc") { Covers.clearUser(t); hasUser = false; msg = "Đã bỏ ảnh đã chọn." }
 }
 
 @Composable

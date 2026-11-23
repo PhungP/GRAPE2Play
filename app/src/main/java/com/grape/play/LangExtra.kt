@@ -357,8 +357,34 @@ internal object LangExtra {
         "máy" to "device",
         "bài" to "tracks",
     )
-    val MAP: Map<String, String> = m0 + m1 + m2 + m3 + m4
+    private val m5: Map<String, String> = mapOf(
+        "🖼  Chọn ảnh bìa bằng AI (có xem trước, hỏi xác nhận)" to "🖼  Pick cover art with AI (preview, asks for your consent)",
+        "Chọn ảnh bìa" to "Pick cover art",
+        "Khi bạn bấm tìm, app sẽ gửi tên bài, nghệ sĩ, album tới Deezer, MusicBrainz và iTunes để lấy ảnh bìa, rồi gửi tên và các số đo ảnh (không gửi ảnh) tới dịch vụ AI để chọn ảnh tốt nhất. Ảnh chỉ được lưu sau khi bạn đồng ý, chỉ lưu trong app, không ghi vào file nhạc." to "When you tap search, the app sends the title, artist and album to Deezer, MusicBrainz and iTunes to fetch cover art, then sends the names and image measurements (not the images) to the AI service to pick the best one. The image is saved only after you agree, only inside the app, never into your music files.",
+        "🔍 Đồng ý, tìm ảnh bìa" to "🔍 I agree, search cover art",
+        "Đang tìm và kiểm tra ảnh…" to "Searching and checking images…",
+        "✓ Đồng ý dùng ảnh này" to "✓ Yes, use this image",
+        "↺ Xem lại ảnh được chọn" to "↺ Back to the chosen image",
+        "✕ Không dùng, giữ ảnh hiện tại" to "✕ No, keep the current image",
+        "↩ Bỏ ảnh đã chọn, quay về ảnh gốc" to "↩ Remove chosen image, back to original",
+        "Đã lưu ✓ — ảnh bìa mới sẽ hiện khi bài được vẽ lại." to "Saved ✓ — the new cover shows when the track is redrawn.",
+        "✗ Không lưu được ảnh." to "✗ Could not save the image.",
+        "Đã giữ nguyên ảnh bìa hiện tại." to "Kept the current cover.",
+        "Đã bỏ ảnh đã chọn." to "Removed the chosen image.",
+        "Ảnh do bạn chọn xem thêm." to "Image you chose to preview.",
+        "Không tìm thấy ảnh bìa nào ở 3 nguồn." to "No cover art found in the 3 sources.",
+        "Cả ảnh tìm được đều là ảnh trống / placeholder." to "All images found are blank / placeholders.",
+        "AI đã chọn ảnh này." to "The AI picked this image.",
+        "AI không trả kết quả hợp lệ — chọn theo quy tắc: khớp album/bài, độ phân giải cao nhất, tỉ lệ vuông." to "AI gave no valid answer — picked by rules: album/title match, highest resolution, square.",
+        "Chưa có khóa AI — chọn theo quy tắc: khớp album/bài, độ phân giải cao nhất, tỉ lệ vuông." to "No AI key — picked by rules: album/title match, highest resolution, square.",
+    )
+    val MAP: Map<String, String> = m0 + m1 + m2 + m3 + m4 + m5
     val RULES: List<Pair<Regex, String>> = listOf(
+        // Ảnh bìa 2.9.1
+        Regex("^Nguồn: (.+) · (\\d+×\\d+) · vuông$") to "Source: \$1 · \$2 · square",
+        Regex("^Nguồn: (.+) · (\\d+×\\d+)$") to "Source: \$1 · \$2",
+        Regex("^Xem ảnh khác: (.+)$") to "Preview another: \$1",
+        Regex("^AI: (.+)$") to "AI: \$1",
         // Thư viện 2.9.0
         Regex("giữ (\\d+) bài của ổ đang vắng") to "kept \$1 tracks from absent drives",
         Regex("không đọc được, giữ dữ liệu cũ") to "unreadable, kept previous data",

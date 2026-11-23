@@ -82,6 +82,7 @@ object Covers {
     // ---- Ảnh bìa tìm trên mạng (Deezer, dự phòng iTunes) cho album/bài không có ảnh ----
     private lateinit var sp: SharedPreferences
     private lateinit var webDir: File
+    private lateinit var userDir: File   // ảnh bìa người dùng đã xác nhận (ưu tiên cao nhất, chỉ dùng để hiển thị trong app)
     private val webFail = ConcurrentHashMap.newKeySet<String>()   // lỗi mạng trong phiên này: không thử lại liên tục
     private val gate = Mutex()                                    // tìm lần lượt, cách nhau 350 ms để không bị chặn vì gọi quá dày
     private const val MISS_TTL = 7L * 24 * 3600 * 1000
@@ -90,6 +91,7 @@ object Covers {
         if (::sp.isInitialized) return
         sp = ctx.applicationContext.getSharedPreferences("covers", Context.MODE_PRIVATE)
         webDir = File(ctx.applicationContext.filesDir, "webcovers").apply { mkdirs() }
+        userDir = File(ctx.applicationContext.filesDir, "usercovers").apply { mkdirs() }
     }
     var webEnabled: Boolean
         get() = !::sp.isInitialized || sp.getBoolean("web", true)
@@ -199,11 +201,31 @@ object Covers {
         return null
     }
 
+    // ---- Ảnh bìa do người dùng chọn và xác nhận (qua "Chọn ảnh bìa bằng AI"): chỉ lưu trong app, KHÔNG ghi vào file nhạc ----
+    private fun userId(t: Track): String {
+        val base = if (norm(t.album).isEmpty()) "f|" + t.folder else norm(t.artist) + "|" + norm(t.album)
+        return "%08x%08x".format(base.hashCode(), base.reversed().hashCode())
+    }
+    private fun invalidate(t: Track) { val key = t.src + "|" + t.folder + "|" + t.album; cache.remove(key); none.remove(key) }
+    fun hasUser(t: Track): Boolean = ::userDir.isInitialized && File(userDir, userId(t) + ".jpg").exists()
+    fun setUser(t: Track, bytes: ByteArray): Boolean {
+        if (!::userDir.isInitialized || decode(bytes) == null) return false
+        return runCatching { File(userDir, userId(t) + ".jpg").writeBytes(bytes); invalidate(t); true }.getOrDefault(false)
+    }
+    fun clearUser(t: Track) { if (::userDir.isInitialized) { runCatching { File(userDir, userId(t) + ".jpg").delete() }; invalidate(t) } }
+    private fun fromUser(t: Track): Bitmap? {
+        if (!::userDir.isInitialized) return null
+        val f = File(userDir, userId(t) + ".jpg")
+        return if (f.exists()) runCatching { decode(f.readBytes()) }.getOrNull() else null
+    }
+    /** Giải mã ảnh để xem trước (dùng chung cho cửa sổ chọn ảnh bìa). */
+    internal fun preview(bytes: ByteArray): Bitmap? = runCatching { decode(bytes) }.getOrNull()
+
     suspend fun get(t: Track): Bitmap? = withContext(Dispatchers.IO) {
         val key = t.src + "|" + t.folder + "|" + t.album
         cache.get(key)?.let { return@withContext it }
         if (key in none) return@withContext null
-        val bmp = fromArt(t) ?: fromFlacPicture(t) ?: fromEmbedded(t) ?: fromFolder(t) ?: fromWeb(t)
+        val bmp = fromUser(t) ?: fromArt(t) ?: fromFlacPicture(t) ?: fromEmbedded(t) ?: fromFolder(t) ?: fromWeb(t)
         if (bmp != null) cache.put(key, bmp) else none.add(key)
         bmp
     }
