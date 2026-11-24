@@ -19,6 +19,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.LaunchedEffect
 
 object BitPerfectUi { val open = mutableStateOf(false) }
@@ -27,48 +28,54 @@ private fun s(vi: String, en: String) = if (Lang.en.value) en else vi
 
 private fun codeText(c: BitPerfect.Code): String = when (c) {
     BitPerfect.Code.DSP_ON -> s("DSP/EQ/Preamp/cân bằng đang bật: giá trị mẫu bị thay đổi.", "DSP/EQ/preamp/balance is on: sample values are changed.")
-    BitPerfect.Code.DEPTH_REDUCED -> s("Chế độ tương thích hạ độ sâu bit xuống 16-bit: dữ liệu bị cắt bớt.", "Compatibility mode reduces the bit depth to 16-bit: data is truncated.")
+    BitPerfect.Code.DEPTH_REDUCED -> s("App đang cấu hình hạ độ sâu bit xuống 16-bit (chế độ tương thích): dữ liệu bị cắt bớt.", "The app is configured to reduce the bit depth to 16-bit (compatibility mode): data is truncated.")
     BitPerfect.Code.DSD_TO_PCM -> s("DSD được chuyển sang PCM (giải mã/lọc): không còn là dữ liệu DSD gốc.", "DSD is converted to PCM (decoding/filtering): it is no longer the original DSD data.")
-    BitPerfect.Code.DEVICE_RATE_UNSUPPORTED -> s("Thiết bị tự công bố không hỗ trợ tần số này: Android phải chuyển tần số (resampling).", "The device itself lists this sample rate as unsupported: Android must resample.")
-    BitPerfect.Code.DEVICE_FORMAT_UNSUPPORTED -> s("Thiết bị công bố không nhận được độ sâu bit cần thiết: dữ liệu bị đổi khi chuyển định dạng.", "The device lists no support for the bit depth needed: data changes when the format is converted.")
-    BitPerfect.Code.ANDROID_RATE_DIFFERS -> s("Android báo tần số xử lý/đầu ra khác tần số nguồn: có chuyển tần số (resampling).", "Android reports a processing/output rate different from the source rate: resampling takes place.")
+    BitPerfect.Code.RATE_CONVERSION_EVIDENCE -> s("Có bằng chứng đáng tin cậy về chuyển đổi tần số lấy mẫu.", "There is reliable evidence of sample-rate conversion.")
     BitPerfect.Code.BT_LOSSY_CODEC -> s("Bluetooth dùng codec nén mất dữ liệu so với PCM nguồn.", "Bluetooth uses a lossy codec compared with the source PCM.")
     BitPerfect.Code.DSP_OFF -> s("DSP/EQ của app đang tắt hoặc phẳng (app chép nguyên dữ liệu ở tầng DSP).", "The app DSP/EQ is off or flat (the app copies data unchanged at the DSP stage).")
     BitPerfect.Code.DSP_NOT_APPLIED_REMOTE -> s("DSP của app không áp dụng khi gửi file tới thiết bị ngoài.", "The app DSP is not applied when sending the file to an external device.")
     BitPerfect.Code.SENDS_ORIGINAL_FILE -> s("App gửi file gốc, không giải mã hay chuyển mã.", "The app sends the original file, without decoding or transcoding.")
-    BitPerfect.Code.APP_NO_RESAMPLE -> s("App không đổi tần số lấy mẫu trước bộ xuất âm thanh (chỉ phần app; hệ thống chưa xác minh).", "The app does not change the sample rate before the audio sink (app side only; the system is not verified).")
-    BitPerfect.Code.DEVICE_RATE_LISTED -> s("Thiết bị công bố có hỗ trợ tần số này (chỉ là khả năng).", "The device lists this sample rate as supported (capability only).")
+    BitPerfect.Code.APP_NO_RESAMPLE -> s("App không phát hiện đổi tần số trước bộ xuất âm thanh (chỉ phần app; hệ thống chưa xác minh).", "The app detects no sample-rate change before the audio sink (app side only; the system is not verified).")
+    BitPerfect.Code.CONFIG_CRITERIA_MET -> s("Đủ điều kiện cấu hình: thiết bị + phương thức kết nối khớp danh mục, đúng thiết bị Android đang định tuyến, định dạng nằm trong thông số, không DSP, âm lượng tối đa. Đây là xác minh theo CẤU HÌNH, không phải phép đo toàn tuyến.", "Configuration criteria met: device + connection match the registry, it is the device Android is routing to, the format is within its specs, no DSP, volume at maximum. This is a CONFIGURATION check, not an end-to-end measurement.")
+    BitPerfect.Code.ROUTE_UNKNOWN -> s("System Default – Route Unknown: Android không cho biết thiết bị nào thực sự đang nhận âm thanh (cần Android 13+ và đúng một thiết bị định tuyến). App không đoán HDMI/quang/Bluetooth.", "System Default – Route Unknown: Android does not say which device is actually receiving the audio (needs Android 13+ and exactly one routed device). The app does not guess HDMI/optical/Bluetooth.")
+    BitPerfect.Code.SELECTED_NOT_CONFIRMED -> s("Thiết bị bạn chọn trong app chưa được Android xác nhận là thiết bị đang phát.", "The device you selected in the app is not confirmed by Android as the one playing.")
     BitPerfect.Code.PATH_UNVERIFIED -> s("Đường từ Android tới loa/DAC chưa xác minh được (mixer, HAL, phần cứng).", "The path from Android to the speaker/DAC cannot be verified (mixer, HAL, hardware).")
-    BitPerfect.Code.CAPABILITY_ONLY -> s("Thông tin thiết bị là KHẢ NĂNG công bố, không phải định dạng đang chạy.", "Device information is the advertised CAPABILITY, not the format in use.")
+    BitPerfect.Code.CAPABILITY_ONLY -> s("Thông số thiết bị là KHẢ NĂNG công bố, không phải định dạng đang chạy.", "Device parameters are the advertised CAPABILITY, not the format in use.")
+    BitPerfect.Code.CAPABILITY_MISMATCH_HINT -> s("Danh sách khả năng thiết bị công bố không chứa định dạng này. Chỉ là gợi ý (danh sách có thể thiếu): KHÔNG phải bằng chứng đã chuyển đổi.", "The advertised capability list does not include this format. A hint only (the list may be incomplete): NOT evidence that conversion happens.")
+    BitPerfect.Code.MIXER_RATE_HINT -> s("Tần số mixer chính Android báo khác tần số nguồn. Chỉ là gợi ý, không phải bằng chứng resampling.", "The Android-reported main mixer rate differs from the source rate. A hint only, not evidence of resampling.")
+    BitPerfect.Code.DEV_NOT_VERIFIED -> s("Thiết bị/phương thức kết nối chưa có hồ sơ xác minh (không nằm trong danh mục đã xác nhận).", "The device/connection has no verification profile (not in the confirmed registry).")
+    BitPerfect.Code.DEV_ROUTE_MISMATCH -> s("Thiết bị/phương thức kết nối trong hồ sơ không trùng thiết bị Android đang định tuyến.", "The device/connection in the profile does not match the device Android is routing to.")
+    BitPerfect.Code.DEV_FORMAT_OUTSIDE_REGISTRY -> s("Tần số/độ sâu bit của bài nằm ngoài thông số trong danh mục thiết bị.", "The track's sample rate/bit depth is outside the registry specs of the device.")
+    BitPerfect.Code.SRC_INCOMPLETE -> s("Thiếu thông tin định dạng nguồn (độ sâu bit hoặc tần số).", "Source format information is incomplete (bit depth or sample rate).")
+    BitPerfect.Code.SOURCE_SINK_RATE_DIFFERS -> s("Tần số đưa vào bộ xuất âm thanh khác tần số ghi trong file; chưa đủ để kết luận có resampling.", "The rate fed to the audio sink differs from the file's declared rate; not enough to conclude resampling.")
     BitPerfect.Code.RENDERER_NO_OUTPUT_INFO -> s("Thiết bị UPnP không cung cấp thông tin về dữ liệu đầu ra (giải mã, resampling, DAC).", "The UPnP device provides no information about its output (decoding, resampling, DAC).")
     BitPerfect.Code.CAST_NO_OUTPUT_INFO -> s("Google Cast không báo định dạng đầu ra thực tế của thiết bị nhận.", "Google Cast does not report the real output format of the receiver.")
-    BitPerfect.Code.TV_PATH_UNKNOWN -> s("Không biết TV/ampli xử lý tín hiệu HDMI/quang thế nào (có thể đổi tần số, trộn, xử lý).", "It is unknown how the TV/amplifier handles the HDMI/optical signal (it may resample, mix or process).")
+    BitPerfect.Code.TV_PATH_UNKNOWN -> s("Không biết TV/ampli xử lý tín hiệu HDMI/S/PDIF thế nào (có thể đổi tần số, trộn, xử lý).", "It is unknown how the TV/amplifier handles the HDMI/S/PDIF signal (it may resample, mix or process).")
     BitPerfect.Code.USB_ACTUAL_UNVERIFIED -> s("Android không cho app đọc định dạng USB đang thực sự chạy; thông số USB là khả năng.", "Android does not let the app read the USB format actually in use; USB parameters are capabilities.")
     BitPerfect.Code.BT_CODEC_UNKNOWN -> s("Không đọc được codec Bluetooth đang dùng (A2DP thường dùng codec nén).", "The Bluetooth codec in use cannot be read (A2DP normally uses a compressed codec).")
     BitPerfect.Code.BT_CODEC_LOSSLESS_UNVERIFIED -> s("Codec Bluetooth tự khai không mất dữ liệu nhưng không xác minh được.", "The Bluetooth codec claims to be lossless but this cannot be verified.")
     BitPerfect.Code.DOP_RENDERER_UNVERIFIED -> s("DoP: app gửi đúng cấu trúc, nhưng không xác minh được thiết bị nhận giữ nguyên bit.", "DoP: the app sends the correct structure, but the receiver keeping the bits intact cannot be verified.")
     BitPerfect.Code.VOLUME_NOT_VERIFIED -> s("Âm lượng hệ thống: không xác minh được hệ số khuếch đại thực tế.", "System volume: the real gain cannot be verified.")
     BitPerfect.Code.VOLUME_BELOW_MAX -> s("Âm lượng hệ thống dưới mức tối đa: có thể có hệ số giảm biên độ bằng phần mềm.", "System volume is below maximum: a software attenuation may apply.")
-    BitPerfect.Code.NO_SINK_INFO -> s("Chưa có thông tin định dạng bộ xuất âm thanh (chưa phát hoặc không phải PCM).", "No audio-sink format information yet (not playing or not PCM).")
+    BitPerfect.Code.NO_SINK_INFO -> s("Chưa có thông tin định dạng bộ xuất âm thanh (chưa phát hoặc không phải PCM 16/24/32/Float).", "No audio-sink format information yet (not playing or not PCM 16/24/32/Float).")
     BitPerfect.Code.NO_TRACK -> s("Chưa có bài đang phát.", "Nothing is playing.")
     BitPerfect.Code.DEVICE_DISCONNECTED -> s("Thiết bị đã chọn không còn kết nối; app đang dùng đầu ra mặc định hệ thống.", "The selected device is no longer connected; the app is using the system default output.")
 }
 
-private fun statusText(st: BitPerfect.Status) = when (st) {
-    BitPerfect.Status.VERIFIED -> "BIT-PERFECT VERIFIED"
+private fun statusText(st: BitPerfect.Status, lv: BitPerfect.VerLevel = BitPerfect.VerLevel.NONE) = when (st) {
+    BitPerfect.Status.VERIFIED -> if (lv == BitPerfect.VerLevel.CONFIGURATION) "VERIFIED – CONFIGURATION" else if (lv == BitPerfect.VerLevel.END_TO_END) "VERIFIED – END-TO-END" else "VERIFIED"
     BitPerfect.Status.NOT_VERIFIED -> "NOT VERIFIED"
     BitPerfect.Status.NOT_BIT_PERFECT -> "NOT BIT-PERFECT"
     BitPerfect.Status.UNKNOWN -> "UNKNOWN"
 }
 
 private fun why(st: BitPerfect.Status) = when (st) {
-    BitPerfect.Status.VERIFIED -> s("Có bằng chứng xác minh toàn đường truyền và không có thay đổi dữ liệu nào.", "There is evidence verifying the whole path and no data change was found.")
+    BitPerfect.Status.VERIFIED -> s("Đáp ứng điều kiện xác minh và không phát hiện thay đổi dữ liệu. Mức \"Configuration\" dựa trên cấu hình/thông số kỹ thuật, KHÔNG phải phép đo từ nguồn tới DAC.", "Verification criteria are met and no data change was found. The \"Configuration\" level rests on configuration/technical specs, NOT a source-to-DAC measurement.")
     BitPerfect.Status.NOT_VERIFIED -> s("Chưa phát hiện thay đổi dữ liệu, nhưng cũng chưa đủ bằng chứng để khẳng định toàn bộ đường truyền giữ nguyên dữ liệu. Đây là trạng thái mặc định, KHÔNG có nghĩa là có lỗi.", "No data change was detected, but there is not enough evidence to claim the whole path keeps the data intact. This is the default state and does NOT mean something is wrong.")
     BitPerfect.Status.NOT_BIT_PERFECT -> s("Đã phát hiện bằng chứng dữ liệu âm thanh bị thay đổi so với nguồn sau giải mã (xem mục \"Bằng chứng thay đổi\").", "Evidence was found that the audio data differs from the decoded source (see \"Evidence of change\").")
     BitPerfect.Status.UNKNOWN -> s("Chưa đủ dữ liệu để đánh giá (chưa phát nhạc hoặc chưa có thông tin bộ xuất âm thanh).", "Not enough data to assess (nothing playing or no audio-sink information yet).")
 }
 
-private fun pcmName(bits: Int, float: Boolean) = if (float) "PCM float 32-bit" else "PCM $bits-bit"
 
 private fun rateList(r: IntArray) = if (r.isEmpty()) s("không công bố", "not listed") else r.sorted().joinToString(", ") { khz(it) }
 
@@ -81,12 +88,13 @@ fun BitPerfectDialog() {
     val remote by Playback.remote.collectAsState()
     val out by Playback.outName.collectAsState()
     val sink by Playback.sinkFmt.collectAsState()
+    val profVer by DeviceProfiles.version.collectAsState()
     val dspOn by DspParams.on.collectAsState()
     val bands by DspParams.bands.collectAsState()
     val pre by DspParams.preamp.collectAsState()
     val bal by DspParams.balance.collectAsState()
     val t = queue.getOrNull(idx)
-    val inp = remember(t, info, remote, out, sink, dspOn, bands, pre, bal) { BitPerfectProbe.input(t, info, remote) }
+    val inp = remember(t, info, remote, out, sink, dspOn, bands, pre, bal, profVer) { BitPerfectProbe.input(t, info, remote) }
     val r = BitPerfect.evaluate(inp)
     val compact = LocalCompact.current
     val ok = remember { FocusRequester() }
@@ -100,54 +108,65 @@ fun BitPerfectDialog() {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             T(s("Trạng thái Bit-perfect", "Bit-perfect status"), if (compact) 18 else 22, serif = true)
-            T(statusText(r.status), if (compact) 17 else 22, grade.color, bold = true)
+            T(statusText(r.status, r.level), if (compact) 17 else 22, grade.color, bold = true)
             T(why(r.status), 13, C.Muted, lines = 6)
             if (t != null) T(t.title, 14, C.Gold, bold = true, lines = 1)
 
             SectionLabel(s("THÔNG TIN TÁCH RIÊNG", "SEPARATE INFORMATION"))
             @Composable fun field(label: String, value: String) { T(label, 12, C.Muted, bold = true); T(value, 14, C.Text, lines = 4) }
+            val sinkTxt = if (inp.hasSink) BitPerfect.pcmName(inp.sinkEnc) + " · " + khz(inp.sinkRate) + (if (inp.sinkChannels > 0) " · ${inp.sinkChannels}ch" else "") else ""
             // 1. Source Format
             field("Source Format · " + s("Định dạng nguồn", "source file"),
                 if (t == null) "—" else (t.ext.uppercase() + (if (inp.srcDsd) " · DSD" else "") + (if (inp.srcBits > 0) " · ${inp.srcBits}-bit" else "") + (if (inp.srcRate > 0) " · ${khz(inp.srcRate)}" else "") +
                     (if (inp.srcChannels > 0) " · ${inp.srcChannels}ch" else "") + (if (inp.srcLossy) " · " + s("nén mất dữ liệu (so sánh sau giải mã)", "lossy (compared after decoding)") else "")))
-            // 2. Decoder Output
+            // 2. Decoder Output (= định dạng bộ giải mã đưa vào AudioSink; app quan sát tại ForwardingAudioSink)
             field("Decoder Output · " + s("Sau giải mã", "after decoding"),
                 if (rem) s("Không giải mã trong app (gửi file gốc)", "Not decoded in the app (original file is sent)")
-                else if (inp.hasDecoder) pcmName(inp.decBits, inp.decFloat) + " · " + khz(inp.decRate) else s("Chưa có thông tin", "No information yet"))
-            // 3. DSP Processing
-            field("DSP Processing",
+                else if (inp.hasSink) sinkTxt else s("Chưa có thông tin", "No information yet"))
+            // 3. DSP Status
+            field("DSP Status",
                 if (rem) s("Không áp dụng khi gửi file tới thiết bị ngoài", "Not applied when sending the file to an external device")
                 else if (inp.dspActive) s("BẬT — EQ/Preamp/cân bằng đang chỉnh", "ON — EQ/preamp/balance adjusted") else s("Tắt / phẳng", "Off / flat"))
-            // 4. Output Device
+            // 4. Output Device (thiết bị Android thực sự định tuyến; nếu không biết thì nói rõ, kèm thiết bị người dùng chọn)
             field("Output Device · " + s("Thiết bị đầu ra", "output device"),
-                (if (rem) (remote?.label ?: "") else inp.deviceName.ifEmpty { s("Mặc định hệ thống", "System default") }) +
-                    (if (inp.deviceDisconnected) " · " + s("đã ngắt", "disconnected") else "") + " · " + inp.route.name)
-            // 5. Output Capability
+                if (rem) (remote?.label ?: "")
+                else if (inp.route == BitPerfect.Route.ROUTE_UNKNOWN) "System Default – Route Unknown" +
+                    (if (inp.selectedName.isNotEmpty()) "\n" + s("Thiết bị bạn chọn trong app: ", "Device you selected in the app: ") + inp.selectedName + (if (inp.selectedDisconnected) " (" + s("đã ngắt", "disconnected") + ")" else "") + " — " + s("chưa được Android xác nhận là đang phát", "not confirmed by Android as playing") else "")
+                else inp.deviceName.ifEmpty { s("(không có tên)", "(no name)") })
+            // 5. Connection Type
+            field("Connection Type · " + s("Phương thức kết nối", "connection"), connLabel(inp.route))
+            // 6. Device Verification Status (tách khỏi trạng thái phiên phát)
+            field("Device Verification Status", devLevelText(inp.devLevel) + (if (inp.devLevel != BitPerfect.DevLevel.NONE && !inp.devIsActive) " — " + s("không áp dụng cho phiên này vì thiết bị chưa được Android xác nhận đang định tuyến", "not applied to this session because Android has not confirmed the device is routed") else ""))
+            // 7. Output Capability (khả năng công bố của thiết bị đang định tuyến; chỉ khi route đã biết)
             field("Output Capability · " + s("Khả năng thiết bị công bố", "advertised capability"),
                 if (rem) s("Không có thông tin từ thiết bị nhận", "No information from the receiving device")
-                else if (inp.capRates.isNotEmpty() || inp.capEncKnown) s("Tần số: ", "Rates: ") + rateList(inp.capRates) + " · " + s("độ sâu: ", "depth: ") +
-                    (if (!inp.capEncKnown) s("không công bố", "not listed") else listOfNotNull(if (inp.cap16) "16" else null, if (inp.cap24) "24" else null, if (inp.cap32) "32" else null, if (inp.capFloat) "float" else null).joinToString("/")) +
+                else if (inp.route == BitPerfect.Route.ROUTE_UNKNOWN) s("Không xác định (chưa biết thiết bị đang định tuyến)", "Unknown (the routed device is not known)")
+                else if (inp.capRates.isNotEmpty() || inp.capDepth > 0) s("Tần số: ", "Rates: ") + rateList(inp.capRates) + " · " + s("độ sâu tối đa: ", "max depth: ") + (if (inp.capDepth > 0) "${inp.capDepth}-bit" else s("không công bố", "not listed")) +
                     " (" + s("khả năng, KHÔNG phải định dạng đang chạy", "capability, NOT the format in use") + ")"
                 else s("Không có thông tin", "No information"))
-            // 6. Actual Output Format
-            field("Actual Output Format · " + s("Định dạng thực tế", "actual format"),
-                if (rem) s("Gửi file gốc qua mạng; định dạng thực tế tại DAC/renderer không biết", "Original file sent over the network; the real format at the DAC/renderer is unknown")
-                else if (inp.hasOut) s("App yêu cầu AudioTrack: ", "The app requests from AudioTrack: ") + pcmName(inp.outBits, inp.outFloat) + " · " + khz(inp.outRate) +
-                    " — " + s("Android/thiết bị có thể đổi lại; chưa xác minh", "Android/the device may convert it; not verified") +
-                    (if (inp.mixerRate > 0 && inp.capRates.isEmpty()) " · " + s("tần số mixer Android báo: ", "Android-reported mixer rate: ") + khz(inp.mixerRate) else "")
+            // 8. AudioSink Format (định dạng AudioSink NHẬN) ≠ định dạng Android/DAC thực tế
+            field("AudioSink Format · " + s("AudioSink nhận", "received by the AudioSink"),
+                if (rem) s("Không có (file gốc gửi qua mạng)", "None (the original file is sent over the network)")
+                else if (inp.hasSink) sinkTxt + "\n" + s("Cấu hình app: ", "App setting: ") + (if (inp.floatOutputEnabled) s("yêu cầu đầu ra float 32-bit", "float 32-bit output requested") else s("hạ >16-bit xuống 16-bit", "reduce >16-bit to 16-bit")) + " (" + s("cấu hình, không phải định dạng thực tế", "a setting, not the actual format") + ")"
                 else s("Chưa có thông tin", "No information yet"))
-            // 7. Resampling Status
+            field("Android Active Output Format",
+                if (rem) s("Không áp dụng", "Not applicable") else s("Không xác định — app không đọc được định dạng AudioTrack/mixer của Android", "Unknown — the app cannot read Android's AudioTrack/mixer format") +
+                    (if (inp.mixerRate > 0) "\n" + s("Tần số mixer chính Android báo (gợi ý): ", "Android-reported main mixer rate (hint): ") + khz(inp.mixerRate) else ""))
+            field("DAC / Receiver Accepted Format",
+                if (rem) s("Không có thông tin từ thiết bị nhận", "No information from the receiving device") else s("Không có bằng chứng", "No evidence"))
+            // 9. Resampling Status
             field("Resampling Status",
                 when (r.resampling) { BitPerfect.Tri.YES -> "Yes"; BitPerfect.Tri.NO -> "No"; else -> "Unknown" } +
-                    if (r.resampling == BitPerfect.Tri.UNKNOWN) " — " + s("không thể xác minh tại hệ thống/thiết bị nhận", "cannot be verified in the system/receiver") else "")
-            // 8. Bit-perfect Status
-            field("Bit-perfect Status", statusText(r.status))
+                    if (r.resampling == BitPerfect.Tri.UNKNOWN) " — " + s("không có bằng chứng, nhưng cũng không thể xác minh tại hệ thống/thiết bị nhận", "no evidence found, but it cannot be verified in the system/receiver either") else "")
+            // 10. Playback Bit-perfect Status
+            field("Playback Bit-perfect Status", statusText(r.status, r.level))
 
             if (r.changes.isNotEmpty()) { SectionLabel(s("BẰNG CHỨNG THAY ĐỔI DỮ LIỆU", "EVIDENCE OF CHANGE")); r.changes.forEach { T("• " + codeText(it), 13, Grade.RED.color, lines = 4) } }
             if (r.confirmed.isNotEmpty()) { SectionLabel(s("ĐÃ XÁC MINH ĐƯỢC", "VERIFIED FACTS")); r.confirmed.forEach { T("• " + codeText(it), 13, C.Text, lines = 4) } }
             if (r.unverified.isNotEmpty()) { SectionLabel(s("CHƯA XÁC MINH ĐƯỢC", "NOT VERIFIED")); r.unverified.distinct().forEach { T("• " + codeText(it), 13, C.Muted, lines = 4) } }
-            T(s("Giới hạn: Android không cho app đọc dữ liệu tại tầng mixer/HAL/DAC, TV hay thiết bị nhận, nên app chưa có phương pháp xác minh toàn đường truyền và không cấp VERIFIED chỉ dựa trên tên model, thông số công bố, định dạng báo cáo hay việc tắt EQ.",
-                "Limits: Android does not let the app read data at the mixer/HAL/DAC, the TV or the receiver, so the app has no method to verify the whole path and never grants VERIFIED from a model name, advertised specs, reported formats or EQ being off."), 12, C.Muted, lines = 8)
+            T(s("Giới hạn: Android không cho app đọc dữ liệu tại tầng mixer/HAL/DAC, TV hay thiết bị nhận, nên app chưa có phương pháp xác minh toàn đường truyền. VERIFIED – Configuration cần thiết bị + phương thức kết nối đã xác nhận trong danh mục VÀ Android thực sự định tuyến tới đó; không cấp chỉ dựa trên tên model, thông số công bố, thiết bị bạn chọn hay việc tắt EQ.",
+                "Limits: Android does not let the app read data at the mixer/HAL/DAC, the TV or the receiver, so the app has no method to verify the whole path. VERIFIED – Configuration needs a confirmed registry device + connection that Android is actually routing to; it is never granted from a model name alone, advertised specs, the device you selected, or EQ being off."), 12, C.Muted, lines = 8)
+            Focusable({ BitPerfectUi.open.value = false; DeviceProfiles.manage.value = true }) { T(s("Quản lý thiết bị Bit-perfect", "Manage Bit-perfect devices"), 15, C.Text, Modifier.padding(24.dp, 8.dp)) }
             Focusable({ BitPerfectUi.open.value = false }, requester = ok) { T(s("Đóng", "Close"), 16, C.Gold, Modifier.padding(24.dp, 8.dp), bold = true) }
         }
     }

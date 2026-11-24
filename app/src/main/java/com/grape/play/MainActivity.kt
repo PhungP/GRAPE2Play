@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private var perm by mutableStateOf(false)
     private var permDone by mutableStateOf(false)   // đã xử lý xong hộp thoại quyền bộ nhớ (cho phép hoặc từ chối)
+    private var openLib by mutableStateOf(false)    // launcher yêu cầu mở thẳng thư viện (extra grape_open = library)
     private var openNow by mutableStateOf(false)    // mở màn Đang phát (khi bấm bài từ trang chủ TV)
     private val isTv: Boolean by lazy {
         (getSystemService(UI_MODE_SERVICE) as UiModeManager).currentModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
@@ -70,6 +71,11 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Bấm một bài trên hàng GRAPEPlay ở trang chủ TV: phát bài đó (trong danh sách yêu thích / phát gần đây). */
+    /** Launcher gửi extra "grape_open" = "library": mở màn thư viện (gọi cả ở onCreate và onNewIntent khi app đang chạy sẵn). */
+    private fun handleOpen(i: Intent?) {
+        if (i?.getStringExtra("grape_open") == "library") { i.removeExtra("grape_open"); openLib = true }
+    }
+
     private fun handleLaunch(i: Intent?) {
         val path = i?.getStringExtra(TvHome.EXTRA_PATH) ?: return
         val list = i.getStringExtra(TvHome.EXTRA_LIST) ?: ""
@@ -88,6 +94,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleOpen(intent)
         handleLaunch(intent)
     }
 
@@ -98,10 +105,13 @@ class MainActivity : ComponentActivity() {
         BurnIn.init(applicationContext)
         SourceVisibility.init(applicationContext)
         Playback.init(applicationContext)
+        DeviceProfiles.init(applicationContext)
+        MediaSessionBridge.init(applicationContext)   // phiên media cho launcher (tên bài, ảnh bìa, hàng đợi, điều khiển)
         watchSystem()
         perm = ContextCompat.checkSelfPermission(this, storagePerm) == PackageManager.PERMISSION_GRANTED
         permDone = perm
         if (isTv) TvHome.schedule(applicationContext, 15_000)   // làm mới hàng trên trang chủ TV sau khi thư viện nạp xong
+        handleOpen(intent)
         handleLaunch(intent)
         if (perm) { if (Library.tracks.value.isEmpty()) lifecycleScope.launch { Library.load(applicationContext) } }
         else req.launch(storagePerm)
@@ -123,6 +133,7 @@ class MainActivity : ComponentActivity() {
                 MaterialTheme(colorScheme = darkColorScheme()) {
                     var screen by remember { mutableStateOf(Screen.LIB) }
                     var askBg by remember { mutableStateOf(!BackgroundAccess.asked && !BackgroundAccess.ignoringBattery(applicationContext)) }
+                    LaunchedEffect(openLib) { if (openLib) { screen = Screen.LIB; openLib = false } }
                     LaunchedEffect(openNow) { if (openNow) { screen = Screen.NOW; openNow = false } }
                     Box(Modifier.fillMaxSize().background(C.Bg).then(if (Themes.style.value == 5) Modifier.sfBackdrop() else if (GlassTheme.on) Modifier.glassBackdrop() else if (Themes.style.value in 6..15) Modifier.brandFace() else Modifier)) { BurnIn.Guard {
                         if (!tv) MobileApp(perm, { req.launch(storagePerm) }, screen, { screen = it }, { screen = Screen.SOURCES }, { screen = Screen.OUTPUT })
@@ -158,6 +169,9 @@ class MainActivity : ComponentActivity() {
                         AiDjEffect()
                         AiSaverHost()
                         if (BitPerfectUi.open.value) BitPerfectDialog()
+                        if (DeviceProfiles.manage.collectAsState().value) DeviceManagerDialog()
+                        DeviceConfirmDialog()
+                        androidx.compose.runtime.LaunchedEffect(permDone) { if (permDone) DeviceProfiles.check(applicationContext) }
                         if (Overlay.ai.value) AiHubDialog(onClose = { Overlay.ai.value = false }, onPlayed = { screen = Screen.NOW })
                         if (Overlay.exit.value) ExitDialog(onStay = { Overlay.exit.value = false }, onExit = { Overlay.exit.value = false; exitApp() })
                         if (permDone && askBg) BackgroundDialog(onAllow = { askBg = false; askBackground() }, onLater = { askBg = false; BackgroundAccess.asked = true })
@@ -198,8 +212,8 @@ class MainActivity : ComponentActivity() {
         runCatching {
             val am = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
             devCb = object : android.media.AudioDeviceCallback() {
-                override fun onAudioDevicesAdded(d: Array<out android.media.AudioDeviceInfo>) { AppLog.i("System", "Thiết bị âm thanh thêm: " + d.joinToString { "${it.productName}(loại ${it.type})" }) }
-                override fun onAudioDevicesRemoved(d: Array<out android.media.AudioDeviceInfo>) { AppLog.i("System", "Thiết bị âm thanh bị gỡ: " + d.joinToString { "${it.productName}(loại ${it.type})" }) }
+                override fun onAudioDevicesAdded(d: Array<out android.media.AudioDeviceInfo>) { AppLog.i("System", "Thiết bị âm thanh thêm: " + d.joinToString { "${it.productName}(loại ${it.type})" }); runCatching { DeviceProfiles.check(applicationContext) } }
+                override fun onAudioDevicesRemoved(d: Array<out android.media.AudioDeviceInfo>) { AppLog.i("System", "Thiết bị âm thanh bị gỡ: " + d.joinToString { "${it.productName}(loại ${it.type})" }); runCatching { DeviceProfiles.check(applicationContext) } }
             }
             am.registerAudioDeviceCallback(devCb, null)
         }

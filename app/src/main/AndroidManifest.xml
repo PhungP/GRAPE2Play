@@ -49,6 +49,11 @@
             android:name=".CoverProvider"
             android:authorities="com.grape.play.covers"
             android:exported="true" />
+        <!-- Cho launcher đọc tối đa 12 album (tên, nghệ sĩ, ảnh bìa ≤256 px) — chỉ đọc, không trả đường dẫn -->
+        <provider
+            android:name=".LibraryProvider"
+            android:authorities="com.grape.play.library"
+            android:exported="true" />
         <!-- Chia sẻ file APK cập nhật cho trình cài đặt hệ thống -->
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -83,10 +83,17 @@ object BackgroundAccess {
 /** Dịch vụ nền (foreground, loại mediaPlayback): giữ app sống khi thoát ra màn hình chính để nhạc không bị ngắt. */
 class PlaybackService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
-    override fun onDestroy() { AppLog.w("Service", "Dịch vụ nền bị tắt · phát từ xa=${Playback.remote.value != null} · đang phát=${Playback.playing.value}"); super.onDestroy() }
+    override fun onCreate() { super.onCreate(); running = true; runCatching { MediaSessionBridge.init(this) } }   // phiên media cho launcher/hệ thống đọc trạng thái phát
+    override fun onDestroy() { running = false; AppLog.w("Service", "Dịch vụ nền bị tắt · phát từ xa=${Playback.remote.value != null} · đang phát=${Playback.playing.value}"); super.onDestroy() }
     override fun onTaskRemoved(rootIntent: Intent?) { AppLog.i("Service", "Task của app bị gỡ khỏi danh sách gần đây (nhạc vẫn chạy nhờ dịch vụ nền)"); super.onTaskRemoved(rootIntent) }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Nút điều khiển trên thông báo kiểu media
+        when (intent?.action) {
+            ACTION_TOGGLE -> Playback.toggle()
+            ACTION_NEXT -> Playback.next()
+            ACTION_PREV -> Playback.prev()
+        }
         if (intent?.action == ACTION_STOP) {
             BackgroundAccess.keep = false
             Playback.userPauseAt = android.os.SystemClock.elapsedRealtime()
@@ -100,6 +107,17 @@ class PlaybackService : Service() {
 
     companion object {
         const val ACTION_STOP = "com.grape.play.STOP"
+        const val ACTION_TOGGLE = "com.grape.play.TOGGLE"
+        const val ACTION_NEXT = "com.grape.play.NEXT"
+        const val ACTION_PREV = "com.grape.play.PREV"
+        /** true khi dịch vụ đang chạy: chỉ khi đó mới cập nhật thông báo (tránh đăng thông báo lẻ khi dịch vụ đã tắt). */
+        @Volatile var running = false
+
+        /** Cập nhật thông báo (đổi biểu tượng phát/tạm dừng) khi trạng thái đổi. */
+        fun refreshNotification(ctx: Context) {
+            if (!running) return
+            runCatching { (ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(NOTIF_ID, notification(ctx)) }
+        }
         const val CHANNEL = "playback"
         const val NOTIF_ID = 7001
 
@@ -111,13 +129,21 @@ class PlaybackService : Service() {
             val t = Playback.queue.value.getOrNull(Playback.index.value)
             val open = PendingIntent.getActivity(ctx, 0, Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             val stop = PendingIntent.getService(ctx, 1, Intent(ctx, PlaybackService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            fun act(a: String, code: Int) = PendingIntent.getService(ctx, code, Intent(ctx, PlaybackService::class.java).setAction(a), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            val playing = Playback.playing.value
+            val style = Notification.MediaStyle().setShowActionsInCompactView(0, 1, 2)
+            MediaSessionBridge.token?.let { style.setMediaSession(it) }
             return Notification.Builder(ctx, CHANNEL)
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setContentTitle(t?.title ?: "GRAPEPlay")
                 .setContentText(t?.artist ?: "Đang chạy ngầm")
                 .setOngoing(true)
                 .setContentIntent(open)
-                .addAction(android.R.drawable.ic_media_pause, "Dừng", stop)
+                .setStyle(style)
+                .addAction(android.R.drawable.ic_media_previous, "Trước", act(ACTION_PREV, 2))
+                .addAction(if (playing) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play, if (playing) "Tạm dừng" else "Phát", act(ACTION_TOGGLE, 3))
+                .addAction(android.R.drawable.ic_media_next, "Sau", act(ACTION_NEXT, 4))
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dừng", stop)
                 .build()
         }
     }

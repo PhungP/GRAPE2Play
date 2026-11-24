@@ -108,6 +108,15 @@ object Library {
     }
     private fun rootLabel(f: File) = if (f.path.startsWith("/storage/emulated") || f.path.startsWith("/sdcard")) "TV" else "USB ${f.name}"
 
+    /** Chỉ nạp cache (không quét) — dành cho LibraryProvider khi tiến trình vừa được launcher đánh thức. */
+    suspend fun loadCacheOnly(ctx: Context) {
+        if (tracks.value.isNotEmpty()) return
+        withContext(Dispatchers.IO) {
+            for (id in listOf("local") + SourceStore.list.value.map { it.id })
+                readCache(ctx, id)?.let { publish(id, it) }
+        }
+    }
+
     /** Nạp cache (nhanh) rồi quét lại bộ nhớ TV/USB. Nguồn NAS chỉ quét khi người dùng bấm. */
     suspend fun load(ctx: Context) {
         withContext(Dispatchers.IO) {
