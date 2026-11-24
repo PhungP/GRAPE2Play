@@ -381,6 +381,7 @@ internal object LangExtra {
     val MAP: Map<String, String> = m0 + m1 + m2 + m3 + m4 + m5
     val RULES: List<Pair<Regex, String>> = listOf(
         // Ảnh bìa 2.9.1
+        Regex("báo dừng giữa bài \\(vị trí (\\d+)s/(\\d+)s\\) — không tự phát bài kế") to "reported stop mid-track (position \$1s/\$2s) — not auto-advancing",
         Regex("^Nguồn: (.+) · (\\d+×\\d+) · vuông$") to "Source: \$1 · \$2 · square",
         Regex("^Nguồn: (.+) · (\\d+×\\d+)$") to "Source: \$1 · \$2",
         Regex("^Xem ảnh khác: (.+)$") to "Preview another: \$1",

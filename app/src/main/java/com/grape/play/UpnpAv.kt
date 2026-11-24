@@ -335,7 +335,14 @@ class UpnpController(initial: Renderer) : RemoteController() {
                     "PAUSED_PLAYBACK", "PAUSED_RECORDING" -> onState(false, pos, dur)
                     "TRANSITIONING" -> onState(true, pos, dur)
                     "STOPPED", "NO_MEDIA_PRESENT" ->
-                        if (sawPlaying && !userStopped) { active = false; AppLog.i("UPnP", "${r.name} báo dừng: hết bài"); onEnded() }
+                        if (sawPlaying && !userStopped) {
+                            // Chỉ coi là "hết bài" khi vị trí cuối cùng đã gần cuối bài. Loa tắt/bật lại (hoặc ai đó bấm Dừng trên loa) cũng báo STOPPED
+                            // nhưng giữa bài: khi đó KHÔNG tự sang bài kế (tránh nhạc tự phát ra loa lúc bật máy).
+                            val last = maxOf(prevPos, pos)
+                            val nearEnd = dur <= 0 || last >= dur - 10_000
+                            if (nearEnd) { active = false; AppLog.i("UPnP", "${r.name} báo dừng: hết bài"); onEnded() }
+                            else { userStopped = true; AppLog.i("UPnP", "${r.name} báo dừng giữa bài (vị trí ${last / 1000}s/${dur / 1000}s) — không tự phát bài kế"); onState(false, pos, dur) }
+                        }
                         else if (!sawPlaying && System.currentTimeMillis() - loadedAt > 20_000) { active = false; AppLog.e("UPnP", "${r.name} không phát được bài (báo dừng sau 20 s)"); onError("${r.name} không phát được bài này (thiết bị báo dừng). Thử bài khác hoặc định dạng khác.") }
                 }
                 publish(st)

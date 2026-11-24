@@ -487,3 +487,6 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 - AI (văn bản, không xem được ảnh) chỉ nhận tên bài/nghệ sĩ/album và các số đo, chọn 1 ảnh theo thứ tự: đúng nghệ sĩ/album → độ phân giải cao → vuông 1:1. Không có khóa AI hoặc AI trả kết quả sai thì dùng quy tắc tương tự trên máy. Cả ba đều là ảnh trống thì báo placeholder và không tạo ảnh mới.
 - Người dùng xem trước, có thể xem ảnh của nguồn khác, rồi bấm "Đồng ý dùng ảnh này" thì ảnh mới được lưu; "Không dùng" thì không lưu gì. Ảnh chỉ lưu trong app (thư mục `usercovers`), không ghi vào file nhạc, có thể bỏ lại bất cứ lúc nào ("Bỏ ảnh đã chọn").
 - Ảnh người dùng đã chọn được ưu tiên cao nhất khi hiển thị bìa.
+
+## Bản 2.9.2
+- Sửa lỗi nhạc tự phát ra loa UPnP khi bật lại Mibox dù không mở app: loa tắt/bật lại báo trạng thái "dừng" giữa bài, app hiểu nhầm là "hết bài" nên tự phát bài kế. Nay chỉ coi là hết bài khi vị trí đã gần cuối bài (còn ≤ 10 giây); dừng giữa bài thì chuyển sang trạng thái tạm dừng, không tự phát gì và ghi nhật ký "báo dừng giữa bài".
