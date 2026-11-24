@@ -506,3 +506,11 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 - Hàng đợi/lỗi: sửa Trộn bỏ sót bài, thêm bài chèn ngẫu nhiên, không tự phát khi Pause, bài nạp sẵn của loa UPnP cập nhật khi đổi Trộn/Lặp.
 - Bit-perfect: bốn trạng thái VERIFIED / NOT VERIFIED / NOT BIT-PERFECT / UNKNOWN, tám trường thông tin, bấm ⓘ để xem giải thích. Hiện không có đường phát nào được VERIFIED vì app không có phương pháp xác minh toàn đường truyền. Xem BITPERFECT.md.
 - Test logic thuần: `./run_core_tests.sh`. Tài liệu: CHANGELOG.md, AUDIO_CORE_AUDIT.md, TEST_REPORT.md, RELEASE_NOTES.md.
+
+## Bản 2.9.5 — Final Bit-perfect Accuracy Fix, Device Registry, Rollback (chưa biên dịch/kiểm thử trên thiết bị)
+- Bit-perfect: khả năng thiết bị và tần số mixer chỉ là gợi ý (NOT VERIFIED); chỉ có bằng chứng thật mới ra NOT BIT-PERFECT; Resampling chỉ "Yes" khi có bằng chứng, còn lại "Unknown".
+- Thiết bị đang định tuyến tách khỏi thiết bị bạn chọn; không xác định được thì hiển thị "System Default – Route Unknown" (Android 13+ mới xác định được).
+- Hiển thị đúng PCM 16/24/32-bit hoặc Float theo định dạng AudioSink nhận; không suy Float từ cài đặt Hi-res.
+- Device Registry + hồ sơ thiết bị: hộp thoại xác nhận thiết bị USB/HDMI/S/PDIF/Bluetooth, danh mục tích hợp (hiện FiiO K9 Pro ESS), khai báo thiết bị lạ, quản lý hồ sơ. "VERIFIED – CONFIGURATION" là xác minh theo cấu hình, không phải phép đo toàn tuyến.
+- Quay về phiên bản trước (Cập nhật ▸ Quay về phiên bản trước): tải bản cũ vào Download/GRAPE2Play; Android buộc gỡ app trước khi cài bản thấp hơn (mất dữ liệu app, không mất file nhạc).
+- Test logic: `./run_core_tests.sh` (9782 đạt / 0 lỗi). Build Android và thiết bị thật: chưa xác minh. Chi tiết: BITPERFECT.md, TEST_REPORT.md, RELEASE_NOTES.md, CHANGELOG.md.

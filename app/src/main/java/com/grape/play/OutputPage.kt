@@ -60,7 +60,7 @@ fun OutputPage(onNav: (Screen) -> Unit) {
     val first = remember { FocusRequester() }
     BackHandler { onNav(Screen.LIB) }
 
-    fun commit() { AudioSettings.hires = hires; AudioSettings.deviceKey = dev; Playback.applySettings() }
+    fun commit() { AudioSettings.hires = hires; AudioSettings.deviceKey = dev; Playback.applySettings(); runCatching { DeviceProfiles.check(ctx) } }
     fun scan() {
         if (scanning) return
         scanning = true

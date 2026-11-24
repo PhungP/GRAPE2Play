@@ -98,6 +98,7 @@ class MainActivity : ComponentActivity() {
         BurnIn.init(applicationContext)
         SourceVisibility.init(applicationContext)
         Playback.init(applicationContext)
+        DeviceProfiles.init(applicationContext)
         watchSystem()
         perm = ContextCompat.checkSelfPermission(this, storagePerm) == PackageManager.PERMISSION_GRANTED
         permDone = perm
@@ -158,6 +159,9 @@ class MainActivity : ComponentActivity() {
                         AiDjEffect()
                         AiSaverHost()
                         if (BitPerfectUi.open.value) BitPerfectDialog()
+                        if (DeviceProfiles.manage.collectAsState().value) DeviceManagerDialog()
+                        DeviceConfirmDialog()
+                        androidx.compose.runtime.LaunchedEffect(permDone) { if (permDone) DeviceProfiles.check(applicationContext) }
                         if (Overlay.ai.value) AiHubDialog(onClose = { Overlay.ai.value = false }, onPlayed = { screen = Screen.NOW })
                         if (Overlay.exit.value) ExitDialog(onStay = { Overlay.exit.value = false }, onExit = { Overlay.exit.value = false; exitApp() })
                         if (permDone && askBg) BackgroundDialog(onAllow = { askBg = false; askBackground() }, onLater = { askBg = false; BackgroundAccess.asked = true })
@@ -198,8 +202,8 @@ class MainActivity : ComponentActivity() {
         runCatching {
             val am = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
             devCb = object : android.media.AudioDeviceCallback() {
-                override fun onAudioDevicesAdded(d: Array<out android.media.AudioDeviceInfo>) { AppLog.i("System", "Thiết bị âm thanh thêm: " + d.joinToString { "${it.productName}(loại ${it.type})" }) }
-                override fun onAudioDevicesRemoved(d: Array<out android.media.AudioDeviceInfo>) { AppLog.i("System", "Thiết bị âm thanh bị gỡ: " + d.joinToString { "${it.productName}(loại ${it.type})" }) }
+                override fun onAudioDevicesAdded(d: Array<out android.media.AudioDeviceInfo>) { AppLog.i("System", "Thiết bị âm thanh thêm: " + d.joinToString { "${it.productName}(loại ${it.type})" }); runCatching { DeviceProfiles.check(applicationContext) } }
+                override fun onAudioDevicesRemoved(d: Array<out android.media.AudioDeviceInfo>) { AppLog.i("System", "Thiết bị âm thanh bị gỡ: " + d.joinToString { "${it.productName}(loại ${it.type})" }); runCatching { DeviceProfiles.check(applicationContext) } }
             }
             am.registerAudioDeviceCallback(devCb, null)
         }

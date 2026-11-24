@@ -32,3 +32,18 @@ Logic quyết định lỗi/xáo trộn tách ra PlayLogic.java (có test). Phá
 Bốn trạng thái VERIFIED / NOT VERIFIED / NOT BIT-PERFECT / UNKNOWN; tám trường thông tin độc lập; bấm ⓘ ở trạng thái để xem giải thích. Chi tiết BITPERFECT.md. Không còn nhãn "BIT-PERFECT" thiếu căn cứ.
 ### Test
 `./run_core_tests.sh` (JDK) và JUnit (`app/src/test`). Thêm `testImplementation junit`.
+
+## 2.9.5 — Final Bit-perfect Accuracy Fix, Device Registry, Rollback (versionCode 98)
+### File thay đổi / mới
+- Mới: `DeviceRegistry.java`, `Versions.java` (thuần Java, có test); `DeviceProfiles.kt`, `DeviceRegistryUi.kt`; test `DeviceRegistryTests.java`, `VersionTests.java`.
+- Sửa: `BitPerfect.java` (viết lại), `BitPerfectProbe.kt`, `BitPerfectUi.kt`, `Signal.kt`, `Updater.kt` (rollback; `isNewer` dùng `Versions`), `MainActivity.kt` (khởi tạo DeviceProfiles, gọi `check` ở AudioDeviceCallback hiện có, 2 hộp thoại mới), `OutputPage.kt` (một lời gọi `check` sau khi đổi đầu ra), `BitPerfectTests.java`, `AudioCoreTests.java`, `run_core_tests.sh`, `app/build.gradle.kts` (98 / 2.9.5), tài liệu.
+- Không sửa: `Playback.kt`, Audio Engine, decoder, DSP/EQ, USB/NAS, UPnP, Cast.
+### Bit-perfect
+- Khả năng thiết bị (AudioDeviceInfo) và tần số mixer chỉ là gợi ý; NOT BIT-PERFECT chỉ với bằng chứng (DSP, app hạ 16-bit, DSD→PCM, codec BT lossy đã biết, `rateEvidence`). Resampling YES chỉ với bằng chứng; NO chỉ với pathProof; còn lại Unknown.
+- Active output: `getAudioDevicesForAttributes` (API 33+) + `BitPerfect.activeIndex`; ngược lại "System Default – Route Unknown". Thiết bị người dùng chọn tách riêng. Route `OPTICAL` đổi thành `SPDIF` (Android không phân biệt quang/đồng trục).
+- PCM: encoding lấy từ `Playback.sinkFmt.encoding` (16/24/32/Float); bỏ suy luận Float từ `AudioSettings.hires`; thêm "Android Active Output Format = không xác định", "DAC/Receiver Accepted Format = không có bằng chứng".
+- VERIFIED có hai mức: CONFIGURATION (đủ điều kiện cấu hình, kèm hồ sơ danh mục đã xác nhận, đúng thiết bị đang định tuyến) và END-TO-END (chưa có phương pháp).
+### Device Registry
+Danh mục tích hợp (FiiO K9 Pro ESS: USB / S/PDIF / Bluetooth), hồ sơ người dùng lưu cục bộ, hộp thoại xác nhận, màn quản lý. Chi tiết: BITPERFECT.md.
+### Rollback
+Danh sách bản cũ từ GitHub Releases → tải (kiểm kích thước + đúng package) → lưu Download/GRAPE2Play → hướng dẫn gỡ + cài. Android từ chối cài đè bản thấp hơn nên không thể rollback "tại chỗ"; gỡ app xóa dữ liệu app.

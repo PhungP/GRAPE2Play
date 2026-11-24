@@ -19,9 +19,9 @@ fun dopActive(t: Track, i: AudioInfo?, remote: Renderer?): Boolean =
  */
 @Suppress("UNUSED_PARAMETER")
 fun signalGrade(t: Track, i: AudioInfo?, pcmFmt: String, remote: Renderer?): Pair<Grade, String> =
-    when (BitPerfectProbe.evaluate(t, i, remote).status) {
-        BitPerfect.Status.VERIFIED -> Grade.GREEN to "BIT-PERFECT VERIFIED"
+    BitPerfectProbe.evaluate(t, i, remote).let { r -> when (r.status) {
+        BitPerfect.Status.VERIFIED -> Grade.GREEN to (if (r.level == BitPerfect.VerLevel.END_TO_END) "BIT-PERFECT VERIFIED" else "VERIFIED – CONFIG")
         BitPerfect.Status.NOT_VERIFIED -> Grade.YELLOW to "NOT VERIFIED"
         BitPerfect.Status.NOT_BIT_PERFECT -> Grade.RED to "NOT BIT-PERFECT"
         BitPerfect.Status.UNKNOWN -> Grade.YELLOW to "UNKNOWN"
-    }
+    } }

@@ -1,43 +1,68 @@
-# Cơ chế Bit-perfect (2.9.4)
+# Cơ chế Bit-perfect và Device Registry (2.9.5)
 
-## Vì sao đổi
-Trước 2.9.4, `signalGrade()` (Signal.kt) trả "BIT-PERFECT" (màu xanh, dấu ✓) chỉ dựa trên: EQ phẳng, định dạng không phải m4a/lossy, và — với UPnP/Cast — **mọi file không phải m4a** hay DSD gửi file gốc. Không có bằng chứng nào về mixer Android, HAL, DAC, TV hay renderer. Nay app chỉ nêu điều nó có căn cứ.
+> Trạng thái: mã nguồn viết xong, **BUILD NOT VERIFIED**, **chưa kiểm thử thiết bị thật**. Chỉ phần Java thuần có test chạy thật (TEST_REPORT.md).
 
-## Bốn trạng thái (BitPerfect.java)
+## 1. Ba lớp thông tin được tách riêng
+| Lớp | Là gì | Nguồn | Có thể kết luận "đổi dữ liệu"? |
+|---|---|---|---|
+| Device Capability | Thiết bị **công bố** hỗ trợ gì | `AudioDeviceInfo.getSampleRates()/getEncodings()` | **Không** — chỉ là khả năng/gợi ý |
+| Runtime Audio Format | Định dạng tại thời điểm phát mà app quan sát được | `Playback.sinkFmt` (AudioSink nhận) | Chỉ phần app (hạ 16-bit do cấu hình app) |
+| Actual Conversion Evidence | Bằng chứng dữ liệu bị đổi | DSP bật, app hạ 16-bit, DSD→PCM, codec BT mất dữ liệu đã biết, `rateEvidence` | **Có** |
+
+`Resampling = YES` **chỉ** khi `rateEvidence` (hiện chưa có nguồn nào đặt true). `NO` **chỉ** khi có `pathProof` (xác minh toàn tuyến — chưa có phương pháp). Còn lại luôn là **Unknown**: không có bằng chứng ≠ chắc chắn không có resampling.
+
+Những thứ trước đây (2.9.4) bị coi là bằng chứng NOT BIT-PERFECT và nay **chỉ còn là gợi ý (NOT VERIFIED)**: tần số không có trong danh sách của `AudioDeviceInfo`; độ sâu bit công bố thấp hơn cần; `PROPERTY_OUTPUT_SAMPLE_RATE` khác tần số bài.
+
+## 2. Thiết bị người dùng chọn ≠ thiết bị Android đang định tuyến
+- `AudioSettings.current()` (thiết bị người dùng chọn trong app) chỉ hiện ở dòng "Thiết bị bạn chọn trong app … chưa được Android xác nhận".
+- Thiết bị đang định tuyến chỉ được xác định bằng `AudioManager.getAudioDevicesForAttributes` (Android 13+/API 33), theo `BitPerfect.activeIndex`: Android báo **đúng một** thiết bị, và nếu người dùng đã chọn thiết bị thì phải đúng thiết bị đó. Ngược lại → **"System Default – Route Unknown"**.
+- Không suy HDMI/Optical/Bluetooth từ tên thiết bị hay từ danh sách thiết bị đang kết nối. Khi route chưa biết, mọi khả năng của thiết bị bị bỏ qua và không mô tả HDMI/USB/Bluetooth.
+- **Hệ quả:** trên Android < 13 (kể cả Mibox Android 9/10) route luôn Unknown ⇒ không bao giờ đạt VERIFIED. Đây là cố ý (không đoán).
+- `AudioDeviceCallback` (MainActivity) gọi lại `DeviceProfiles.check()` khi cắm/rút; cơ chế chọn thiết bị và phát nhạc không đổi. S/PDIF: Android chỉ có `TYPE_LINE_DIGITAL`, không phân biệt quang/đồng trục nên route tên là `SPDIF`.
+
+## 3. Định dạng PCM
+- `BitPerfectProbe.sinkEnc()` ánh xạ **chính xác** `Playback.sinkFmt.encoding` → PCM 16-bit / 24-bit / 32-bit / Float; không có dữ liệu hoặc encoding lạ → không hiển thị gì và trạng thái UNKNOWN.
+- **Không** suy Float từ `AudioSettings.hires`; `hires` chỉ hiển thị là "Cấu hình app: yêu cầu đầu ra float" (cấu hình, không phải định dạng thực tế).
+- Hiển thị tách: Decoder Output / AudioSink Format (cùng một quan sát tại `ForwardingAudioSink.configure`, nên hai trường cùng số liệu) · **Android Active Output Format = Không xác định** (app không đọc được AudioTrack/mixer) · **DAC/Receiver Accepted Format = Không có bằng chứng**.
+- `DEPTH_REDUCED` (NOT BIT-PERFECT) vẫn là bằng chứng do chính app quyết định: sink nhận >16-bit mà cấu hình app không bật float ⇒ ExoPlayer hạ xuống 16-bit.
+
+## 4. Bốn trạng thái phiên phát + hai mức VERIFIED
 | Trạng thái | Khi nào |
 |---|---|
-| **BIT-PERFECT VERIFIED** | Chỉ khi `Input.pathProof = true` (có phương pháp xác minh toàn đường truyền) và không có bằng chứng đổi dữ liệu. **Hiện không có mã nào đặt `pathProof`, nên VERIFIED không bao giờ xuất hiện.** |
-| **NOT VERIFIED** | Mặc định cho đường phát đã biết một phần nhưng chưa đủ chứng minh (loa mặc định, HDMI/quang, USB, UPnP, Cast, Bluetooth chưa biết codec). Không có nghĩa là lỗi. |
-| **NOT BIT-PERFECT** | Chỉ khi có BẰNG CHỨNG dữ liệu bị đổi (bảng dưới). Thiếu thông tin không bao giờ dẫn tới trạng thái này. |
-| **UNKNOWN** | Không có bài đang phát, hoặc phát cục bộ nhưng chưa có thông tin bộ xuất âm thanh. |
+| **NOT BIT-PERFECT** | Có bằng chứng đổi dữ liệu (bảng mục 1). Thiếu thông tin không bao giờ dẫn tới đây. |
+| **VERIFIED – END-TO-END** | Có `pathProof`. Hiện không có mã nào đặt. |
+| **VERIFIED – CONFIGURATION** | Mọi điều kiện ở mục 5 đều đạt. **Không phải phép đo toàn tuyến**; Resampling vẫn là Unknown. |
+| **NOT VERIFIED** | Mặc định cho đường đã biết một phần. |
+| **UNKNOWN** | Không có bài, hoặc phát cục bộ chưa có `Playback.sinkFmt` PCM 16/24/32/Float. |
 
-### Bằng chứng NOT BIT-PERFECT (đã được code kiểm tra)
-- DSP/EQ/Preamp/cân bằng đang bật khi phát cục bộ (`DspParams.isFlat()` sai).
-- Chế độ tương thích hạ 24/32-bit xuống 16-bit (`AudioSettings.hires` tắt, nguồn > 16-bit).
-- DSD phát cục bộ (chuyển sang PCM).
-- Thiết bị đã chọn (AudioDeviceInfo) tự công bố danh sách tần số không có tần số của bài → Android phải resample.
-- Thiết bị công bố độ sâu bit hẹp hơn dữ liệu cần giữ (chuyển rộng hơn như 16→24-bit hay 24-bit→float32→24-bit không tính là đổi dữ liệu).
-- Android báo tần số mixer (`PROPERTY_OUTPUT_SAMPLE_RATE`) khác tần số bài khi đi qua mixer mặc định/loa/analogue/Bluetooth (không áp dụng cho thiết bị có danh sách tần số riêng).
-- Bluetooth có codec mất dữ liệu (chỉ khi biết codec — hiện app không đọc được codec nên trường hợp này chưa xảy ra thực tế).
+## 5. Điều kiện Verified – Configuration (`BitPerfect.configCriteria`)
+Thiết bị + phương thức kết nối khớp bản ghi danh mục mức `REGISTRY_CONFIG` và người dùng đã xác nhận · Android xác định đúng thiết bị đó đang định tuyến (`devIsActive`) và phương thức kết nối trong hồ sơ = route đang chạy · nguồn có độ sâu bit và tần số · tần số vào AudioSink = tần số nguồn · tần số và độ sâu bit nằm trong thông số của **bản ghi danh mục** (không phải của AudioDeviceInfo, không phải thông số người dùng khai) · không DSP, không bằng chứng đổi dữ liệu, không DSD, không UPnP/Cast · âm lượng hệ thống tối đa (hoặc âm lượng cố định).
+**Device Verification Status** (hồ sơ thiết bị) và **Playback Bit-perfect Status** (phiên phát) là hai giá trị độc lập: thiết bị có hồ sơ tốt nhưng route Unknown vẫn NOT VERIFIED.
 
-## Tám trường độc lập (hộp thoại khi bấm ⓘ ở trạng thái)
-1 Source Format · 2 Decoder Output · 3 DSP Processing · 4 Output Device · 5 Output Capability · 6 Actual Output Format · 7 Resampling Status (Yes/No/Unknown) · 8 Bit-perfect Status. Output Capability (khả năng thiết bị công bố) không bao giờ thay cho Actual Output Format; "Actual Output Format" của app chỉ là định dạng app **yêu cầu** AudioTrack và không phải bằng chứng duy nhất.
+## 6. Device Registry (DeviceRegistry.java, DeviceProfiles.kt, DeviceRegistryUi.kt)
+Ba lớp dữ liệu: **A** danh mục tích hợp `DeviceRegistry.builtin()` · **B** User Device Profile (SharedPreferences `devices`, định dạng dòng có escape, dòng hỏng bị bỏ qua) · **C** Community Registry: **chưa triển khai** (chỉ chừa `Entry.source`).
 
-## Nguồn dữ liệu (BitPerfectProbe.kt — chỉ đọc)
-| Dữ liệu | API | Độ tin cậy |
-|---|---|---|
-| Định dạng file | Track / đầu dò file | Tốt |
-| Định dạng PCM sau giải mã | `Playback.sinkFmt` (quan sát `AudioSink.configure`) | Chắc chắn (phần app) |
-| Hạ 16-bit hay float | `AudioSettings.hires` | Chắc chắn (quyết định của app) |
-| Tần số/độ sâu bit thiết bị công bố | `AudioDeviceInfo.getSampleRates()/getEncodings()` | Chỉ là khả năng |
-| Tần số mixer | `AudioManager.getProperty(PROPERTY_OUTPUT_SAMPLE_RATE)` | Android báo, không do app đo |
-| Âm lượng | `AudioManager.getStreamVolume/isVolumeFixed` | Chỉ gợi ý (không biết độ lợi thật) |
+Bản ghi: manufacturer, model, id, tên nhận diện, VID/PID (nếu có), connection, PCM bits, sample rates, DSD, direct/exclusive, điều kiện, nguồn xác minh, mức (`REGISTRY_CONFIG` / `REGISTRY_UNVERIFIED`), ngày cập nhật. Chưa có trường hardware revision / firmware (Android không cung cấp).
 
-## Không thể xác minh
-Dữ liệu tại HAL/DAC; TV/ampli có đổi tín hiệu HDMI/quang hay không; định dạng đang chạy của USB DAC (descriptors cho khả năng, không cho cấu hình đang dùng); mọi thứ bên trong renderer UPnP và thiết bị Cast; codec Bluetooth (cần quyền và API hệ thống); hệ số khuếch đại âm thanh do âm lượng hệ thống.
+Danh mục khởi tạo (cố ý nhỏ) — **FiiO K9 Pro ESS**, nguồn: trang thông số nhà sản xuất `fiio.com/k9proess_parameters` (tra 2026-11-24):
+- USB: `REGISTRY_CONFIG` — PCM 16/24/32-bit, tối đa 384 kHz, DSD256. Trang không liệt kê từng tần số trung gian: danh sách là các tần số chuẩn ≤ mức tối đa (**giả định**, đã ghi vào `source`).
+- S/PDIF: `REGISTRY_UNVERIFIED` — có thông số cổng quang (96 kHz/24-bit) nhưng chưa có căn cứ cho đường Android → S/PDIF.
+- Bluetooth: `REGISTRY_UNVERIFIED` — không mặc nhiên bit-perfect.
+GRAPE2Play **chưa tự kiểm thử** thiết bị này. Không có VID/PID vì chưa có nguồn đáng tin.
 
-## Trường hợp VERIFIED thực sự được hỗ trợ
-**Không có.** Android 14 có `AudioMixerAttributes` (MIXER_BEHAVIOR_BIT_PERFECT) nhưng đó là cách *yêu cầu* đường bit-perfect (thay đổi đường phát), không phải cách *đo*; yêu cầu bảo toàn engine nên không dùng. Khi nào có phương pháp xác minh thực tế, chỉ cần đặt `pathProof` ở BitPerfectProbe — logic phân loại đã sẵn và có test.
+Nhận diện: `BitPerfectProbe.detectedOf` lấy tên sản phẩm, loại kết nối (`routeOf`), VID/PID chỉ khi đúng **một** thiết bị USB (`UsbManager`) trùng tên sản phẩm (nếu không: không biết). Đối chiếu (`DeviceRegistry.match`): khớp theo model **và** phương thức kết nối; khác phương thức thì chỉ liệt kê ở `otherConnections`, không áp dụng kết quả; cùng tên khác VID/PID → không khớp; đúng VID/PID → `EXACT_ID`; chỉ tên → `NAME_ONLY` (hộp thoại nói rõ "khớp theo tên"); nhập nhằng → không đoán.
 
-## Không thay đổi
-Playback Engine, decoder, DSD/DoP/PCM, DSP/EQ/Preamp, USB/NAS, UPnP/Cast, buffering, audio sink, chuyển bài. Chỉ thêm một luồng đọc `Playback.sinkFmt` và `Playback.context` (chỉ đọc).
+Xác nhận (`decide`): chỉ hỏi với USB/HDMI/S/PDIF/Bluetooth. Khớp danh mục → "Đúng/Không đúng thiết bị"; lạ → "Khai báo/Để sau". Không hỏi lại thiết bị đã lưu, đã từ chối hoặc đã bỏ qua; đổi phương thức kết nối (khoá hồ sơ chứa `conn`) thì hỏi lại. "Không đúng" → không đăng ký, không gán model khác, chuyển sang khai báo. Người dùng khai báo = `USER_DECLARED`: lưu ở hồ sơ cá nhân, **không** vào danh mục chung, **không** cấp mức xác minh, thông số tự khai **không** đi vào đánh giá. Xác nhận thiết bị chỉ liên kết hồ sơ; không phải bằng chứng dữ liệu được bảo toàn.
+
+Quản lý (BitPerfect ⓘ → "Quản lý thiết bị Bit-perfect"): xem thiết bị, phương thức đã xác nhận, VID:PID, thông số/nguồn danh mục; sửa ghi chú/hãng/model **chỉ của hồ sơ người dùng khai báo**; xóa khỏi hồ sơ cá nhân; phân biệt "app phát hiện, bạn xác nhận" với "bạn khai báo".
+
+## 7. Giới hạn chưa xử lý
+- Android < 13: route luôn Unknown (không có API đáng tin). Android 14 có `AudioMixerAttributes` bit-perfect cho USB nhưng app chưa dùng (sẽ thay đổi đường phát, nằm ngoài phạm vi).
+- Không đọc được: HAL/DAC, TV/ampli sau HDMI/S/PDIF, định dạng USB đang chạy, mọi thứ trong renderer UPnP/Cast, codec Bluetooth, độ lợi thật của âm lượng.
+- Verified – Configuration **không loại trừ** việc mixer Android đổi tần số/trộn; do đó Resampling vẫn "Unknown".
+- Không đọc được VID/PID khi có nhiều thiết bị USB cùng tên hoặc tên Android báo khác tên USB → chỉ khớp theo tên.
+- Danh mục mới có một model; cần mở rộng khi có căn cứ.
+- Chưa có kiểm thử thiết bị thật nào (USB DAC, HDMI, quang, BT, UPnP, Cast, Android TV).
+
+## 8. Không thay đổi
+`Playback.kt`, Audio Engine, decoder, DSD/DoP/PCM, DSP/EQ, USB/NAS, UPnP/Cast, buffering, chuyển bài, thuật toán chọn thiết bị. Chỉ thêm các lệnh **đọc** (`Playback.sinkFmt`, `Playback.context`, `AudioManager`, `UsbManager`) và các lời gọi `DeviceProfiles.check()` ở `MainActivity`/`OutputPage` (không làm thay đổi việc chọn/phát).
