@@ -29,10 +29,13 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.ForwardingAudioSink
 import java.nio.ByteBuffer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.ShuffleOrder
 import androidx.media3.extractor.DefaultExtractorsFactory
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
+
+data class SinkFmt(val sampleRate: Int, val channels: Int, val encoding: Int)
 
 object Playback {
     lateinit var exo: ExoPlayer
@@ -61,8 +64,17 @@ object Playback {
     private val main = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private lateinit var appCtx: Context
+    /** Context ứng dụng (chỉ đọc) — dùng cho chẩn đoán Bit-perfect. */
+    val context: Context get() = appCtx
+    /** Định dạng PCM ExoPlayer đưa vào bộ xuất âm thanh (sau giải mã). Chỉ quan sát, không ảnh hưởng luồng âm thanh. */
+    val sinkFmt = MutableStateFlow<SinkFmt?>(null)
 
     private val retried = HashSet<String>()
+    /** Số lần thử lại tại chỗ (cùng bài, cùng vị trí) cho lỗi đầu ra/đường truyền thoáng qua; xoá khi bài đã phát ổn định > 8 giây. */
+    private val retries = PlayLogic.Retries()
+    /** Đang chờ tự phục hồi sau lỗi (thử lại tại chỗ / sao chép từ ổ): người dùng bấm Phát-Tạm dừng lúc này nghĩa là HUỶ phục hồi và tạm dừng, không phải bắt đầu phát. */
+    @Volatile private var pendingRecovery = false
+    private var recoverJob: Job? = null
     private var errCount = 0
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -81,12 +93,66 @@ object Playback {
         } else slow.value = null
     }
 
+    // ---- Chẩn đoán chuyển bài tự động. CHỈ quan sát được hai dấu hiệu từ phía app: (1) bộ xuất âm thanh có nhận lệnh configure() hay không,
+    // (2) định dạng PCM đưa vào có đổi hay không. App KHÔNG đo được khoảng lặng thực tế nên không bao giờ kết luận "gapless hoàn toàn". ----
+    @Volatile private var sinkCfg = ""           // định dạng PCM vào bộ xuất âm thanh gần nhất
+    @Volatile private var sinkCalls = 0          // số lần configure() được gọi
+    @Volatile private var sinkFmtChanges = 0     // số lần định dạng PCM thực sự đổi
+    @Volatile private var sinkPrev = ""          // định dạng ngay trước lần đổi gần nhất
+    private var callsAtMark = 0; private var chgAtMark = 0; private var fmtAtMark = ""
+    private fun noteSink(f: Format) {
+        val c = "${f.sampleRate}Hz/${f.channelCount}ch/" + when (f.pcmEncoding) { C.ENCODING_PCM_16BIT -> "16bit"; C.ENCODING_PCM_24BIT -> "24bit"; C.ENCODING_PCM_32BIT -> "32bit"; C.ENCODING_PCM_FLOAT -> "float32"; else -> "enc${f.pcmEncoding}" }
+        sinkCalls++
+        if (f.pcmEncoding != C.ENCODING_INVALID) sinkFmt.value = SinkFmt(f.sampleRate, f.channelCount, f.pcmEncoding)
+        if (c != sinkCfg) { sinkPrev = sinkCfg; sinkCfg = c; sinkFmtChanges++ }
+    }
+    private var gaplessJob: Job? = null
+    /** Chuyển bài: [auto] = ExoPlayer tự qua bài (không phải người dùng bấm). Đợi 1 giây để lệnh configure() của bài mới (nếu có) kịp đến rồi mới so sánh. */
+    private fun logGaplessResult(auto: Boolean) {
+        gaplessJob?.cancel()
+        gaplessJob = main.launch {
+            delay(1000)
+            val calls = sinkCalls - callsAtMark; val chg = sinkFmtChanges - chgAtMark; val was = fmtAtMark
+            callsAtMark = sinkCalls; chgAtMark = sinkFmtChanges; fmtAtMark = sinkCfg
+            if (!auto || was.isEmpty()) return@launch
+            val note = "Chưa đo được khoảng lặng thực tế."
+            when (PlayLogic.transitionKind(chg, calls)) {
+                2 -> AppLog.i("Player", "Chuyển bài tự động: định dạng PCM đầu ra đổi ($was → $sinkCfg) và bộ xuất âm thanh được cấu hình lại — nhiều khả năng có khoảng lặng ngắn. $note")
+                1 -> AppLog.i("Player", "Chuyển bài tự động: bộ xuất âm thanh được cấu hình lại dù định dạng PCM không đổi ($sinkCfg). $note")
+                else -> AppLog.i("Player", "Chuyển bài tự động: không phát hiện thay đổi định dạng đầu ra ($sinkCfg) và bộ xuất âm thanh không được cấu hình lại. $note")
+            }
+        }
+    }
+
     private fun detail(e: Throwable): String {
         val sb = StringBuilder(); var t: Throwable? = e; var n = 0
         while (t != null && n < 3) { sb.append(t.javaClass.simpleName).append(": ").append((t.message ?: "").take(110)).append("  |  "); t = t.cause; n++ }
         return sb.toString()
     }
-    private fun skipNext() { if (exo.hasNextMediaItem()) { exo.seekToNextMediaItem(); exo.prepare(); exo.play() } }
+    /** Sau lỗi: sang bài kế (xem PlayLogic.skipTarget). */
+    private fun skipNext() {
+        val to = PlayLogic.skipTarget(exo.repeatMode, exo.currentMediaItemIndex, exo.mediaItemCount, exo.nextMediaItemIndex.let { if (it == C.INDEX_UNSET) -1 else it })
+        if (to >= 0) { exo.seekTo(to, 0L); exo.prepare(); exo.play() }
+    }
+
+    /** Hẹn thử lại cùng bài, cùng vị trí sau [delayMs]. Chỉ tiếp tục nếu người dùng chưa tạm dừng/đổi bài trong lúc chờ. */
+    private fun scheduleRetry(d: PlayLogic.Decision, cur: Int, pos: Long, why: String, max: Int) {
+        AppLog.w("Player", "$why — thử lại lần ${d.attempt}/$max sau ${d.delayMs}ms tại ${fmt(pos)}")
+        error.value = "$why — đang thử lại (${d.attempt}/$max)…"
+        pendingRecovery = true
+        recoverJob?.cancel()
+        recoverJob = main.launch {
+            delay(d.delayMs)
+            val go = pendingRecovery && rc == null && exo.playWhenReady && exo.playbackState == Player.STATE_IDLE && exo.currentMediaItemIndex == cur && cur < exo.mediaItemCount
+            pendingRecovery = false     // luôn kết thúc trạng thái chờ, kể cả khi người dùng đã đổi ý
+            if (go) { exo.prepare(); exo.seekTo(cur, pos) }      // giữ nguyên playWhenReady (không ép phát)
+        }
+    }
+
+    private fun isTransientIo(e: PlaybackException) =
+        e.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+        e.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
+        e.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED
 
     private fun copyToCache(t: Track): File {
         val dir = File(appCtx.cacheDir, "nho_play").apply { mkdirs() }
@@ -119,12 +185,28 @@ object Playback {
     private fun reloadLocal(i: Int, pos: Long) {
         val q = queue.value
         if (q.isEmpty()) return
-        exo.setMediaItems(q.map { MediaItem.fromUri(Remote.toUri(it)) }, i.coerceIn(0, q.lastIndex), pos)
+        val k = i.coerceIn(0, q.lastIndex)
+        exo.setMediaItems(q.map { MediaItem.fromUri(Remote.toUri(it)) }, k, pos)
+        if (exo.shuffleModeEnabled) pinShuffle(k)
+        index.value = k
         exo.prepare(); exo.play()
     }
 
+    /** Thứ tự xáo trộn của ExoPlayer là ngẫu nhiên hoàn toàn: bài đang nghe có thể nằm giữa thứ tự, khi tắt lặp thì các bài đứng trước nó sẽ KHÔNG BAO GIỜ được phát. Ghim bài đang nghe lên đầu rồi xáo phần còn lại. */
+    private var shuffleIdx = IntArray(0)   // bản sao thứ tự xáo trộn đã đặt cho ExoPlayer (để giữ nguyên khi thêm bài)
+    private fun applyShuffle(order: IntArray) {
+        if (order.size != exo.mediaItemCount || order.size < 2) return
+        shuffleIdx = order
+        exo.setShuffleOrder(ShuffleOrder.DefaultShuffleOrder(order, SystemClock.elapsedRealtimeNanos()))
+    }
+    private fun pinShuffle(first: Int) {
+        val n = exo.mediaItemCount
+        if (n < 2 || first !in 0 until n) return
+        applyShuffle(PlayLogic.pinnedOrder(n, first, java.util.Random()))
+    }
+
     /** Xoá trạng thái lỗi cũ: gọi khi người dùng chủ động chọn bài / đầu ra / thư mục khác để lần thử mới bắt đầu sạch. */
-    private fun clearFailure() { error.value = null; errCount = 0; retried.clear() }
+    private fun clearFailure() { error.value = null; errCount = 0; retried.clear(); retries.clear(); pendingRecovery = false; recoverJob?.cancel() }
 
     /** Lỗi phát: hiện chi tiết; với file trên ổ USB/ổ cứng thì thử sao chép sang bộ nhớ đệm rồi phát lại; tránh vòng lặp lỗi vô tận. */
     private fun handleError(e: PlaybackException) {
@@ -136,54 +218,67 @@ object Playback {
         val where = t?.let { "${it.path.takeLast(70)} @ ${if (preload) "bài kế tiếp" else fmt(pos)}" } ?: ""
         val head = "${e.errorCodeName}\n${detail(e)}\n$where"
         AppLog.e("Player", "$head | đầu ra=${outName.value}", e)
-        if (preload) { exo.prepare(); exo.play() } // tiếp tục bài đang nghe, bài lỗi xử lý ngầm
-        // Đầu ra không nhận tín hiệu (cổng quang/TV không nhận PCM tốc độ cao…): với DSD tự hạ tốc độ chuyển PCM cho riêng đầu ra này rồi phát lại ngay
-        if (!preload && t != null && StreamServer.isDsdFile(t) && isSinkError(e)) {
-            val from = AudioSettings.effectiveDsdRate()
-            val to = AudioSettings.lowerDsdRate()
-            if (to != null) {
-                AppLog.w("Player", "Đầu ra ${outName.value} không nhận DSD→PCM ${khz(from)}: hạ xuống ${khz(to)} và phát lại")
-                reloadLocal(cur, pos)
-                error.value = "Đầu ra ${outName.value} không nhận PCM ${khz(from)} — đã tự hạ xuống ${khz(to)} và phát lại."
-                return
-            }
-        }
-        if (isSinkError(e)) {
-            error.value = "Đầu ra ${outName.value} không nhận được tín hiệu của bài này. Hãy chọn bài/đầu ra khác (bấm “Đầu ra” ở góc trên) — app sẽ phát lại ngay."
-            errCount++
-            if (!preload && errCount >= minOf(queue.value.size, 3)) { exo.stop(); return }
-            if (!preload) skipNext()
-            return
-        }
+        if (preload) { exo.prepare() } // tiếp tục bài đang nghe (giữ nguyên trạng thái phát/tạm dừng của người dùng), bài lỗi xử lý ngầm
+        val sink = isSinkError(e)
         val usb = t != null && t.path.startsWith("/storage/") && !t.path.startsWith("/storage/emulated")
-        if (t != null && usb && retried.add(t.path)) {
-            error.value = "Lỗi khi đọc từ ổ — đang sao chép file sang bộ nhớ đệm để thử lại…\n$head"
-            ioScope.launch {
-                val r = runCatching { copyToCache(t) }
-                withContext(Dispatchers.Main) {
-                    val f = r.getOrNull()
-                    if (f != null && fi < exo.mediaItemCount) {
-                        exo.replaceMediaItem(fi, MediaItem.fromUri(Uri.fromFile(f)))
-                        if (!preload && exo.currentMediaItemIndex == fi) { exo.prepare(); exo.seekTo(fi, pos); exo.play() }
-                        error.value = "Đã phát lại từ bản sao trong bộ nhớ đệm (lỗi gốc: ${e.errorCodeName})"
-                    } else {
-                        error.value = "Không sao chép được file từ ổ: ${r.exceptionOrNull()?.let { it.javaClass.simpleName + ": " + it.message } ?: "danh sách đã đổi"}\n$head"
-                        if (!preload) skipNext()
+        val d = PlayLogic.decide(preload, sink, t != null && StreamServer.isDsdFile(t), AudioSettings.effectiveDsdRate() > 44100, usb,
+            t != null && usb && t.path !in retried, isTransientIo(e), errCount, queue.value.size, t?.path ?: cur.toString(), retries)
+        when (d.action) {
+            // Đầu ra không nhận tín hiệu (cổng quang/TV không nhận PCM tốc độ cao…): với DSD tự hạ tốc độ chuyển PCM cho riêng đầu ra này rồi phát lại ngay
+            PlayLogic.Action.DSD_LOWER -> {
+                val from = AudioSettings.effectiveDsdRate()
+                val to = AudioSettings.lowerDsdRate()
+                if (to != null) {
+                    AppLog.w("Player", "Đầu ra ${outName.value} không nhận DSD→PCM ${khz(from)}: hạ xuống ${khz(to)} và phát lại")
+                    reloadLocal(cur, pos)
+                    error.value = "Đầu ra ${outName.value} không nhận PCM ${khz(from)} — đã tự hạ xuống ${khz(to)} và phát lại."
+                }
+            }
+            // Lỗi AudioTrack thoáng qua (vừa đổi/cắm/rút thiết bị, HDMI đang bắt tay lại): thử lại ĐÚNG bài đang nghe tại vị trí cũ trước khi bỏ qua bài
+            PlayLogic.Action.RETRY_SINK -> scheduleRetry(d, cur, pos, "Đầu ra ${outName.value} chưa nhận tín hiệu", 2)
+            PlayLogic.Action.SINK_STOP, PlayLogic.Action.SINK_SKIP, PlayLogic.Action.SINK_PRELOAD -> {
+                error.value = "Đầu ra ${outName.value} không nhận được tín hiệu của bài này. Hãy chọn bài/đầu ra khác (bấm “Đầu ra” ở góc trên) — app sẽ phát lại ngay."
+                errCount++
+                if (d.action == PlayLogic.Action.SINK_STOP) exo.stop() else if (d.action == PlayLogic.Action.SINK_SKIP) skipNext()
+            }
+            PlayLogic.Action.USB_COPY -> {
+                retried.add(t!!.path)
+                error.value = "Lỗi khi đọc từ ổ — đang sao chép file sang bộ nhớ đệm để thử lại…\n$head"
+                pendingRecovery = true
+                ioScope.launch {
+                    val r = runCatching { copyToCache(t) }
+                    withContext(Dispatchers.Main) {
+                        val f = r.getOrNull()
+                        if (f != null && fi < exo.mediaItemCount) {
+                            exo.replaceMediaItem(fi, MediaItem.fromUri(Uri.fromFile(f)))
+                            // Người dùng đã tạm dừng/đổi bài trong lúc sao chép thì không tự phát lại
+                            if (!preload && pendingRecovery && exo.playWhenReady && exo.currentMediaItemIndex == fi) { exo.prepare(); exo.seekTo(fi, pos) }
+                            pendingRecovery = false
+                            error.value = "Đã phát lại từ bản sao trong bộ nhớ đệm (lỗi gốc: ${e.errorCodeName})"
+                        } else {
+                            pendingRecovery = false
+                            error.value = "Không sao chép được file từ ổ: ${r.exceptionOrNull()?.let { it.javaClass.simpleName + ": " + it.message } ?: "danh sách đã đổi"}\n$head"
+                            if (!preload) skipNext()
+                        }
                     }
                 }
             }
-            return
+            // Mất nguồn thoáng qua (NAS/mạng/ổ chập chờn): chờ rồi thử lại đúng chỗ đang nghe trước khi bỏ qua bài
+            PlayLogic.Action.RETRY_IO -> scheduleRetry(d, cur, pos, if (d.attempt == 1) "Mất kết nối nguồn nhạc" else "Nguồn nhạc vẫn chưa trả lời", 2)
+            PlayLogic.Action.PRELOAD_IGNORE -> error.value = head
+            PlayLogic.Action.STOP_MANY -> { errCount++; exo.stop(); error.value = head + "\nĐã dừng vì nhiều file liên tiếp bị lỗi." }
+            PlayLogic.Action.SKIP -> { error.value = head; errCount++; skipNext() }
         }
-        error.value = head
-        if (preload) return
-        errCount++
-        if (errCount >= minOf(queue.value.size, 4)) { exo.stop(); error.value = head + "\nĐã dừng vì nhiều file liên tiếp bị lỗi."; return }
-        skipNext()
     }
 
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) { if (rc == null) { playing.value = isPlaying; if (isPlaying) checkSwitch() } }
-        override fun onMediaItemTransition(m: MediaItem?, reason: Int) { sync() }
+        override fun onMediaItemTransition(m: MediaItem?, reason: Int) {
+            // Người gọi (play/loadRemote/...) tự gọi sync(); chỉ xử lý chuyển bài thật. Sửa danh sách không được tính là "bắt đầu nghe" lại.
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED || rc != null) { if (rc == null) index.value = exo.currentMediaItemIndex; return }
+            logGaplessResult(reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
+            sync()
+        }
         override fun onPlaybackStateChanged(s: Int) { if (s == Player.STATE_READY && exo.duration > 0) duration.value = exo.duration }
         override fun onShuffleModeEnabledChanged(b: Boolean) { shuffle.value = b }
         override fun onRepeatModeChanged(m: Int) { repeat.value = m }
@@ -216,7 +311,7 @@ object Playback {
         }
         Keepalive.init(appCtx)
         main.launch {
-            while (true) { if (exo.isPlaying) { position.value = exo.currentPosition; if (position.value > 8000) errCount = 0; if (position.value > 4000 && error.value != null) error.value = null }; delay(250) }
+            while (true) { if (exo.isPlaying) { position.value = exo.currentPosition; if (position.value > 8000) { errCount = 0; if (!retries.isEmpty()) retries.clear() }; if (position.value > 4000 && error.value != null) error.value = null }; delay(250) }
         }
     }
 
@@ -232,6 +327,7 @@ object Playback {
                 return object : ForwardingAudioSink(base) {
                     override fun configure(inputFormat: Format, specifiedBufferSize: Int, outputChannels: IntArray?) {
                         level.configure(inputFormat, AudioSettings.hires)
+                        noteSink(inputFormat)
                         super.configure(inputFormat, specifiedBufferSize, outputChannels)
                     }
                     override fun handleBuffer(buffer: ByteBuffer, presentationTimeUs: Long, encodedAccessUnitCount: Int): Boolean {
@@ -284,9 +380,11 @@ object Playback {
         exo = build()
         exo.repeatMode = rep; exo.shuffleModeEnabled = sh
         if (q.isNotEmpty()) {
-            exo.setMediaItems(q.map { MediaItem.fromUri(Remote.toUri(it)) }, i, pos)
+            val k = i.coerceIn(0, q.lastIndex)
+            exo.setMediaItems(q.map { MediaItem.fromUri(Remote.toUri(it)) }, k, pos)
+            if (sh) pinShuffle(k) else shuffleIdx = IntArray(0)
             if (rc == null) { exo.prepare(); if (was) exo.play() }
-            index.value = i
+            index.value = k
         }
         if (rc == null) playing.value = was
         shuffle.value = sh; repeat.value = rep
@@ -311,9 +409,11 @@ object Playback {
 
     fun play(tracks: List<Track>, start: Int, shuffleOn: Boolean? = null) {
         if (tracks.isEmpty()) return
+        val start = start.coerceIn(0, tracks.lastIndex)
         shuffleOn?.let { exo.shuffleModeEnabled = it }
         queue.value = tracks; clearFailure(); markSwitch()
         exo.setMediaItems(tracks.map { MediaItem.fromUri(Remote.toUri(it)) }, start, 0L)
+        if (exo.shuffleModeEnabled) pinShuffle(start) else shuffleIdx = IntArray(0)
         AppLog.i("Player", "Phát danh sách ${tracks.size} bài từ #$start · ${tracks.getOrNull(start)?.ext} · đầu ra ${outName.value}")
         if (rc != null) { sync(); loadRemote(start) } else { exo.prepare(); exo.play(); sync() }
     }
@@ -322,8 +422,12 @@ object Playback {
     /** Thêm bài vào cuối danh sách đang phát (AI DJ). */
     fun append(tracks: List<Track>) {
         if (tracks.isEmpty()) return
+        val oldN = exo.mediaItemCount
         queue.value = queue.value + tracks
         runCatching { exo.addMediaItems(tracks.map { MediaItem.fromUri(Remote.toUri(it)) }) }
+        // ExoPlayer chèn bài mới vào VỊ TRÍ NGẪU NHIÊN của thứ tự xáo trộn (có thể trước bài đang nghe → không bao giờ phát khi tắt lặp): nối vào cuối thứ tự
+        val keep = PlayLogic.appendedOrder(shuffleIdx, oldN, tracks.size)
+        if (keep != null) applyShuffle(keep) else if (exo.shuffleModeEnabled) pinShuffle(exo.currentMediaItemIndex)
         updateNext()
     }
     fun playShuffled(tracks: List<Track>) = play(tracks, tracks.indices.random(), true)
@@ -340,10 +444,12 @@ object Playback {
             exo.addMediaItems(rest.map { MediaItem.fromUri(Remote.toUri(it)) })
         }
         queue.value = listOf(q[i]) + rest
-        index.value = 0; updateNext()
+        index.value = 0
+        if (exo.shuffleModeEnabled) pinShuffle(0) else shuffleIdx = IntArray(0)
+        updateNext()
         AppLog.i("Player", "Trộn danh sách phát ${q.size} bài")
     }
-    fun jump(i: Int) { markSwitch(); clearFailure(); if (rc != null) loadRemote(i) else { ensureReady(); exo.seekTo(i, 0L); exo.play() } }
+    fun jump(i: Int) { if (i !in queue.value.indices || i >= exo.mediaItemCount) return; markSwitch(); clearFailure(); if (rc != null) loadRemote(i) else { ensureReady(); exo.seekTo(i, 0L); exo.play() } }
     fun toggle() {
         val c = rc
         if (c != null) {
@@ -352,6 +458,7 @@ object Playback {
             else if (error.value != null || remoteStale) loadRemote(index.value, position.value)
             else { playing.value = true; c.play() }
         }
+        else if (pendingRecovery) { pendingRecovery = false; recoverJob?.cancel(); exo.pause(); error.value = null }   // đang chờ tự phục hồi: bấm = huỷ và tạm dừng
         else if (exo.isPlaying) exo.pause() else { if (exo.playbackState == Player.STATE_IDLE) clearFailure(); ensureReady(); exo.play() }
     }
     fun next() {
@@ -392,6 +499,7 @@ object Playback {
         val c = rc ?: return
         remoteStale = false
         val t = queue.value.getOrNull(i) ?: return
+        if (i >= exo.mediaItemCount) return
         if (exo.currentMediaItemIndex != i) exo.seekTo(i, 0L)
         updateNext()
         index.value = i; position.value = startMs; duration.value = t.durationMs; error.value = null
@@ -411,7 +519,10 @@ object Playback {
 
     // ---- Gapless cho thiết bị UPnP: nạp sẵn bài kế tiếp (SetNextAVTransportURI); thiết bị tự qua bài, app chỉ cập nhật hiển thị ----
     @Volatile private var nextIdx = -1
-    private fun updateNext() { nextIdx = if (rc == null) -1 else (exo.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET } ?: -1) }
+    private fun updateNext() {
+        nextIdx = if (rc == null) -1 else (exo.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET } ?: -1)
+        (rc as? UpnpController)?.refreshNext()   // loa đã nạp sẵn bài kế cũ: cập nhật nếu thứ tự đổi
+    }
     private fun advanceRemote(t: Track) {
         if (rc == null) return
         val q = queue.value
@@ -445,12 +556,12 @@ object Playback {
             remote.value = null
             outName.value = AudioSettings.currentName(appCtx)
             if (queue.value.isNotEmpty()) {
-                exo.prepare(); exo.seekTo(i, pos)
-                if (wasPlaying) exo.play()
+                exo.playWhenReady = wasPlaying     // đang tạm dừng trên loa ngoài thì quay lại TV cũng tạm dừng (không tự phát)
+                exo.prepare(); exo.seekTo(i.coerceIn(0, queue.value.lastIndex), pos)
             }
             return
         }
-        exo.stop()
+        exo.playWhenReady = false; exo.stop()      // luồng cục bộ dừng hẳn, tránh phát trùng với thiết bị ngoài
         val c = if (r.kind == "cast") CastController(r) else UpnpController(r)
         c.onState = { p, ps, d -> playing.value = p; position.value = ps; if (d > 0) duration.value = d; if (p && ps > 0) main.launch { checkSwitch() } }
         c.onEnded = { main.launch { if (rc === c) remoteEnded() } }
@@ -462,7 +573,12 @@ object Playback {
         }
         if (queue.value.isNotEmpty()) loadRemote(i, pos)
     }
-    fun toggleShuffle() { exo.shuffleModeEnabled = !exo.shuffleModeEnabled; updateNext() }
+    fun toggleShuffle() {
+        val on = !exo.shuffleModeEnabled
+        exo.shuffleModeEnabled = on
+        if (on) pinShuffle(exo.currentMediaItemIndex)   // bài đang nghe lên đầu thứ tự xáo: không bài nào bị bỏ sót khi tắt lặp
+        updateNext()
+    }
     fun cycleRepeat() {
         exo.repeatMode = when (exo.repeatMode) { Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE; Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_OFF; else -> Player.REPEAT_MODE_ALL }
         updateNext()

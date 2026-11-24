@@ -8,7 +8,6 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.PI
 import kotlin.math.cos
@@ -50,92 +49,58 @@ object DspParams {
     fun setBalance(v: Float) { balance.value = ((v * 20).toInt() / 20f).coerceIn(-1f, 1f); save() }
     fun setPreamp(v: Float) { preamp.value = v.coerceIn(-12f, 6f); save() }
     fun reset() { bands.value = List(10) { 0f }; balance.value = 0f; preamp.value = 0f; save() }
-    fun isFlat() = !on.value || (bands.value.all { kotlin.math.abs(it) < 0.05f } && kotlin.math.abs(balance.value) < 0.01f && kotlin.math.abs(preamp.value) < 0.05f)
+    fun isFlat() = DspMath.isFlat(on.value, bands.value.toFloatArray(), balance.value, preamp.value)
 }
 
-/** EQ 10 băng (biquad peaking, Q≈1.4) + preamp + cân bằng L/R. Khi mọi thứ phẳng thì chép nguyên dữ liệu (bit-perfect). */
+/** EQ 10 băng (biquad peaking, Q≈1.4) + preamp + cân bằng L/R. Khi mọi thứ phẳng thì chép nguyên dữ liệu ở tầng DSP. Phần toán nằm trong DspMath.java (có test). */
 class DspProcessor : BaseAudioProcessor() {
-    private var enc = C.ENCODING_PCM_16BIT
+    private var kind = DspMath.PCM16
     private var ch = 2
     private var sr = 44100
     private var ver = -1
-    private var nb = 0
-    private var b0 = FloatArray(10); private var b1 = FloatArray(10); private var b2 = FloatArray(10)
-    private var a1 = FloatArray(10); private var a2 = FloatArray(10)
-    private var z1 = Array(10) { FloatArray(8) }
-    private var z2 = Array(10) { FloatArray(8) }
-    private var gain = FloatArray(8) { 1f }
+    private var plan: DspMath.Plan? = null
+    private val st = DspMath.State()
+    private var wasFlat = true
+    /** Số mẫu bị cắt đỉnh (chỉ PCM số nguyên) kể từ lần cấu hình gần nhất — chẩn đoán. */
+    @Volatile var clipped = 0L; private set
+    /** Mức giảm tự động (dB, ≤ 0) để EQ/preamp nâng không vượt 0 dBFS trên đáp tuyến sin; KHÔNG bảo đảm tuyệt đối với mọi tín hiệu (xung/vuông có thể vẫn vượt). */
+    @Volatile var headroomDb = 0.0; private set
 
     override fun onConfigure(f: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
-        enc = f.encoding; ch = f.channelCount.coerceAtMost(8); sr = f.sampleRate; ver = -1
-        z1 = Array(10) { FloatArray(8) }; z2 = Array(10) { FloatArray(8) }
-        return when (f.encoding) {
-            C.ENCODING_PCM_16BIT, C.ENCODING_PCM_24BIT, C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT -> f
-            else -> AudioProcessor.AudioFormat.NOT_SET
+        ch = f.channelCount; sr = f.sampleRate; ver = -1; clipped = 0; st.reset(); wasFlat = true
+        if (ch < 1 || ch > 8) return AudioProcessor.AudioFormat.NOT_SET   // quá 8 kênh: bỏ qua EQ thay vì xử lý sai khung
+        kind = when (f.encoding) {
+            C.ENCODING_PCM_16BIT -> DspMath.PCM16
+            C.ENCODING_PCM_24BIT -> DspMath.PCM24
+            C.ENCODING_PCM_32BIT -> DspMath.PCM32
+            C.ENCODING_PCM_FLOAT -> DspMath.FLOAT
+            else -> return AudioProcessor.AudioFormat.NOT_SET
         }
+        return f
     }
+
+    /** Tua/đổi bài làm rỗng bộ đệm: xoá trạng thái lọc để không còn "đuôi" của đoạn cũ gây tiếng lách tách. */
+    override fun onFlush() { st.reset() }
 
     private fun refresh() {
         val v = DspParams.version.get()
         if (v == ver) return
         ver = v
-        val g = DspParams.bands.value
-        nb = 0
-        for (i in 0 until 10) {
-            val db = g[i]
-            val f0 = DspParams.FREQS[i]
-            if (kotlin.math.abs(db) < 0.05f || f0 >= sr * 0.45f) continue
-            val a = 10.0.pow(db / 40.0)
-            val w = 2 * PI * f0 / sr
-            val al = sin(w) / (2 * 1.4)
-            val cw = cos(w)
-            val a0 = 1 + al / a
-            b0[nb] = ((1 + al * a) / a0).toFloat(); b1[nb] = ((-2 * cw) / a0).toFloat(); b2[nb] = ((1 - al * a) / a0).toFloat()
-            a1[nb] = ((-2 * cw) / a0).toFloat(); a2[nb] = ((1 - al / a) / a0).toFloat()
-            nb++
-        }
-        val pre = 10.0.pow(DspParams.preamp.value / 20.0).toFloat()
-        val bal = DspParams.balance.value
-        for (c in 0 until 8) gain[c] = pre * (if (c == 0) minOf(1f, 1f - bal) else if (c == 1) minOf(1f, 1f + bal) else 1f)
+        val pl = DspMath.plan(DspParams.bands.value.toFloatArray(), DspParams.preamp.value, DspParams.balance.value, sr, true)
+        plan = pl
+        headroomDb = pl.headroomDb
+        if (pl.headroomDb < -0.05) AppLog.i("DSP", "Tự giảm %.1f dB để tránh cắt đỉnh (EQ/preamp nâng tối đa +%.1f dB)".format(-pl.headroomDb, pl.peakDb))
     }
 
     override fun queueInput(input: ByteBuffer) {
         val n = input.remaining()
         if (n == 0) return
-        val out = replaceOutputBuffer(n).order(ByteOrder.LITTLE_ENDIAN)
-        if (DspParams.isFlat()) { out.put(input); out.flip(); return }
+        val out = replaceOutputBuffer(n)
+        if (DspParams.isFlat()) { out.put(input); out.flip(); wasFlat = true; return }   // EQ phẳng / DSP tắt: chép nguyên byte
+        if (wasFlat) { st.reset(); wasFlat = false }   // vào lại EQ sau đoạn phẳng: không dùng trạng thái cũ
         refresh()
-        val inp = input.order(ByteOrder.LITTLE_ENDIAN)
-        val bytes = when (enc) { C.ENCODING_PCM_16BIT -> 2; C.ENCODING_PCM_24BIT -> 3; else -> 4 }
-        val frames = n / (bytes * ch.coerceAtLeast(1))
-        var p = inp.position()
-        for (f in 0 until frames) {
-            for (c in 0 until ch) {
-                var x = when (enc) {
-                    C.ENCODING_PCM_16BIT -> inp.getShort(p) / 32768f
-                    C.ENCODING_PCM_24BIT -> ((inp.get(p + 2).toInt() shl 16) or ((inp.get(p + 1).toInt() and 0xff) shl 8) or (inp.get(p).toInt() and 0xff)) / 8388608f
-                    C.ENCODING_PCM_32BIT -> inp.getInt(p) / 2147483648f
-                    else -> inp.getFloat(p)
-                }
-                x *= gain[c]
-                for (k in 0 until nb) {
-                    val y = b0[k] * x + z1[k][c]
-                    z1[k][c] = b1[k] * x - a1[k] * y + z2[k][c]
-                    z2[k][c] = b2[k] * x - a2[k] * y
-                    x = y
-                }
-                when (enc) {
-                    C.ENCODING_PCM_16BIT -> out.putShort(Math.round(x * 32768f).coerceIn(-32768, 32767).toShort())
-                    C.ENCODING_PCM_24BIT -> { val v = Math.round(x * 8388608f).coerceIn(-8388608, 8388607); out.put(v.toByte()); out.put((v shr 8).toByte()); out.put((v shr 16).toByte()) }
-                    C.ENCODING_PCM_32BIT -> out.putInt((x.toDouble() * 2147483648.0).toLong().coerceIn(-2147483648L, 2147483647L).toInt())
-                    else -> out.putFloat(x)
-                }
-                p += bytes
-            }
-        }
-        val rest = n - frames * bytes * ch
-        for (i in 0 until rest) { out.put(inp.get(p)); p++ }
-        inp.position(inp.limit())
+        val pl = plan ?: run { out.put(input); out.flip(); return }
+        clipped += DspMath.process(input, out, kind, ch, pl, st)
         out.flip()
     }
 }

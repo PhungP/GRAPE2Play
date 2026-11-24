@@ -153,7 +153,7 @@ private fun NowPlayingBody(onNav: (Screen) -> Unit, onAdd: () -> Unit, onOut: ()
                             val (grade, gl) = signalGrade(t, i, pcm, remote)
                             Column {
                                 T("ĐƯỜNG TÍN HIỆU", 11, sk.muted)
-                                T((if (grade == Grade.GREEN) "✓ " else "") + gl, 16, grade.on(sk), bold = true, lines = 2)
+                                Focusable({ BitPerfectUi.open.value = true }) { T((if (grade == Grade.GREEN) "✓ " else "") + gl + "  ⓘ", 16, grade.on(sk), Modifier.padding(4.dp, 2.dp), bold = true, lines = 2) }
                                 val err = error
                                 if (err != null) T(err.lines().first().take(160), 14, sk.acc, lines = 3)   // lỗi hiện ngay trong hộp này, không chiếm thêm chỗ
                                 else {

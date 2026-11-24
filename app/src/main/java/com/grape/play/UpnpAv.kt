@@ -88,6 +88,16 @@ class UpnpController(initial: Renderer) : RemoteController() {
         }
     }
 
+    /** Bài kế tiếp đã đổi (bật/tắt Trộn, đổi chế độ lặp, thêm bài): nếu bài đã nạp sẵn trên loa không còn đúng thì bỏ nó để vòng theo dõi nạp lại bài đúng (SetNextAVTransportURI ghi đè). */
+    fun refreshNext() {
+        val a = armed ?: return
+        if (nextProvider()?.path == a.path) return
+        scope.launch {
+            armed = null; armedKey = ""; armTried = -1
+            if (nextProvider() == null) runCatching { call("SetNextAVTransportURI", "<NextURI></NextURI><NextURIMetaData></NextURIMetaData>") }   // không còn bài kế: cố gắng xoá bài đã nạp sẵn
+        }
+    }
+
     // ---- SOAP ----
     private fun call(action: String, args: String): String = soap(r.avCtrl, "urn:schemas-upnp-org:service:AVTransport:1", action, args)
 

@@ -212,7 +212,7 @@ fun GaplessCard() {
             Opt("Bật", on) { if (!on) { on = true; AudioSettings.gapless = true; Playback.applySettings() } }
             Opt("Tắt", !on) { if (on) { on = false; AudioSettings.gapless = false; Playback.applySettings() } }
         }
-        T("Bật: app nạp trước bài kế tiếp ở bộ đệm lớn (90 giây) nên nối bài liền mạch, đặc biệt khi phát từ NAS / đám mây. Chỉ áp dụng khi phát trên chính TV/máy; phát tới thiết bị UPnP/Cast vẫn do thiết bị đó quyết định. Đổi cài đặt sẽ nạp lại bài đang nghe.", 14, C.Muted, lines = 5)
+        T("Nạp trước bài kế tiếp bằng bộ đệm lớn (tối đa 90 giây) để khỏi chờ tải, nhất là từ NAS / đám mây. Bộ đệm KHÔNG bảo đảm nối bài không có khoảng lặng: khi bài kế khác tần số/độ sâu/số kênh thì bộ xuất âm thanh phải cấu hình lại và có thể có khoảng lặng ngắn. App chưa đo được khoảng lặng thực tế; nhật ký chỉ ghi có hay không phát hiện đổi định dạng đầu ra. UPnP: app nạp sẵn bài kế (SetNextAVTransportURI), thiết bị quyết định có nối liền hay không; Cast do thiết bị quyết định. Đổi cài đặt sẽ nạp lại bài đang nghe.", 14, C.Muted, lines = 8)
     }
 }
 
@@ -316,7 +316,7 @@ private fun EqPanel(modifier: Modifier) {
         T("Dùng ◂ ▸ để chọn băng, bấm OK rồi ▴ ▾ để chỉnh ±0,5 dB.", 14, C.Muted)
         HSlider("Cân bằng trái / phải", bal, -1f, 1f, 0.05f, { if (kotlin.math.abs(it) < 0.01f) "L = R" else if (it < 0) "L %d%%".format((-it * 100).toInt()) else "R %d%%".format((it * 100).toInt()) }) { DspParams.setBalance(it) }
         HSlider("Preamp (dB)", pre, -12f, 6f, 0.5f, { "%+.1f dB".format(it) }) { DspParams.setPreamp(it) }
-        T("Khi EQ phẳng và cân bằng ở giữa, âm thanh đi thẳng không qua xử lý (bit-perfect).", 14, C.Gold, lines = 2)
+        T("Khi EQ phẳng và cân bằng ở giữa, DSP chép nguyên dữ liệu. Đây chưa phải bằng chứng Bit-perfect toàn đường truyền (xem trạng thái ở màn hình Đang phát).", 14, C.Gold, lines = 2)
     }
 }
 
@@ -333,7 +333,7 @@ fun EqWarning(on: Boolean, bands: List<Float>, pre: Float) {
             T("Đỉnh EQ đang tăng %+.1f dB — giảm Preamp xuống ≤ %.1f dB hoặc giảm các băng đang tăng.".format(peak, -peak), 15, col, lines = 3)
         } else if (on && !flat) {
             T("⚠ Chỉnh EQ làm thay đổi tín hiệu gốc", 17, col, bold = true)
-            T("Không còn bit-perfect. Tăng nhiều ở dải trầm/cao có thể làm méo tiếng — nên chỉnh nhẹ và để Preamp âm.", 15, col, lines = 3)
+            T("EQ đang thay đổi dữ liệu âm thanh (NOT BIT-PERFECT). Tăng nhiều ở dải trầm/cao có thể làm méo tiếng — nên chỉnh nhẹ và để Preamp âm.", 15, col, lines = 3)
         } else {
             T("Lưu ý: chỉnh EQ có thể làm méo tiếng, nhất là khi tăng cao.", 15, col, lines = 2)
         }

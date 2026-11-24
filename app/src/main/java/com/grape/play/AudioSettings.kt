@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.os.Build
 
 object AudioSettings {
     private lateinit var sp: SharedPreferences
@@ -25,11 +26,11 @@ object AudioSettings {
      * Tốc độ DSD→PCM thực dùng cho đầu ra hiện tại = min(lựa chọn của người dùng, mức đầu ra này từng nhận được).
      * Khi một đầu ra (ví dụ cổng quang) không nhận 176,4 kHz, app tự hạ và nhớ riêng cho đầu ra đó, không làm đổi lựa chọn chung.
      */
-    fun effectiveDsdRate(): Int = minOf(dsdRate, if (::sp.isInitialized) sp.getInt("dsdLimit_$deviceType", Int.MAX_VALUE) else Int.MAX_VALUE)
+    fun effectiveDsdRate(): Int = minOf(dsdRate, if (::sp.isInitialized) sp.getInt("dsdLimit_" + limitId(), Int.MAX_VALUE) else Int.MAX_VALUE)
     /** Hạ một bậc (176,4 → 88,2 → 44,1 kHz) cho đầu ra hiện tại; trả về tốc độ mới hoặc null nếu đã ở mức thấp nhất. */
     fun lowerDsdRate(): Int? {
         val next = when { effectiveDsdRate() > 88200 -> 88200; effectiveDsdRate() > 44100 -> 44100; else -> return null }
-        sp.edit().putInt("dsdLimit_$deviceType", next).apply()
+        sp.edit().putInt("dsdLimit_" + limitId(), next).apply()
         return next
     }
     /** Quên các mức đã hạ (khi người dùng chủ động chọn lại tốc độ DSD trong Cài đặt). */
@@ -48,18 +49,44 @@ object AudioSettings {
     var dopRemote: Boolean
         get() = dsdRemote == DSD_DOP
         set(v) { dsdRemote = if (v) DSD_DOP else DSD_RAW }
-    /** Loại thiết bị đầu ra ưu tiên (AudioDeviceInfo.TYPE_*), 0 = mặc định hệ thống. */
-    var deviceType: Int
-        get() = sp.getInt("devType", 0)
-        set(v) { sp.edit().putInt("devType", v).apply() }
+    // ---------- Chọn thiết bị đầu ra ----------
+    // Khoá thiết bị = "loại|địa chỉ|tên" (địa chỉ chỉ có từ Android 9; trên Android 8 chỉ còn loại + tên). Không dùng AudioDeviceInfo.id vì id đổi sau mỗi lần cắm lại,
+    // và không chỉ dựa vào TYPE_* vì có thể cắm nhiều USB DAC / HDMI / Bluetooth cùng loại.
+    /** Khoá thiết bị đầu ra ưu tiên, "" = mặc định hệ thống. */
+    var deviceKey: String
+        get() = when {
+            !::sp.isInitialized -> ""
+            sp.contains("devKey") -> sp.getString("devKey", "") ?: ""
+            sp.getInt("devType", 0) != 0 -> "${sp.getInt("devType", 0)}||"      // lựa chọn lưu theo bản cũ (chỉ có loại)
+            else -> ""
+        }
+        set(v) { sp.edit().putString("devKey", v).apply() }
+    /** Loại của thiết bị đã chọn (AudioDeviceInfo.TYPE_*), 0 = mặc định hệ thống. */
+    val deviceType: Int get() = typeOf(deviceKey)
+    private fun limitId() = if (deviceKey.isEmpty()) "0" else deviceKey
 
-    /** Đầu ra mặc định khi mở app: KEEP = giữ lựa chọn lần trước; 0 = mặc định hệ thống; còn lại = loại thiết bị (AudioDeviceInfo.TYPE_*). */
-    const val KEEP = -1
-    var startupDev: Int
-        get() = if (::sp.isInitialized) sp.getInt("startupDev", KEEP) else KEEP
-        set(v) { sp.edit().putInt("startupDev", v).apply() }
+    private fun dev(d: AudioDeviceInfo) = DeviceMatch.Dev(d.type, if (Build.VERSION.SDK_INT >= 28) runCatching { d.address }.getOrDefault("") else "", d.productName?.toString().orEmpty())
+    fun keyOf(d: AudioDeviceInfo): String = DeviceMatch.keyOf(dev(d))
+    fun typeOf(key: String): Int = DeviceMatch.typeOf(key)
+    private fun nameOf(key: String) = key.split('|', limit = 3).getOrElse(2) { "" }
+
+    /** Tìm thiết bị đang kết nối khớp khoá đã lưu (xem DeviceMatch). Không khớp thì null → dùng mặc định hệ thống. */
+    fun match(key: String, list: List<AudioDeviceInfo>): AudioDeviceInfo? =
+        DeviceMatch.match(key, list.map { dev(it) }.toTypedArray()).let { if (it < 0) null else list[it] }
+
+    /** Đầu ra mặc định khi mở app: "" = giữ lựa chọn lần trước; DEFAULT = mặc định hệ thống; còn lại = khoá thiết bị. */
+    const val DEFAULT = "default"
+    var startupKey: String
+        get() = when {
+            !::sp.isInitialized -> ""
+            sp.contains("startupKey") -> sp.getString("startupKey", "") ?: ""
+            sp.getInt("startupDev", -1) == 0 -> DEFAULT                       // khoá cũ: 0 = mặc định hệ thống
+            sp.getInt("startupDev", -1) > 0 -> "${sp.getInt("startupDev", -1)}||"
+            else -> ""
+        }
+        set(v) { sp.edit().putString("startupKey", v).apply() }
     /** Gọi một lần khi app khởi động, trước khi dựng bộ phát. */
-    fun applyStartup() { if (startupDev != KEEP) deviceType = startupDev }
+    fun applyStartup() { val k = startupKey; if (k.isNotEmpty()) deviceKey = if (k == DEFAULT) "" else k }
 
     fun label(type: Int) = when (type) {
         AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> if (Device.tv) "Loa TV" else "Loa điện thoại"
@@ -74,12 +101,23 @@ object AudioSettings {
         AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth"
         else -> "Thiết bị loại $type"
     }
+    /** Mọi đầu ra đang kết nối, KHÔNG gộp thiết bị cùng loại; sắp xếp ổn định để danh sách không nhảy khi cắm/rút. */
     fun sinks(ctx: Context): List<AudioDeviceInfo> =
-        (ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager).getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter { it.isSink && it.type != AudioDeviceInfo.TYPE_TELEPHONY }.distinctBy { it.type }
-    fun current(ctx: Context): AudioDeviceInfo? = if (deviceType == 0) null else sinks(ctx).firstOrNull { it.type == deviceType }
-    fun currentName(ctx: Context) = when {
-        deviceType == 0 -> "Mặc định hệ thống"
-        current(ctx) == null -> label(deviceType) + " (chưa kết nối)"   // chưa cắm: tạm dùng mặc định, tự chuyển khi cắm
-        else -> label(deviceType)
+        (ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager).getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            .filter { it.isSink && it.type != AudioDeviceInfo.TYPE_TELEPHONY }
+            .sortedWith(compareBy({ it.type }, { it.productName?.toString().orEmpty() }, { keyOf(it) }))
+    fun current(ctx: Context): AudioDeviceInfo? = match(deviceKey, sinks(ctx))
+    /** Tên đầy đủ: khi có nhiều thiết bị cùng loại thì thêm tên sản phẩm để phân biệt. */
+    fun title(d: AudioDeviceInfo, all: List<AudioDeviceInfo>): String {
+        val name = d.productName?.toString()?.takeIf { it.isNotBlank() }
+        return if (name != null && all.count { it.type == d.type } > 1) label(d.type) + " — " + name else label(d.type)
+    }
+    fun currentName(ctx: Context): String {
+        val key = deviceKey
+        if (key.isEmpty()) return "Mặc định hệ thống"
+        val list = sinks(ctx)
+        val d = match(key, list)
+        val base = d?.let { title(it, list) } ?: (label(typeOf(key)) + nameOf(key).let { if (it.isNotEmpty()) " — $it" else "" })
+        return if (d == null) "$base (chưa kết nối)" else base   // chưa cắm: tạm dùng mặc định hệ thống, tự chuyển khi cắm lại
     }
 }

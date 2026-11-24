@@ -286,7 +286,7 @@ internal fun SfInfo(t: Track?, modifier: Modifier, compact: Boolean) {
             val dspOn = !DspParams.isFlat() && remote == null
             val (grade, gl) = signalGrade(t, i, pcm, remote)
             S("// SIGNAL PATH", 10, C.Gold, spaced = true)
-            Marq((if (grade == Grade.GREEN) "✓ " else "") + gl, 14, grade.color, bold = true)
+            Focusable({ BitPerfectUi.open.value = true }) { Marq((if (grade == Grade.GREEN) "✓ " else "") + gl + "  ⓘ", 14, grade.color, bold = true) }
             val route = if (remote != null) (if (dopActive(t, i, remote)) "Tín hiệu: $src → DoP 24-bit/176,4 kHz → $outName" else "Tín hiệu: $src → $outName (file gốc, thiết bị tự giải mã)")
                 else "Tín hiệu: $src → ${pcm.ifEmpty { "PCM" }}${if (dspOn) " → EQ" else ""} → $outName"
             val err = error

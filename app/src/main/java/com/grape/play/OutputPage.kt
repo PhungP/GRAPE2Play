@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
 /** Một lựa chọn đầu ra: thiết bị âm thanh của TV/máy (tv = true) hoặc thiết bị stream không dây. */
-private class OutItem(val key: String, val icon: ImageVector, val title: String, val sub: String, val tv: Boolean, val type: Int = 0, val r: Renderer? = null)
+private class OutItem(val key: String, val icon: ImageVector, val title: String, val sub: String, val tv: Boolean, val type: Int = 0, val r: Renderer? = null, val devKey: String = "")
 
 private fun iconFor(type: Int): ImageVector = when (type) {
     AudioDeviceInfo.TYPE_HDMI, AudioDeviceInfo.TYPE_HDMI_ARC -> Icons.Outlined.SettingsInputHdmi
@@ -39,9 +39,19 @@ fun OutputPage(onNav: (Screen) -> Unit) {
     val ctx = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
     var hires by remember { mutableStateOf(AudioSettings.hires) }
-    var dev by remember { mutableStateOf(AudioSettings.deviceType) }
-    var startup by remember { mutableStateOf(AudioSettings.startupDev) }
-    val devices = remember { AudioSettings.sinks(ctx) }
+    var dev by remember { mutableStateOf(AudioSettings.deviceKey) }
+    var startup by remember { mutableStateOf(AudioSettings.startupKey) }
+    var devices by remember { mutableStateOf(AudioSettings.sinks(ctx)) }
+    // Danh sách tự cập nhật khi cắm/rút thiết bị (USB DAC, HDMI, Bluetooth…)
+    DisposableEffect(Unit) {
+        val am = ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+        val cb = object : android.media.AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>?) { devices = AudioSettings.sinks(ctx) }
+            override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>?) { devices = AudioSettings.sinks(ctx) }
+        }
+        am.registerAudioDeviceCallback(cb, android.os.Handler(android.os.Looper.getMainLooper()))
+        onDispose { am.unregisterAudioDeviceCallback(cb) }
+    }
     val fmt by Playback.level.fmt.collectAsState()
     val remote by Playback.remote.collectAsState()
     var found by remember { mutableStateOf<List<Renderer>>(emptyList()) }
@@ -50,7 +60,7 @@ fun OutputPage(onNav: (Screen) -> Unit) {
     val first = remember { FocusRequester() }
     BackHandler { onNav(Screen.LIB) }
 
-    fun commit() { AudioSettings.hires = hires; AudioSettings.deviceType = dev; Playback.applySettings() }
+    fun commit() { AudioSettings.hires = hires; AudioSettings.deviceKey = dev; Playback.applySettings() }
     fun scan() {
         if (scanning) return
         scanning = true
@@ -60,21 +70,30 @@ fun OutputPage(onNav: (Screen) -> Unit) {
 
     // Danh sách lựa chọn
     val tvItems = buildList {
-        add(OutItem("tv:0", Icons.Outlined.Tv, "Mặc định hệ thống", if (Device.tv) "Theo cài đặt âm thanh của TV" else "Theo cài đặt âm thanh của máy", true, 0))
+        add(OutItem("tv:default", Icons.Outlined.Tv, "Mặc định hệ thống", if (Device.tv) "Theo cài đặt âm thanh của TV" else "Theo cài đặt âm thanh của máy", true, 0, null, ""))
         devices.forEach { d ->
             val name = d.productName?.toString()?.takeIf { it.isNotBlank() }
             val rate = d.sampleRates.maxOrNull()?.takeIf { it > 0 }?.let { "PCM tối đa ${khz(it)}" }
-            add(OutItem("tv:${d.type}", iconFor(d.type), AudioSettings.label(d.type), listOfNotNull(name, rate).joinToString(" · ").ifEmpty { "Đầu ra do Android báo" }, true, d.type))
+            val k = AudioSettings.keyOf(d)
+            add(OutItem("tv:$k", iconFor(d.type), AudioSettings.title(d, devices), listOfNotNull(name, rate).joinToString(" · ").ifEmpty { "Đầu ra do Android báo" }, true, d.type, null, k))
+        }
+        // Thiết bị đã chọn nhưng đang rút ra: vẫn hiện để biết app đang chờ nó (app tạm dùng mặc định hệ thống và tự chuyển khi cắm lại)
+        if (dev.isNotEmpty() && devices.none { AudioSettings.keyOf(it) == dev } && AudioSettings.match(dev, devices) == null) {
+            val t = AudioSettings.typeOf(dev)
+            add(OutItem("tv:$dev", iconFor(t), AudioSettings.currentName(ctx), "Chưa kết nối — app tạm dùng mặc định hệ thống và tự chuyển lại khi cắm", true, t, null, dev))
         }
         // Bluetooth luôn có mặt trong danh sách (kể cả khi chưa kết nối): chọn trước, ghép đôi sau — app tự chuyển sang khi loa/tai nghe kết nối
-        if (devices.none { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP })
-            add(OutItem("tv:${AudioDeviceInfo.TYPE_BLUETOOTH_A2DP}", Icons.Outlined.Bluetooth, "Bluetooth", "Chưa kết nối — ghép đôi loa/tai nghe trong Cài đặt Bluetooth của ${if (Device.tv) "TV" else "máy"}", true, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP))
+        if (devices.none { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP } && AudioSettings.typeOf(dev) != AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+            val bk = "${AudioDeviceInfo.TYPE_BLUETOOTH_A2DP}||"
+            add(OutItem("tv:$bk", Icons.Outlined.Bluetooth, "Bluetooth", "Chưa kết nối — ghép đôi loa/tai nghe trong Cài đặt Bluetooth của ${if (Device.tv) "TV" else "máy"}", true, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, null, bk))
+        }
     }
     val renderers = (found + listOfNotNull(remote).filter { r -> found.none { it.id == r.id } })
     val rnItems = renderers.map { r -> OutItem("rn:${r.id}", if (r.kind == "cast") Icons.Outlined.Cast else Icons.Outlined.SettingsInputAntenna, r.name,
         (if (r.kind == "cast") "Google Cast" else "UPnP / OpenHome") + " · " + r.host, false, 0, r) }
 
-    val activeKey = remote?.let { "rn:${it.id}" } ?: "tv:$dev"
+    // Khoá thẻ đang dùng: thiết bị đã lưu có thể khớp một thiết bị cắm lại với địa chỉ khác → dùng khoá của thiết bị khớp
+    val activeKey = remote?.let { "rn:${it.id}" } ?: "tv:" + (if (dev.isEmpty()) "default" else AudioSettings.match(dev, devices)?.let { AudioSettings.keyOf(it) } ?: dev)
     var selKey by remember { mutableStateOf(activeKey) }
     var pending by remember { mutableStateOf<OutItem?>(null) }
     val sel = (tvItems + rnItems).firstOrNull { it.key == selKey } ?: tvItems.first()
@@ -121,15 +140,15 @@ fun OutputPage(onNav: (Screen) -> Unit) {
                 T("File gốc được gửi nguyên bản (không chuyển mã) qua Wi-Fi/LAN; thiết bị nhận tự giải mã. Thanh âm lượng của ${if (Device.tv) "TV" else "máy"} không ảnh hưởng.", 16, C.Text, lines = 4)
             }
         } else {
-            Tag(if (hires) "PCM float 32-bit" else "PCM 16-bit")
+            Tag(if (hires) "Yêu cầu đầu ra float 32-bit" else "PCM 16-bit")
             // Chế độ PCM
             SectionLabel("CHẾ ĐỘ PCM")
-            OptionCard(Icons.Outlined.GraphicEq, "Tương thích (PCM 16-bit)", "Ổn định nhất — mọi thiết bị đều ra tiếng. Hạ 24-bit xuống 16-bit.", !hires) { hires = false; commit() }
-            OptionCard(Icons.Outlined.HighQuality, "Hi-res (PCM float 32-bit)", "Giữ độ phân giải 24-bit. Nếu file hi-res im lặng thì quay lại Tương thích.", hires) { hires = true; commit() }
+            OptionCard(Icons.Outlined.GraphicEq, "Tương thích (PCM 16-bit)", "Chế độ tương thích, ổn định nhất — mọi thiết bị đều ra tiếng. Dữ liệu 24-bit bị hạ xuống 16-bit.", !hires) { hires = false; commit() }
+            OptionCard(Icons.Outlined.HighQuality, "Hi-res (PCM float 32-bit)", "Yêu cầu ExoPlayer dùng đầu ra float 32-bit, không hạ xuống 16-bit trong app. Android/thiết bị vẫn có thể đổi định dạng và KHÔNG bảo đảm độ sâu bit thật tại DAC. Nếu file hi-res im lặng thì quay lại Tương thích.", hires) { hires = true; commit() }
             // Mặc định khi mở app
             SectionLabel("KHI MỞ APP")
-            OptionCard(Icons.Outlined.History, "Giữ lựa chọn lần dùng trước", "", startup == AudioSettings.KEEP) { startup = AudioSettings.KEEP; AudioSettings.startupDev = startup }
-            OptionCard(Icons.Outlined.PushPin, "Luôn bắt đầu bằng ${sel.title}", "Nếu thiết bị chưa cắm, app tạm dùng mặc định hệ thống và tự chuyển khi cắm.", startup == sel.type) { startup = sel.type; AudioSettings.startupDev = sel.type }
+            OptionCard(Icons.Outlined.History, "Giữ lựa chọn lần dùng trước", "", startup.isEmpty()) { startup = ""; AudioSettings.startupKey = startup }
+            OptionCard(Icons.Outlined.PushPin, "Luôn bắt đầu bằng ${sel.title}", "Nếu thiết bị chưa cắm, app tạm dùng mặc định hệ thống và tự chuyển khi cắm.", startup == (if (sel.devKey.isEmpty()) AudioSettings.DEFAULT else sel.devKey)) { startup = if (sel.devKey.isEmpty()) AudioSettings.DEFAULT else sel.devKey; AudioSettings.startupKey = startup }
             NoteBox {
                 T("Đường tín hiệu", 14, C.Muted, bold = true)
                 T("Đang đưa ra: ${fmt.ifEmpty { "chưa phát" }}", 17, C.Gold, lines = 2)
@@ -173,7 +192,7 @@ fun OutputPage(onNav: (Screen) -> Unit) {
                     Focusable({ pending = null }) { T("Huỷ", if (sm) 14 else 18, C.Muted, Modifier.padding(if (sm) 18.dp else 24.dp, if (sm) 7.dp else 10.dp), bold = true) }
                     Focusable({
                         pending = null
-                        if (p.tv) { dev = p.type; commit(); if (remote != null) Playback.setTarget(null) } else p.r?.let { Playback.setTarget(it) }
+                        if (p.tv) { dev = p.devKey; commit(); if (remote != null) Playback.setTarget(null) } else p.r?.let { Playback.setTarget(it) }
                     }, requester = ok) { T("Chọn", if (sm) 14 else 18, C.Gold, Modifier.padding(if (sm) 18.dp else 24.dp, if (sm) 7.dp else 10.dp), bold = true) }
                 }
             }

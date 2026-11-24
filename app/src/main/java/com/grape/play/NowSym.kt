@@ -162,7 +162,7 @@ private fun SymBody(style: Int, tv: Boolean, onOut: () -> Unit, onQueue: () -> U
                     if (i != null && i.sampleRate > 0 && i.bits > 0) Pill(if (dsd) "${dsdLabel(i.sampleRate)} · 1-BIT" else "${i.bits}-BIT / ${khz(i.sampleRate)}")
                 }
                 val (grade, gl) = signalGrade(t, info, pcm, remote)
-                T((if (grade == Grade.GREEN) "✓ " else "") + gl, 14, grade.color, bold = true, lines = 2)
+                Focusable({ BitPerfectUi.open.value = true }) { T((if (grade == Grade.GREEN) "✓ " else "") + gl + "  ⓘ", 14, grade.color, Modifier.padding(4.dp, 2.dp), bold = true, lines = 2) }
                 if (remote != null) T("Đang phát tới: $outName", 14, C.PlumSoft, lines = 2)
             }
 

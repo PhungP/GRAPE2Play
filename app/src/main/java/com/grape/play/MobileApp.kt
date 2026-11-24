@@ -502,7 +502,7 @@ private fun MobileEq() {
         }
         MSlider("Cân bằng trái / phải", bal, -1f..1f, { if (kotlin.math.abs(it) < 0.01f) "L = R" else if (it < 0) "L %d%%".format((-it * 100).toInt()) else "R %d%%".format((it * 100).toInt()) }) { DspParams.setBalance((it * 20).roundToInt() / 20f) }
         MSlider("Preamp (dB)", pre, -12f..6f, { "%+.1f dB".format(it) }) { DspParams.setPreamp((it * 2).roundToInt() / 2f) }
-        T("Khi EQ phẳng và cân bằng ở giữa, âm thanh đi thẳng không qua xử lý (bit-perfect).", 14, C.Gold, lines = 3)
+        T("Khi EQ phẳng và cân bằng ở giữa, DSP chép nguyên dữ liệu. Đây chưa phải bằng chứng Bit-perfect toàn đường truyền (xem trạng thái ở màn hình Đang phát).", 14, C.Gold, lines = 3)
     }
 }
 

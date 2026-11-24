@@ -490,3 +490,19 @@ Model mặc định: `gemini-flash-latest` (đổi trong Ai.kt nếu muốn). G�
 
 ## Bản 2.9.2
 - Sửa lỗi nhạc tự phát ra loa UPnP khi bật lại Mibox dù không mở app: loa tắt/bật lại báo trạng thái "dừng" giữa bài, app hiểu nhầm là "hết bài" nên tự phát bài kế. Nay chỉ coi là hết bài khi vị trí đã gần cuối bài (còn ≤ 10 giây); dừng giữa bài thì chuyển sang trạng thái tạm dừng, không tự phát gì và ghi nhật ký "báo dừng giữa bài".
+
+## Bản 2.9.3 — Củng cố phát nhạc (chưa kiểm thử trên thiết bị)
+- Hàng đợi/shuffle: khi bật xáo trộn, bài đang nghe được ghim lên đầu thứ tự xáo — trước đây khi tắt lặp, các bài đứng trước nó trong thứ tự ngẫu nhiên sẽ không bao giờ được phát. Chỉ số bài ngoài phạm vi không còn làm app lỗi (Phát/Chuyển tới bài). Chế độ lặp 1 bài: sau lỗi sang đúng bài kế thay vì quay lại bài lỗi. Sửa danh sách (thêm bài, trộn) không còn bị tính là nghe lại bài (Gần đây/thống kê).
+- Gapless: tách rõ "bộ đệm lớn" với gapless thật. Nhật ký ghi mỗi lần tự chuyển bài là liền mạch hay bộ xuất âm thanh phải cấu hình lại (khác tần số/độ sâu/số kênh nên có thể có khoảng lặng ngắn). Mô tả trong Cài đặt âm thanh đã sửa cho đúng.
+- Phục hồi lỗi: lỗi AudioTrack thoáng qua (đổi/rút/cắm đầu ra) thử lại cùng bài, cùng vị trí 2 lần trước khi bỏ qua; mất nguồn thoáng qua (NAS/mạng) chờ 1,5 s rồi 5 s thử lại đúng chỗ đang nghe; lỗi bài kế nạp trước không còn tự bật phát khi bạn đang tạm dừng.
+- DSP/EQ: tự tính đỉnh đáp tuyến (EQ + preamp) và tự hạ độ lợi tương ứng để tín hiệu đầy thang không bị cắt đỉnh (ví dụ preset "bass" nâng +5 dB sẽ tự hạ khoảng 6 dB; mức nghe nhỏ hơn một chút nhưng không méo). Bộ lọc tính bằng số thực 64-bit, xoá trạng thái khi tua/đổi bài, bỏ qua EQ nếu quá 8 kênh. Khi phẳng vẫn chép nguyên dữ liệu (bit-perfect).
+- Không đổi: DSD/DoP, USB, NAS, UPnP, Cast.
+
+## Bản 2.9.4 — Audio Core Correction & Bit-perfect (chưa biên dịch/kiểm thử trên thiết bị)
+- Đầu ra âm thanh: không còn gộp thiết bị cùng loại; chọn đúng từng USB DAC/HDMI/Bluetooth; danh sách tự cập nhật khi cắm/rút; thiết bị bị rút tự về mặc định hệ thống và tự quay lại khi cắm lại.
+- Mô tả Hi-res đúng: float 32-bit chỉ là yêu cầu cho ExoPlayer, không bảo đảm độ sâu bit tại DAC.
+- Chẩn đoán chuyển bài chỉ ghi điều quan sát được ("không phát hiện thay đổi định dạng đầu ra", "chưa đo được khoảng lặng"), không khẳng định gapless.
+- EQ: headroom tự động có dư 0,3 dB; EQ phẳng/tắt giữ nguyên dữ liệu. Không chống clipping tuyệt đối.
+- Hàng đợi/lỗi: sửa Trộn bỏ sót bài, thêm bài chèn ngẫu nhiên, không tự phát khi Pause, bài nạp sẵn của loa UPnP cập nhật khi đổi Trộn/Lặp.
+- Bit-perfect: bốn trạng thái VERIFIED / NOT VERIFIED / NOT BIT-PERFECT / UNKNOWN, tám trường thông tin, bấm ⓘ để xem giải thích. Hiện không có đường phát nào được VERIFIED vì app không có phương pháp xác minh toàn đường truyền. Xem BITPERFECT.md.
+- Test logic thuần: `./run_core_tests.sh`. Tài liệu: CHANGELOG.md, AUDIO_CORE_AUDIT.md, TEST_REPORT.md, RELEASE_NOTES.md.

@@ -378,8 +378,36 @@ internal object LangExtra {
         "AI không trả kết quả hợp lệ — chọn theo quy tắc: khớp album/bài, độ phân giải cao nhất, tỉ lệ vuông." to "AI gave no valid answer — picked by rules: album/title match, highest resolution, square.",
         "Chưa có khóa AI — chọn theo quy tắc: khớp album/bài, độ phân giải cao nhất, tỉ lệ vuông." to "No AI key — picked by rules: album/title match, highest resolution, square.",
     )
-    val MAP: Map<String, String> = m0 + m1 + m2 + m3 + m4 + m5
+    private val m6: Map<String, String> = mapOf(
+        "Mất kết nối nguồn nhạc" to "Lost connection to the music source",
+        "Nguồn nhạc vẫn chưa trả lời" to "The music source is still not responding",
+        "Nạp trước bài kế tiếp bằng bộ đệm lớn (tối đa 90 giây) để khỏi chờ tải, nhất là từ NAS / đám mây. Bộ đệm KHÔNG bảo đảm nối bài không có khoảng lặng: khi bài kế khác tần số/độ sâu/số kênh thì bộ xuất âm thanh phải cấu hình lại và có thể có khoảng lặng ngắn. App chưa đo được khoảng lặng thực tế; nhật ký chỉ ghi có hay không phát hiện đổi định dạng đầu ra. UPnP: app nạp sẵn bài kế (SetNextAVTransportURI), thiết bị quyết định có nối liền hay không; Cast do thiết bị quyết định. Đổi cài đặt sẽ nạp lại bài đang nghe." to "Pre-loads the next track with a large buffer (up to 90 seconds) so you do not wait for downloads, especially from NAS / cloud. The buffer does NOT guarantee silence-free track changes: when the next track has a different sample rate/bit depth/channel count the audio sink must be reconfigured and a short silence is possible. The app cannot measure actual silence; the log only says whether an output format change was detected. UPnP: the app pre-loads the next track (SetNextAVTransportURI) and the device decides whether it joins them seamlessly; Cast is decided by the device. Changing this setting reloads the current track.",
+    )
+    private val m7: Map<String, String> = mapOf(
+        "Chế độ tương thích, ổn định nhất — mọi thiết bị đều ra tiếng. Dữ liệu 24-bit bị hạ xuống 16-bit." to "Compatibility mode, the most stable — every device plays. 24-bit data is reduced to 16-bit.",
+        "Yêu cầu ExoPlayer dùng đầu ra float 32-bit, không hạ xuống 16-bit trong app. Android/thiết bị vẫn có thể đổi định dạng và KHÔNG bảo đảm độ sâu bit thật tại DAC. Nếu file hi-res im lặng thì quay lại Tương thích." to "Asks ExoPlayer to use a 32-bit float output, without reducing to 16-bit inside the app. Android or the device may still convert the format, and the real bit depth at the DAC is NOT guaranteed. If hi-res files are silent, go back to Compatible.",
+        "Yêu cầu đầu ra float 32-bit" to "Float 32-bit output requested",
+        "Chưa kết nối — app tạm dùng mặc định hệ thống và tự chuyển lại khi cắm" to "Not connected — the app temporarily uses the system default and switches back when it is plugged in",
+    )
+    private val m8: Map<String, String> = mapOf(
+        "Khi EQ phẳng và cân bằng ở giữa, âm thanh đi thẳng không qua xử lý (bit-perfect)." to "When the EQ is flat and balance is centred, the DSP copies the data unchanged. This is not proof of end-to-end Bit-perfect (see the status on the Now Playing screen).",
+        "Khi EQ phẳng và cân bằng ở giữa, DSP chép nguyên dữ liệu. Đây chưa phải bằng chứng Bit-perfect toàn đường truyền (xem trạng thái ở màn hình Đang phát)." to "When the EQ is flat and balance is centred, the DSP copies the data unchanged. This is not proof of end-to-end Bit-perfect (see the status on the Now Playing screen).",
+        "EQ đang thay đổi dữ liệu âm thanh (NOT BIT-PERFECT). Tăng nhiều ở dải trầm/cao có thể làm méo tiếng — nên chỉnh nhẹ và để Preamp âm." to "The EQ is changing the audio data (NOT BIT-PERFECT). Large boosts in the bass/treble can distort — adjust gently and keep the preamp negative.",
+    )
+    val MAP: Map<String, String> = m0 + m1 + m2 + m3 + m4 + m5 + m6 + m7 + m8
     val RULES: List<Pair<Regex, String>> = listOf(
+        // Đầu ra 2.9.4
+        Regex("^(.+) \\(chưa kết nối\\)$") to "\$1 (not connected)",
+        Regex("^Loa TV — (.+)$") to "TV speaker — \$1",
+        Regex("^Tai nghe có dây — (.+)$") to "Wired headphones — \$1",
+        // Phát nhạc 2.9.3
+        Regex("^Chuyển bài tự động: định dạng PCM đầu ra đổi \\((.+) → (.+)\\) và bộ xuất âm thanh được cấu hình lại — nhiều khả năng có khoảng lặng ngắn\\. Chưa đo được khoảng lặng thực tế\\.$") to "Automatic track change: output PCM format changed (\$1 → \$2) and the audio sink was reconfigured — a short silence is likely. Actual silence was not measured.",
+        Regex("^Chuyển bài tự động: bộ xuất âm thanh được cấu hình lại dù định dạng PCM không đổi \\((.+)\\)\\. Chưa đo được khoảng lặng thực tế\\.$") to "Automatic track change: the audio sink was reconfigured although the PCM format did not change (\$1). Actual silence was not measured.",
+        Regex("^Chuyển bài tự động: không phát hiện thay đổi định dạng đầu ra \\((.+)\\) và bộ xuất âm thanh không được cấu hình lại\\. Chưa đo được khoảng lặng thực tế\\.$") to "Automatic track change: no output format change detected (\$1) and the audio sink was not reconfigured. Actual silence was not measured.",
+        Regex("^Tự giảm (.+) dB để tránh cắt đỉnh \\(EQ/preamp nâng tối đa \\+(.+) dB\\)$") to "Automatically lowered by \$1 dB to avoid clipping (EQ/preamp boost up to +\$2 dB)",
+        Regex("^(.+) — thử lại lần (\\d+)/(\\d+) sau (\\d+)ms tại (.+)$") to "\$1 — retry \$2/\$3 in \$4 ms at \$5",
+        Regex("^(.+) — đang thử lại \\((\\d+)/(\\d+)\\)…$") to "\$1 — retrying (\$2/\$3)…",
+        Regex("^Đầu ra (.+) chưa nhận tín hiệu$") to "Output \$1 is not accepting the signal yet",
         // Ảnh bìa 2.9.1
         Regex("báo dừng giữa bài \\(vị trí (\\d+)s/(\\d+)s\\) — không tự phát bài kế") to "reported stop mid-track (position \$1s/\$2s) — not auto-advancing",
         Regex("^Nguồn: (.+) · (\\d+×\\d+) · vuông$") to "Source: \$1 · \$2 · square",
