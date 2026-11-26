@@ -121,7 +121,7 @@ public final class DeviceRegistry {
         public final List<Profile> profiles = new ArrayList<>();
         public final Set<String> rejected = new LinkedHashSet<>();   // "key#entryId": người dùng nói "không đúng thiết bị"
         public final Set<String> dismissed = new LinkedHashSet<>();  // key thiết bị lạ người dùng chọn "để sau"
-        /** 2.9.10: kết quả người dùng tự kiểm tra khả năng phát (User Verified). Tách khỏi xác nhận danh tính. */
+        /** 3.0.0: kết quả người dùng tự kiểm tra khả năng phát (User Verified). Tách khỏi xác nhận danh tính. */
         public final List<DeviceVerification.UserVerification> verifications = new ArrayList<>();
         public List<DeviceVerification.UserVerification> verificationsFor(String key) { List<DeviceVerification.UserVerification> l = new ArrayList<>(); for (DeviceVerification.UserVerification v : verifications) if (v.profileKey.equals(key)) l.add(v); return l; }
         public Profile find(String key) { for (Profile p : profiles) if (p.key.equals(key)) return p; return null; }

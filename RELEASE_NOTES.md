@@ -1,4 +1,4 @@
-# GRAPE2Play 2.9.10 — Ghi chú phát hành
+# GRAPE2Play 3.0.0 — Ghi chú phát hành
 
 **Nguồn xác minh minh bạch:** mỗi cấu hình thiết bị nay hiển thị riêng *nguồn* (Manufacturer Verified / User Verified / Community Verified) và *độ chắc chắn kỹ thuật* (Confirmed / Supported / Inconclusive / Unverified) — hai thứ độc lập, không phải thứ hạng. **Verify Playback Capability**: tự ghi nhận kết quả bạn đã thử (định dạng, điều kiện, phương pháp, firmware) — lưu trên máy, tách khỏi xác nhận danh tính.
 

@@ -1,6 +1,6 @@
 # Built-in Device Registry / Device Catalog (2.9.9)
 
-Ngày nghiên cứu: **2026-11-26** (đợt đầu 2026-11-25, bổ sung 2026-11-26) · phiên bản dữ liệu: 2.9.10 · schema: 1 · tệp: `app/src/main/assets/device_catalog.tsv` · mã: `DeviceCatalog.java`, giao diện `DeviceCatalogUi.kt`.
+Ngày nghiên cứu: **2026-11-26** (đợt đầu 2026-11-25, bổ sung 2026-11-26) · phiên bản dữ liệu: 3.0.0 · schema: 1 · tệp: `app/src/main/assets/device_catalog.tsv` · mã: `DeviceCatalog.java`, giao diện `DeviceCatalogUi.kt`.
 
 ## Độ phủ (nói thẳng)
 **91 thiết bị, 197 cấu hình kết nối** (USB 60, S/PDIF 60, UPnP 37, HDMI 21, Bluetooth 10, BluOS/I2S/Roon 8, Cast 1), từ 27 hãng: Arcam, AudioQuest, Aurender, Bluesound, Cambridge Audio, Chord, Denon, Eversolo, FiiO, iFi, JBL, LUMIN, Linn, Marantz, Matrix Audio, Naim, Onkyo, Pro-Ject, Questyle, RME, Rotel, SMSL, Shanling, Sony, Technics, WiiM, Yamaha. Chỉ đưa vào model có trang thông số/hướng dẫn chính thức đã đọc được trong đợt nghiên cứu; không suy từ model cùng dòng.
@@ -22,7 +22,7 @@ Nhận diện model ≠ khả năng định dạng ≠ cấu hình bit-perfect �
 ## Chính sách bằng chứng (`DeviceCatalog.validate`, ép khi nạp)
 Mức ≥2 cần nguồn (URL hoặc nguồn người dùng) + ngày bằng chứng; kết quả người dùng thử (`USER_TEST`) tối đa mức 2; `CONFIG_VERIFIED` cần mức ≥3 và DSP/âm lượng/resampling + điều kiện + định dạng được ghi rõ; mức 4 cần phương pháp `MEASUREMENT` có URL; DSD→PCM và Bluetooth không thể `CONFIG_VERIFIED`; `NOT_BIT_PERFECT` cần bằng chứng. Vi phạm → bị hạ và ghi vào `Catalog.problems`, không bị loại.
 
-## Nguồn xác minh ≠ Độ chắc chắn kỹ thuật (2.9.10)
+## Nguồn xác minh ≠ Độ chắc chắn kỹ thuật (3.0.0)
 Hai thuộc tính **độc lập** trên từng cấu hình (`DeviceVerification.java`, dòng `E` trong tệp):
 - **Verification Source:** `Manufacturer Verified` (đối chiếu tài liệu chính thức) · `User Verified` (người dùng tự kiểm tra, lưu cục bộ) · `Community Verified` (nhiều báo cáo độc lập, nhất quán). Ba huy hiệu cùng kích thước và kiểu, thứ tự hiển thị cố định, màu chỉ để phân biệt nguồn; một cấu hình có thể có nhiều nguồn, không nguồn nào ghi đè nguồn khác. Màn chi tiết luôn liệt kê đủ ba nguồn (kể cả "chưa có bằng chứng").
 - **Technical Confidence:** `Confirmed` (đủ mạnh cho đúng thiết bị + kết nối + cấu hình) · `Supported` (phù hợp nhưng chưa đủ cho toàn chuỗi) · `Inconclusive` (chưa đủ/không thống nhất) · `Unverified`. Không có quy tắc nào suy độ chắc chắn từ nguồn: Manufacturer có thể chỉ Supported; User có thể Confirmed; Community cần đủ tiêu chí.

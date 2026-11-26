@@ -1,31 +1,31 @@
-# TEST REPORT — 2.9.10 (gồm 2.9.5–2.9.9)
+# TEST REPORT — 3.0.0 (gồm 2.9.5–2.9.9)
 
-## 2.9.10 — kết quả thực tế (2026-11-26)
+## 3.0.0 — kết quả thực tế (2026-11-26)
 Môi trường: macOS (Apple Silicon), JBR/OpenJDK 21, Android SDK 33/34, Gradle 8.7. Phân loại kiểm thử:
 
 | Loại | Lệnh / cách làm | Kết quả |
 |---|---|---|
-| **Unit test (logic Java thuần)** | `./run_core_tests.sh` | `passed=9898 failed=0` (trước 2.9.10: 9854/0). Gồm DeviceCatalogTests, DeviceVerificationTests |
+| **Unit test (logic Java thuần)** | `./run_core_tests.sh` | `passed=9898 failed=0` (trước 3.0.0: 9854/0). Gồm DeviceCatalogTests, DeviceVerificationTests |
 | **Unit test Gradle (JUnit)** | `gradle :app:testDebugUnitTest` | `AudioCoreJUnitTest` tests=1 failures=0 (chạy toàn bộ AudioCoreTests) |
 | **Build** | `gradle clean :app:assembleDebug` | BUILD SUCCESSFUL |
-| **Lint** | `gradle :app:lintDebug` | FAILED: **149 lỗi, 42 cảnh báo đều có từ trước** (Playback 47, Remote 27, Decoders 22, Dsp 19, LevelProcessor 13, TvHome 10, MainActivity 6, BitPerfectProbe 4); **không có lỗi lint mới ở file của 2.9.10** |
+| **Lint** | `gradle :app:lintDebug` | FAILED: **149 lỗi, 42 cảnh báo đều có từ trước** (Playback 47, Remote 27, Decoders 22, Dsp 19, LevelProcessor 13, TvHome 10, MainActivity 6, BitPerfectProbe 4); **không có lỗi lint mới ở file của 3.0.0** |
 | **Integration test** | — | Chưa có (không có khung test tích hợp trong dự án) |
 | **Emulator test (thủ công)** | AVD `Medium_Phone_API_37.0` (arm64, điện thoại), cài APK debug, thao tác bằng `adb input` + chụp màn hình | Xem bên dưới |
 | **Real-device test** | — | **KHÔNG thực hiện**: chưa cài/chạy trên TV, điện thoại hay thiết bị âm thanh thật; chưa phát nhạc qua USB/UPnP/Cast/HDMI/quang |
 
 ### Emulator (đã xem trực tiếp, bằng chứng là ảnh chụp)
-- Về ứng dụng: nội dung mới trung lập, hiện "Phiên bản 2.9.10"; không còn câu chuyện cá nhân.
+- Về ứng dụng: nội dung mới trung lập, hiện "Phiên bản 3.0.0"; không còn câu chuyện cá nhân.
 - Trang Đầu ra → "Bit-perfect Verified Devices": đầu trang đọc đầy đủ; thông báo "danh mục chưa đầy đủ" hiển thị; 91 thiết bị; huy hiệu Manufacturer / User Verified cùng kích thước; **cuộn cảm ứng xuống cuối và lên đầu được**; mở chi tiết thiết bị, cuộn nội dung dài, nút "Về danh mục" ở đầu trang nhận tiêu điểm đầu tiên; ba nguồn Manufacturer / User / Community luôn hiển thị đủ kèm độ chắc chắn kỹ thuật, phạm vi, firmware, ngày, URL.
 - Thiết bị của tôi: nhận diện thiết bị UPnP thật trên mạng LAN của người dùng (JBL L75ms) — lúc đầu **KHÔNG khớp** (thiết bị khai manufacturer "Harman Luxury Audio", modelName "JBL L75ms") → **đã sửa matcher** (tên hãng mẹ + bỏ tiền tố hãng) và kiểm lại: "Khớp danh mục: JBL L75ms · khớp chắc chắn". Confirm Device Identity lưu hồ sơ; form Verify Playback Capability hiển thị độ chắc chắn dự kiến theo lựa chọn (Unverified → Supported khi chọn đủ định dạng + điều kiện + chỉ báo), lưu kết quả User Verified; **hồ sơ và kết quả còn nguyên sau khi tắt hẳn (force-stop) và mở lại app**.
 - **Phím D-pad:** thử bằng `adb input keyevent`: ▲/▼ di chuyển/cuộn được, nút đầu trang giữ tiêu điểm đầu; **không phải remote TV thật** và chuỗi phím nhanh không cho kết luận chắc về mọi thứ tự tiêu điểm — cần thử trên TV thật.
 - **Sự cố khi kiểm thử:** hai lần chạm mù (toạ độ lệch do danh sách đổi chiều cao khi quét) đã mở hộp thoại "Chọn đầu ra này?"; một lần chọn nhầm JBL L75ms (UPnP) làm đầu ra TRONG BẢN APP TRÊN EMULATOR. Đã chuyển về "Mặc định hệ thống". Thư viện emulator trống, không có bài nào được gửi tới loa; app có thể đã gửi lệnh điều khiển UPnP/trạng thái tới loa lúc chọn (chưa kiểm).
 - **Chưa kiểm trên emulator:** màn Quản lý hồ sơ, hộp thoại Bit-perfect (mục "Xác minh cho tổ hợp này"), màn hình lớn/xoay/TV, tab khác.
 
-### Sửa/phát hiện trong 2.9.10
+### Sửa/phát hiện trong 3.0.0
 Lỗi cuộn (nguyên nhân gốc: tiêu điểm D-pad ban đầu ở nút cuối nội dung, văn bản phía trên không nhận tiêu điểm); mở/đóng chi tiết làm mất bộ lọc; tên hãng mẹ UPnP không khớp (JBL/Harman…); tên model lặp "Denon Denon Home 150"; nhãn "PASS · DEVICE_INDICATOR" thô.
 
 ## Chưa thực hiện / chưa xác minh
-Real-device (TV, USB DAC, HDMI/quang, UPnP/Cast thật); phát nhạc và âm thanh (không đổi mã nhưng chưa nghe/đo); nâng cấp 2.9.9 → 2.9.10 trên máy đã cài; kiểm tra lại từng URL nguồn; Integration test.
+Real-device (TV, USB DAC, HDMI/quang, UPnP/Cast thật); phát nhạc và âm thanh (không đổi mã nhưng chưa nghe/đo); nâng cấp 2.9.9 → 3.0.0 trên máy đã cài; kiểm tra lại từng URL nguồn; Integration test.
 
 ---
 

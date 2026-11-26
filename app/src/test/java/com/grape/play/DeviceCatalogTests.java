@@ -37,7 +37,7 @@ final class DeviceCatalogTests {
         List<Device> all = cat.devices;
         // --- dữ liệu tích hợp
         check(all.size() >= 80 && cat.problems.isEmpty(), "CAT1. danh mục nạp được ≥30 thiết bị, không có cảnh báo dữ liệu (" + all.size() + " thiết bị; " + cat.problems + ")");
-        check(cat.version.equals("2.9.10") && cat.researched.equals("2026-11-26"), "CAT1b. phiên bản và ngày nghiên cứu được ghi");
+        check(cat.version.equals("3.0.0") && cat.researched.equals("2026-11-26"), "CAT1b. phiên bản và ngày nghiên cứu được ghi");
         boolean noUnsupported = true, evid = true;
         for (Device d : all) for (Config c : d.configs) {
             if (c.status == Status.CONFIG_VERIFIED || c.level >= 3) noUnsupported = false;   // dữ liệu hiện tại không có phép đo/bằng chứng đủ cho mức 3-4

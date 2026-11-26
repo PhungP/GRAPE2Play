@@ -72,7 +72,7 @@ MediaSession (metadata + ảnh bìa + trạng thái + hàng đợi + actions), t
 ## Sau 2.9.9 — đổi tên repository
 Repo GitHub đổi từ `PhungP/grape2play` thành `PhungP/GRAPE2Play`. Cập nhật `Updater.REPO`, liên kết GitHub ở màn Về ứng dụng, Referer của OpenRouter và README. Bản 2.9.9 đã phát hành vẫn dùng tên cũ; GitHub tự chuyển hướng liên kết/API cũ nên cập nhật OTA vẫn hoạt động (không được tạo lại repo mới tên `grape2play`, vì sẽ làm hỏng chuyển hướng). Các thay đổi này nằm trong bản kế tiếp.
 
-## 2.9.10 — Nguồn xác minh, Verify Playback Capability, sửa cuộn, mở rộng danh mục (versionCode 103)
+## 3.0.0 — Nguồn xác minh, Verify Playback Capability, sửa cuộn, mở rộng danh mục (versionCode 103)
 - **Về ứng dụng:** bỏ câu chuyện cá nhân/đùa cợt (hoàn cảnh tài chính, TV cũ…) khỏi mọi chuỗi (UI, bản dịch, README); thay bằng giới thiệu trung lập về phát nhạc, xử lý âm thanh, quản lý đầu ra và xác minh Bit-perfect.
 - **Danh mục:** 91 thiết bị / 197 cấu hình (27 hãng; trước đó 35/80). JBL L75ms: đọc được quick-specs PDF chính thức → thêm cấu hình Cast, ghi rõ tài liệu không nhắc UPnP/DSD.
 - **Ba nguồn xác minh** (Manufacturer / User / Community Verified) tách khỏi **Technical Confidence** (Confirmed / Supported / Inconclusive / Unverified); ba huy hiệu cùng kích thước, thứ tự cố định, hiển thị đủ nhiều nguồn trên mỗi cấu hình. `DeviceVerification.java` + dòng `E` trong tệp danh mục (cấu hình cũ tự suy bằng chứng khi nạp, tương thích ngược).

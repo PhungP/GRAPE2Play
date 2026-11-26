@@ -77,7 +77,7 @@ Chi tiết ở DEVICE_REGISTRY.md. Tóm tắt phương pháp:
 - Giới hạn: độ phủ nhỏ (35 thiết bị), nhiều thông số chỉ là trang hãng (không đo), tên UPnP modelName và USB VID:PID chưa được xác minh cho hầu hết model (nên khớp chủ yếu theo hãng+model), không có thiết bị nào đạt mức 3–4.
 - Dự phòng dữ liệu: schema lạ hoặc tệp lỗi → danh mục rỗng + cảnh báo trong app; phiên phát và `BitPerfect.evaluate` không bị ảnh hưởng. Trạng thái kiểm thử: xem TEST_REPORT.md (giao diện chưa được chạy trên thiết bị).
 
-## 10. Nguồn xác minh, độ chắc chắn kỹ thuật và tổ hợp xác minh (2.9.10)
+## 10. Nguồn xác minh, độ chắc chắn kỹ thuật và tổ hợp xác minh (3.0.0)
 Chi tiết: DEVICE_REGISTRY.md. Tóm tắt nguyên tắc:
 - **Hai thuộc tính độc lập:** *Verification Source* (Manufacturer / User / Community Verified — bằng chứng đến từ đâu) và *Technical Confidence* (Confirmed / Supported / Inconclusive / Unverified — bằng chứng mạnh đến đâu). Nguồn không quyết định độ chắc chắn và không phải thứ hạng độ tin cậy.
 - **Mọi kết quả gắn với tổ hợp** Device + Firmware + Transport + Protocol + Audio Format + Playback Configuration. Xác minh của một kết nối/định dạng/firmware không đại diện cho kết nối/định dạng/firmware khác (`DeviceVerification.appliesTo`).
