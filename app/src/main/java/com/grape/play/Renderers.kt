@@ -37,6 +37,8 @@ data class Renderer(
     val avCtrl: String = "", val rcCtrl: String = "",
     /** 2.9.9: metadata từ UPnP device description (chỉ để nhận diện thiết bị trong danh mục; không ảnh hưởng phát nhạc). */
     val maker: String = "", val model: String = "", val modelDesc: String = "",
+    /** URL device description đã thấy gần nhất: tải lại trực tiếp (HTTP) khi loa không trả lời SSDP (loa chờ/Wi-Fi tiết kiệm điện). */
+    val loc: String = "",
 ) {
     val label: String get() = name + if (kind == "cast") " · Google Cast" else " · UPnP"
 }
@@ -70,12 +72,24 @@ object Renderers {
         if (knownHosts.any { h -> found.none { it.host == h } } || found.isEmpty()) { found = merge(found, pass(app)); passes = 2 }
         // Thiết bị đã biết mà quét không thấy: thử kết nối trực tiếp tới cổng của nó
         val back = known.filter { k -> found.none { it.kind == k.kind && (it.id == k.id || it.host == k.host && it.name == k.name) } }
-            .map { k -> async(Dispatchers.IO) { if (reachable(k.host, if (k.kind == "cast") 8009 else k.port)) k else null } }.awaitAll().filterNotNull()
+            .map { k -> async(Dispatchers.IO) { revive(k) } }.awaitAll().filterNotNull()
         val all = merge(found, back)
         saveKnown(app, all)
         report = "Quét $passes lượt · UPnP ${all.count { it.kind == "upnp" }} · Google Cast ${all.count { it.kind == "cast" }}" +
             (if (back.isNotEmpty()) " (${back.size} thiết bị nhớ từ lần trước, vẫn trả lời)" else "") + " · SSDP $lastReplies phản hồi"
         all.sortedBy { it.name.lowercase() }
+    }
+
+    /**
+     * Thiết bị từng thấy mà lần quét này không thấy (loa đang chờ, UDP rơi gói, cổng UPnP đổi sau khi loa khởi động lại):
+     * Cast → kiểm tra cổng 8009; UPnP → (1) tải lại device description theo URL đã lưu (HTTP vẫn chạy khi loa im lặng với SSDP),
+     * (2) kết nối cổng điều khiển cũ, (3) hỏi SSDP unicast tới đúng IP. Chỉ trả về thiết bị thật sự trả lời.
+     */
+    private fun revive(k: Renderer): Renderer? {
+        if (k.kind == "cast") return if (reachable(k.host, 8009)) k else null
+        if (k.loc.isNotEmpty()) runCatching { describe(k.loc) }.getOrNull()?.let { return it }
+        if (reachable(k.host, k.port)) return k
+        return runCatching { probeHost(k.host) }.getOrNull()
     }
 
     @Volatile private var lastReplies = 0
@@ -115,14 +129,14 @@ object Renderers {
     fun loadKnown(ctx: Context): List<Renderer> = runCatching {
         val arr = org.json.JSONArray(ctx.getSharedPreferences("renderers", Context.MODE_PRIVATE).getString("known", "[]"))
         (0 until arr.length()).map { i -> arr.getJSONObject(i).let {
-            Renderer(it.getString("kind"), it.getString("name"), it.getString("id"), it.getString("host"), it.optInt("port"), it.optString("av"), it.optString("rc"), it.optString("mk"), it.optString("md"), it.optString("mdesc"))
+            Renderer(it.getString("kind"), it.getString("name"), it.getString("id"), it.getString("host"), it.optInt("port"), it.optString("av"), it.optString("rc"), it.optString("mk"), it.optString("md"), it.optString("mdesc"), it.optString("loc"))
         } }
     }.getOrDefault(emptyList())
 
     private fun saveKnown(ctx: Context, list: List<Renderer>) {
         runCatching {
             val arr = org.json.JSONArray()
-            list.take(40).forEach { r -> arr.put(org.json.JSONObject().put("kind", r.kind).put("name", r.name).put("id", r.id).put("host", r.host).put("port", r.port).put("av", r.avCtrl).put("rc", r.rcCtrl).put("mk", r.maker).put("md", r.model).put("mdesc", r.modelDesc)) }
+            list.take(40).forEach { r -> arr.put(org.json.JSONObject().put("kind", r.kind).put("name", r.name).put("id", r.id).put("host", r.host).put("port", r.port).put("av", r.avCtrl).put("rc", r.rcCtrl).put("mk", r.maker).put("md", r.model).put("mdesc", r.modelDesc).put("loc", r.loc)) }
             ctx.getSharedPreferences("renderers", Context.MODE_PRIVATE).edit().putString("known", arr.toString()).apply()
         }
     }
@@ -186,7 +200,7 @@ object Renderers {
             val targets: List<InetAddress?> = addrs.ifEmpty { listOf(null) }
             targets.map { a -> async(Dispatchers.IO) { runCatching { searchOn(a, locs, replies) } } }.awaitAll()
         } finally { runCatching { lock?.release() } }
-        val found = locs.toList().map { l -> async(Dispatchers.IO) { runCatching { describe(l) }.getOrNull() } }.awaitAll().filterNotNull().distinctBy { it.id }
+        val found = locs.toList().map { l -> async(Dispatchers.IO) { runCatching { describe(l) }.getOrNull() ?: runCatching { describe(l) }.getOrNull() } }.awaitAll().filterNotNull().distinctBy { it.id }
         Triple(found, replies.get(), addrs.size)
     }
 
@@ -210,7 +224,7 @@ object Renderers {
                 } catch (e: SocketTimeoutException) { }
             }
         }
-        return locs.firstNotNullOfOrNull { runCatching { describe(it) }.getOrNull() }
+        return locs.firstNotNullOfOrNull { l -> runCatching { describe(l) }.getOrNull() ?: runCatching { describe(l) }.getOrNull() }
     }
 
     private fun describe(loc: String): Renderer? {
@@ -243,7 +257,7 @@ object Renderers {
         val root = URL(if (base.isNotEmpty()) base else loc)
         val u = URL(loc)
         return Renderer("upnp", name.ifEmpty { "Thiết bị UPnP" }, udn.ifEmpty { loc }, u.host, u.port,
-            URL(root, av).toString(), if (rc.isEmpty()) "" else URL(root, rc).toString(), mk, md, mdesc)
+            URL(root, av).toString(), if (rc.isEmpty()) "" else URL(root, rc).toString(), mk, md, mdesc, loc)
     }
 
     // ---------------- Google Cast (mDNS qua NsdManager) ----------------

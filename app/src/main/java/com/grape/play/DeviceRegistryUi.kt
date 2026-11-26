@@ -26,6 +26,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.foundation.gestures.animateScrollBy
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -109,7 +110,7 @@ fun DeviceConfirmDialog() {
     val pend by DeviceProfiles.pending.collectAsState()
     val p = pend ?: return
     val first = remember(p) { FocusRequester() }
-    LaunchedEffect(p) { runCatching { first.requestFocus() } }
+    LaunchedEffect(p) { delay(150); runCatching { first.requestFocus() } }   // chờ cửa sổ hộp thoại dựng xong, nếu không tiêu điểm D-pad vẫn ở trang bên dưới
     val det = p.det
     Frame(onDismiss = { DeviceProfiles.later(p) }) {
         if (p.declare) {
@@ -153,7 +154,7 @@ fun DeviceConfirmDialog() {
 fun DeviceManagerDialog() {
     val ver by DeviceProfiles.version.collectAsState()
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+    LaunchedEffect(Unit) { delay(150); runCatching { first.requestFocus() } }   // chờ cửa sổ hộp thoại dựng xong, nếu không tiêu điểm D-pad vẫn ở trang bên dưới
     var editing by remember { mutableStateOf<String?>(null) }
     var maker by remember { mutableStateOf("") }
     var model by remember { mutableStateOf("") }

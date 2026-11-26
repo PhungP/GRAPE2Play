@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Column
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.grape.play.BitPerfect.Route
 import com.grape.play.DeviceCatalog.Config
@@ -158,7 +159,7 @@ fun DeviceCatalogDialog() {
     val cat = DeviceCatalogStore.catalog
     val device = det?.let { cat.byId(it) }
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+    LaunchedEffect(Unit) { delay(150); runCatching { first.requestFocus() } }   // chờ cửa sổ hộp thoại dựng xong, nếu không tiêu điểm D-pad vẫn ở trang bên dưới
     var text by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var conn by remember { mutableStateOf<Route?>(null) }
@@ -224,7 +225,7 @@ fun DeviceCatalogDialog() {
 @Composable
 private fun DeviceDetailDialog(d: Device) {
     val first = remember(d) { FocusRequester() }
-    LaunchedEffect(d) { runCatching { first.requestFocus() } }
+    LaunchedEffect(d) { delay(150); runCatching { first.requestFocus() } }   // chờ cửa sổ hộp thoại dựng xong, nếu không tiêu điểm D-pad vẫn ở trang bên dưới
     val ver by DeviceProfiles.version.collectAsState()
     val mineAll = remember(ver, d) { DeviceProfiles.store.verifications.filter { it.catalogId == d.id } }
     Frame(onDismiss = { DeviceCatalogStore.detail.value = null }) {
@@ -294,7 +295,7 @@ private fun Chips(content: @Composable () -> Unit) = FlowRow(Modifier.fillMaxWid
 @Composable
 private fun VerifyPlaybackDialog(p: DeviceRegistry.Profile, onClose: () -> Unit) {
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+    LaunchedEffect(Unit) { delay(150); runCatching { first.requestFocus() } }   // chờ cửa sổ hộp thoại dựng xong, nếu không tiêu điểm D-pad vẫn ở trang bên dưới
     var dsd by remember { mutableStateOf(false) }
     var mode by remember { mutableStateOf(DeviceCatalog.Dsd.NATIVE) }
     var rate by remember { mutableStateOf(0) }
@@ -370,7 +371,7 @@ fun MyAudioDevicesDialog() {
     val ver by DeviceProfiles.version.collectAsState()
     val cat = DeviceCatalogStore.catalog
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+    LaunchedEffect(Unit) { delay(150); runCatching { first.requestFocus() } }   // chờ cửa sổ hộp thoại dựng xong, nếu không tiêu điểm D-pad vẫn ở trang bên dưới
     var seen by remember { mutableStateOf(Renderers.loadKnown(ctx).filter { it.kind == "upnp" }) }
     var scanning by remember { mutableStateOf(false) }
     var fixing by remember { mutableStateOf<String?>(null) }        // khoá hồ sơ đang sửa danh tính
