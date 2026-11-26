@@ -203,7 +203,7 @@ object Ai {
         for (m in models) {
             val body = JSONObject().put("model", m).put("messages", msgs).put("temperature", temp).put("max_tokens", 4096).put("max_completion_tokens", 4096)
             val rb = Request.Builder().url("$base/chat/completions").header("Authorization", "Bearer $key")
-            if (p.id == "openrouter") rb.header("HTTP-Referer", "https://github.com/grape2play").header("X-Title", "GRAPE2Play")
+            if (p.id == "openrouter") rb.header("HTTP-Referer", "https://github.com/PhungP/GRAPE2Play").header("X-Title", "GRAPE2Play")
             val (code, text) = try { http.newCall(rb.post(body.toString().toRequestBody("application/json".toMediaType())).build()).await() }
                 catch (e: IOException) { throw IOException("lỗi mạng (${e.javaClass.simpleName}: ${e.message ?: "không rõ"})") }
             if (code in 200..299) {

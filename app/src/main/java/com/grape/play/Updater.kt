@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit
  * APK mới phải ký cùng khoá với bản đang cài, nếu không Android sẽ từ chối cài đè.
  */
 object Updater {
-    const val REPO = "PhungP/grape2play"
+    const val REPO = "PhungP/GRAPE2Play"
 
     enum class St { IDLE, CHECKING, UPTODATE, AVAILABLE, DOWNLOADING, READY, ERROR }
     class Release(val version: String, val url: String, val size: Long, val notes: String)

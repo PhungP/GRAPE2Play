@@ -468,7 +468,7 @@ private fun AboutBody(modifier: Modifier, big: Boolean) {
         ) {
             AboutRow("NHÀ PHÁT TRIỂN", "Phan Kim Phụng", big)
             Box(Modifier.fillMaxWidth().height(1.dp).background(C.Line))
-            AboutRow("GITHUB", "https://github.com/PhungP/grape2play", big)
+            AboutRow("GITHUB", "https://github.com/PhungP/GRAPE2Play", big)
         }
     }
 }

@@ -68,3 +68,6 @@ MediaSession (metadata + ảnh bìa + trạng thái + hàng đợi + actions), t
 - Không đổi: Playback.kt, Audio Engine, PCM/DSD/DoP, DSP/EQ, USB/NAS, UPnP phát nhạc, Cast, TV, điều khiển từ xa. Quy tắc `BitPerfect.evaluate` và `DeviceRegistry.builtin()` giữ nguyên.
 - Hoàn thiện (audit): schema catalog được kiểm tra (schema lạ/thiếu tiêu đề → danh mục rỗng, app vẫn chạy); khớp hãng cần ≥3 ký tự; thông báo "danh mục chưa đầy đủ / vắng mặt ≠ không hỗ trợ" trên mọi màn catalog và hộp thoại Bit-perfect; nhãn mức 2 ghi rõ "chưa phải bit-perfect"; sửa lỗi biên dịch có sẵn của `AudioCoreTests` với `android.jar`.
 - Build debug thật + unit test Gradle đạt; lint có 149 lỗi đã tồn tại từ trước (ngoài phạm vi); release APK ký chưa tạo; chưa chạy trên thiết bị (xem TEST_REPORT.md).
+
+## Sau 2.9.9 — đổi tên repository
+Repo GitHub đổi từ `PhungP/grape2play` thành `PhungP/GRAPE2Play`. Cập nhật `Updater.REPO`, liên kết GitHub ở màn Về ứng dụng, Referer của OpenRouter và README. Bản 2.9.9 đã phát hành vẫn dùng tên cũ; GitHub tự chuyển hướng liên kết/API cũ nên cập nhật OTA vẫn hoạt động (không được tạo lại repo mới tên `grape2play`, vì sẽ làm hỏng chuyển hướng). Các thay đổi này nằm trong bản kế tiếp.

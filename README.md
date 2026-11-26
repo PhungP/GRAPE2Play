@@ -149,7 +149,7 @@ GOOGLE_CLIENT_SECRET=GOCSPX-...
 Gradle đọc file này (hoặc biến môi trường cùng tên) và sinh `BuildConfig`. `local.properties` đã nằm trong `.gitignore`, nên không bị GitHub chặn (Push Protection) khi push. Mọi chỗ trong README cũ nói "điền vào OAuthConfig.kt" nay hiểu là "điền vào local.properties".
 
 ### Cập nhật ứng dụng (Cài đặt ▸ CẬP NHẬT ỨNG DỤNG)
-Nguồn: GitHub Releases của `PhungP/grape2play` (repo phải **public**). App tự kiểm tra một lần khi mở Cài đặt; có nút "Kiểm tra cập nhật". Khi có bản mới: "Tải và cài đặt" → tải APK vào bộ nhớ đệm, kiểm tra đúng package `com.grape.play`, rồi mở trình cài đặt của Android. Lần đầu Android sẽ hỏi cho phép cài từ nguồn không xác định.
+Nguồn: GitHub Releases của `PhungP/GRAPE2Play` (repo phải **public**). App tự kiểm tra một lần khi mở Cài đặt; có nút "Kiểm tra cập nhật". Khi có bản mới: "Tải và cài đặt" → tải APK vào bộ nhớ đệm, kiểm tra đúng package `com.grape.play`, rồi mở trình cài đặt của Android. Lần đầu Android sẽ hỏi cho phép cài từ nguồn không xác định.
 
 Phát hành một bản mới:
 1. Tăng `versionCode` và `versionName` trong `app/build.gradle.kts` (ví dụ 23 / "0.8.2").
