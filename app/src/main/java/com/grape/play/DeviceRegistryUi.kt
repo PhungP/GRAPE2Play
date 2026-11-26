@@ -83,9 +83,11 @@ internal fun DevField(label: String, value: String, onChange: (String) -> Unit) 
 internal fun Frame(onDismiss: () -> Unit, content: @Composable () -> Unit) {
     val compact = LocalCompact.current
     val scroll = rememberScrollState()
-    val fm = androidx.compose.ui.platform.LocalFocusManager.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        // QUAN TRỌNG: LocalFocusManager phải đọc BÊN TRONG nội dung Dialog (cửa sổ riêng). Đọc ở ngoài sẽ là FocusManager của cửa sổ chính,
+        // khiến phím ▲/▼ di chuyển tiêu điểm của trang bên dưới ("con trỏ nhảy sang menu khác của app").
+        val fm = androidx.compose.ui.platform.LocalFocusManager.current
         Column(
             (if (compact) Modifier.dlgW(560) else Modifier.dlgFrac(0.5f)).dlgH(1400).clip(RoundedCornerShape(14.dp)).background(C.Panel)
                 .border(1.dp, C.Line, RoundedCornerShape(14.dp))

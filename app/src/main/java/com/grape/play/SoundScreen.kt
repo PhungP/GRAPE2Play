@@ -152,7 +152,7 @@ fun BackgroundCard() {
     var batt by remember { mutableStateOf(BackgroundAccess.ignoringBattery(ctx)) }
     var msg by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { while (true) { batt = BackgroundAccess.ignoringBattery(ctx); keep = BackgroundAccess.keep; delay(1500) } }
-    val on = keep || batt
+    val on = keep   // chỉ phản ánh nút Bật/Tắt; miễn tối ưu pin là quyền hệ thống, hiển thị riêng ở dòng bên dưới (không làm sáng chữ xanh)
     Card {
         T("CHẠY NGẦM", 13, C.Muted, spaced = true)
         T(if (on) "✓ Đang bật chạy ngầm" else "Chưa bật chạy ngầm", 20, if (on) Grade.GREEN.color else C.Text)

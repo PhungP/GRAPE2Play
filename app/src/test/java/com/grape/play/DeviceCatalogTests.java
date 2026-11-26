@@ -118,6 +118,9 @@ final class DeviceCatalogTests {
         check(jm.device == jbl && jm.quality == DeviceCatalog.MODEL && !jm.needsConfirmation(), "MAT15. JBL L75ms thật (Harman Luxury Audio / 'JBL L75ms') khớp chắc chắn");
         check(DeviceCatalog.match(up("Harman Luxury Audio", "Ultra", "x"), all).device == null && DeviceCatalog.match(up("Harman", "JBL L750ms", "x"), all).device == null, "MAT16. hãng mẹ không làm khớp nhầm model/hãng khác (Ultra, L750ms)");
         check(DeviceCatalog.match(up("Panasonic Corporation", "Technics SU-GX70", "x"), all).device != null, "MAT17. Panasonic → Technics, tiền tố hãng trong tên model được bỏ");
+        // Cast: TXT md="JBL L75ms", hãng không khai → chỉ khớp phụ (ALIAS) và luôn cần xác nhận
+        DeviceCatalog.CatMatch cm = DeviceCatalog.match(up("", "JBL L75ms", "Living room"), all);
+        check(cm.device == jbl && cm.quality == DeviceCatalog.ALIAS && cm.needsConfirmation(), "MAT18. Cast (modelName 'JBL L75ms', không có hãng) khớp JBL L75ms ở mức phụ, cần xác nhận");
         // --- tìm kiếm và lọc
         Query q = new Query(); q.text = "wiim";
         check(DeviceCatalog.search(all, q).size() == 4, "SRCH1. tìm theo hãng (WiiM: Ultra, Mini, Pro, Amp)");

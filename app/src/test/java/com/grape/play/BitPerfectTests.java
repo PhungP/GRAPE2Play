@@ -33,7 +33,31 @@ final class BitPerfectTests {
     static boolean u(BitPerfect.Result r, Code c) { return r.unverified.contains(c); }
 
     static void run() {
-        classification(); activeOutput(); pcmFormat(); routes(); configVerification(); exhaustive();
+        classification(); activeOutput(); pcmFormat(); routes(); configVerification(); userVerified(); exhaustive();
+    }
+
+    // ---------- 3.0.2 User Verified cho phiên phát tới thiết bị ngoài ----------
+    static void userVerified() {
+        BitPerfect.Input c = base(Route.CAST, 24, 96000, true); c.userCfgVerified = true;
+        BitPerfect.Result r = ev(c);
+        AudioCoreTests.check(r.status == Status.VERIFIED && r.level == BitPerfect.VerLevel.USER_CONFIGURATION && r.confirmed.contains(Code.USER_VERIFIED_CONFIG), "UV1. Cast + người dùng đã tự kiểm tra đúng tổ hợp → VERIFIED – USER-VERIFIED CONFIGURATION");
+        BitPerfect.Input n = base(Route.CAST, 24, 96000, true);
+        st(ev(n), Status.NOT_VERIFIED, "UV2. Cast không có xác minh của người dùng → NOT_VERIFIED (không đổi)");
+        AudioCoreTests.check(ev(n).level == BitPerfect.VerLevel.NONE, "UV2b. mức NONE khi chưa xác minh");
+        BitPerfect.Input u = base(Route.UPNP, 16, 44100, false); u.userCfgVerified = true;
+        st(ev(u), Status.VERIFIED, "UV3. UPnP + người dùng đã tự kiểm tra → VERIFIED (user)");
+        BitPerfect.Input ev = base(Route.CAST, 24, 96000, true); ev.userCfgVerified = true; ev.rateEvidence = true;
+        st(ev(ev), Status.NOT_BIT_PERFECT, "UV4. có bằng chứng đổi tần số → NOT_BIT_PERFECT, xác minh của người dùng không lấn át");
+        BitPerfect.Input dsd = base(Route.CAST, 1, 2822400, false); dsd.srcDsd = true; dsd.srcExt = "dsf"; dsd.userCfgVerified = true;
+        st(ev(dsd), Status.VERIFIED, "UV5. DSD gửi file gốc tới thiết bị ngoài + người dùng đã tự kiểm tra Native → VERIFIED (user)");
+        BitPerfect.Input inc = base(Route.CAST, 0, 0, false); inc.userCfgVerified = true; inc.hasSink = false;
+        st(ev(inc), Status.NOT_VERIFIED, "UV6. nguồn thiếu thông tin định dạng → không VERIFIED dù người dùng đã xác minh");
+        BitPerfect.Input local = cfg(24, 96000); local.devLevel = DevLevel.NONE; local.userCfgVerified = true;
+        st(ev(local), Status.NOT_VERIFIED, "UV7. cờ người dùng KHÔNG có hiệu lực với đầu ra cục bộ (USB) — vẫn cần danh mục + định tuyến xác định");
+        BitPerfect.Input pp = base(Route.CAST, 24, 96000, true); pp.userCfgVerified = true; pp.pathProof = true;
+        AudioCoreTests.check(ev(pp).level == BitPerfect.VerLevel.END_TO_END, "UV8. bằng chứng toàn đường truyền vẫn ưu tiên cao nhất");
+        BitPerfect.Input noTrack = new BitPerfect.Input(); noTrack.userCfgVerified = true; noTrack.route = Route.CAST;
+        st(ev(noTrack), Status.UNKNOWN, "UV9. chưa phát bài nào → UNKNOWN");
     }
 
     // ---------- 2.1 Phân loại: khả năng thiết bị ≠ bằng chứng chuyển đổi ----------

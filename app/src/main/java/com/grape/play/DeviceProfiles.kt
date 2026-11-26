@@ -73,4 +73,33 @@ object DeviceProfiles {
         p.manufacturer = maker.trim(); p.model = model.trim(); p.notes = notes.trim(); save()
     }
     fun remove(key: String) { store.remove(key); lastKey = ""; save() }
+
+    /**
+     * Tổ hợp đang phát (Device + Firmware + Transport + Protocol + Audio Format + Playback Configuration) từ dữ liệu phiên phát hiện tại.
+     * Phiên tới thiết bị ngoài (UPnP/Cast): app gửi file gốc, DSP của app không áp dụng; app không biết gì về đường ra của thiết bị nhận.
+     */
+    fun comboOf(x: BitPerfect.Input, prof: DeviceRegistry.Profile?): DeviceVerification.Combo {
+        val remote = x.route == BitPerfect.Route.UPNP || x.route == BitPerfect.Route.CAST
+        return DeviceVerification.Combo().also {
+            it.catalogId = prof?.catalogId.orEmpty(); it.firmware = prof?.firmware.orEmpty(); it.conn = x.route; it.dsd = x.srcDsd
+            it.dsdMode = if (!x.srcDsd) DeviceCatalog.Dsd.UNDOCUMENTED else if (x.dopActive) DeviceCatalog.Dsd.DOP else if (remote) DeviceCatalog.Dsd.NATIVE else DeviceCatalog.Dsd.DSD_TO_PCM
+            it.rate = x.srcRate; it.bits = x.srcBits
+            it.dspOff = !x.dspActive; it.volumeFixed = x.volumeFixed || remote; it.resamplingOff = remote || (x.hasSink && x.sinkRate == x.srcRate)
+        }
+    }
+
+    /**
+     * Người dùng đã tự kiểm tra đúng tổ hợp này? Cần hồ sơ đã xác nhận danh tính cho thiết bị, một kết quả User Verified "dữ liệu không đổi" áp dụng CHÍNH XÁC
+     * (không phải một phần) và độ chắc chắn kỹ thuật ≥ Supported (nghe bằng tai không đủ). Chỉ dùng cho phiên tới thiết bị ngoài.
+     */
+    fun userVerifiedFor(x: BitPerfect.Input, name: String): Boolean = runCatching {
+        val key = DeviceRegistry.keyOf(DeviceRegistry.Detected(name, x.route, -1, -1, false))
+        val prof = store.find(key) ?: return false
+        val combo = comboOf(x, prof)
+        store.verificationsFor(key).any { v ->
+            v.result == DeviceVerification.Result.PASS &&
+                (DeviceVerification.userConfidence(v) == DeviceVerification.Confidence.SUPPORTED || DeviceVerification.userConfidence(v) == DeviceVerification.Confidence.CONFIRMED) &&
+                DeviceVerification.appliesTo(v, combo).applies == DeviceVerification.Applies.EXACT
+        }
+    }.getOrDefault(false)
 }

@@ -120,7 +120,7 @@ object Renderers {
         val lock = runCatching { wifi?.createMulticastLock("grapeplay-m")?.also { it.setReferenceCounted(false); it.acquire() } }.getOrNull()
         try {
             return Mdns.browse("_googlecast._tcp.local.", 4500).map { h ->
-                Renderer("cast", h.txt["fn"].orEmpty().ifEmpty { h.instance }, h.txt["id"].orEmpty().ifEmpty { h.instance }, h.host, h.port)
+                Renderer("cast", h.txt["fn"].orEmpty().ifEmpty { h.instance }, h.txt["id"].orEmpty().ifEmpty { h.instance }, h.host, h.port, model = h.txt["md"].orEmpty())
             }
         } finally { runCatching { lock?.release() } }
     }
@@ -189,6 +189,41 @@ object Renderers {
         }
     }
 
+    /**
+     * Gửi M-SEARCH unicast tới MỌI địa chỉ trong mạng con /24 (hoặc nhỏ hơn) của card mạng [addr] rồi nghe phản hồi ~4,5 giây.
+     * Chỉ ~250 gói UDP nhỏ × vài vòng; thiết bị không phải UPnP bỏ qua hoặc trả ICMP, vô hại.
+     */
+    private fun sweepOn(addr: InetAddress, locs: MutableSet<String>, replies: AtomicInteger) {
+        val ni = NetworkInterface.getByInetAddress(addr) ?: return
+        val ia = ni.interfaceAddresses.firstOrNull { it.address == addr } ?: return
+        val prefix = ia.networkPrefixLength.toInt().coerceIn(24, 30)           // dải rộng hơn /24 chỉ quét /24 chứa máy này
+        val me = addr.address.fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
+        val mask = (-1) shl (32 - prefix)
+        val net = me and mask; val last = net or mask.inv()
+        val sts = listOf("urn:schemas-upnp-org:device:MediaRenderer:1", "urn:schemas-upnp-org:service:AVTransport:1", "ssdp:all")
+        DatagramSocket(InetSocketAddress(addr, 0)).use { sock ->
+            sock.soTimeout = 250
+            val end = System.currentTimeMillis() + 4500
+            var round = 0; var nextSend = 0L
+            val buf = ByteArray(4096)
+            while (System.currentTimeMillis() < end) {
+                if (round < 2 && System.currentTimeMillis() >= nextSend) {
+                    for (h in net + 1 until last) {
+                        if (h == me) continue
+                        val ip = InetAddress.getByAddress(byteArrayOf((h ushr 24).toByte(), (h ushr 16).toByte(), (h ushr 8).toByte(), h.toByte()))
+                        for (st in sts) { val m = msearch(st, 1); runCatching { sock.send(DatagramPacket(m, m.size, ip, 1900)) } }
+                    }
+                    round++; nextSend = System.currentTimeMillis() + 1800
+                }
+                try {
+                    val p = DatagramPacket(buf, buf.size); sock.receive(p)
+                    replies.incrementAndGet()
+                    locationOf(String(p.data, 0, p.length))?.let { l -> locs += l }
+                } catch (e: SocketTimeoutException) { }
+            }
+        }
+    }
+
     /** Trả về (danh sách thiết bị, số phản hồi SSDP, số card mạng đã dùng). */
     private suspend fun upnp(ctx: Context): Triple<List<Renderer>, Int, Int> = coroutineScope {
         val locs = ConcurrentHashMap.newKeySet<String>()
@@ -198,7 +233,11 @@ object Renderers {
         val addrs = localAddrs()
         try {
             val targets: List<InetAddress?> = addrs.ifEmpty { listOf(null) }
-            targets.map { a -> async(Dispatchers.IO) { runCatching { searchOn(a, locs, replies) } } }.awaitAll()
+            val multicast = targets.map { a -> async(Dispatchers.IO) { runCatching { searchOn(a, locs, replies) } } }
+            // Nhiều loa (JBL L75ms…) KHÔNG trả lời M-SEARCH multicast (AP/router lọc multicast, loa chỉ nghe unicast) nhưng trả lời ngay gói gửi thẳng tới IP:
+            // quét unicast cả dải mạng con của từng card mạng song song với multicast.
+            val sweep = addrs.map { a -> async(Dispatchers.IO) { runCatching { sweepOn(a, locs, replies) } } }
+            multicast.awaitAll(); sweep.awaitAll()
         } finally { runCatching { lock?.release() } }
         val found = locs.toList().map { l -> async(Dispatchers.IO) { runCatching { describe(l) }.getOrNull() ?: runCatching { describe(l) }.getOrNull() } }.awaitAll().filterNotNull().distinctBy { it.id }
         Triple(found, replies.get(), addrs.size)
@@ -285,7 +324,7 @@ object Renderers {
                 val host = r.host?.hostAddress ?: continue
                 fun attr(k: String) = r.attributes?.get(k)?.let { String(it, Charsets.UTF_8) }.orEmpty()
                 val id = attr("id").ifEmpty { r.serviceName }
-                out += Renderer("cast", attr("fn").ifEmpty { r.serviceName }, id, host, r.port)
+                out += Renderer("cast", attr("fn").ifEmpty { r.serviceName }, id, host, r.port, model = attr("md"))
             }
         } finally { runCatching { lock?.release() } }
         out.distinctBy { it.id }

@@ -372,7 +372,7 @@ fun MyAudioDevicesDialog() {
     val cat = DeviceCatalogStore.catalog
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(150); runCatching { first.requestFocus() } }   // chờ cửa sổ hộp thoại dựng xong, nếu không tiêu điểm D-pad vẫn ở trang bên dưới
-    var seen by remember { mutableStateOf(Renderers.loadKnown(ctx).filter { it.kind == "upnp" }) }
+    var seen by remember { mutableStateOf(Renderers.loadKnown(ctx).filter { it.kind == "upnp" || it.kind == "cast" }) }
     var scanning by remember { mutableStateOf(false) }
     var fixing by remember { mutableStateOf<String?>(null) }        // khoá hồ sơ đang sửa danh tính
     var verifying by remember { mutableStateOf<String?>(null) }     // khoá hồ sơ đang ghi nhận xác minh khả năng phát
@@ -411,7 +411,14 @@ fun MyAudioDevicesDialog() {
 
         T(notice(), 11, C.Gold, lines = 6)
         SectionLabel(s("ĐẦU RA ĐANG DÙNG", "ACTIVE OUTPUT"))
-        if (active == null) T(s("Không xác định được thiết bị đầu ra.", "The output device cannot be identified."), 13, C.Muted, lines = 2)
+        val rem = remote
+        if (rem != null) {
+            // Đang phát tới thiết bị ngoài (UPnP/Cast): đây mới là "đầu ra đang dùng" — dùng để xác nhận danh tính và Verify Playback Capability cho đúng kết nối này
+            val rc = if (rem.kind == "cast") Route.CAST else Route.UPNP
+            T(rem.name + " · " + connLabel(rc), 15, C.Gold, bold = true, lines = 2)
+            T(s("Phát tới thiết bị ngoài: app gửi file gốc và không quan sát được đường ra bên trong thiết bị nhận; trạng thái VERIFIED chỉ có khi bạn tự kiểm tra và ghi nhận (Verify Playback Capability).", "Playing to an external device: the app sends the original file and cannot observe the receiver's output path; VERIFIED is only possible when you test it yourself and record it (Verify Playback Capability)."), 11, C.Muted, lines = 5)
+            Identify(DeviceRegistry.Detected(rem.name, rc, -1, -1, true), DeviceCatalog.Discovered(rem.maker, rem.model, rem.name, rc).also { it.modelDescription = rem.modelDesc; it.udn = rem.id }, rem.id)
+        } else if (active == null) T(s("Không xác định được thiết bị đầu ra.", "The output device cannot be identified."), 13, C.Muted, lines = 2)
         else {
             T(active.name.ifEmpty { "—" } + " · " + connLabel(active.conn), 15, C.Gold, bold = true, lines = 2)
             if (!active.activeKnown) T(s("Android không xác nhận thiết bị này đang thực sự nhận âm thanh.", "Android does not confirm that this device is actually receiving the audio."), 11, C.Muted, lines = 3)
@@ -423,17 +430,18 @@ fun MyAudioDevicesDialog() {
         T(s("Trạng thái Bit-perfect của phiên phát hiện tại (tách biệt với khả năng thiết bị): ", "Bit-perfect status of the current playback session (independent of device capability): ") + (if (st == null) "—" else statusText(st.status, st.level)), 13, C.Text, lines = 4)
         Focusable({ DeviceCatalogStore.mine.value = false; BitPerfectUi.open.value = true }) { T(s("Xem chi tiết trạng thái phát", "View playback status details"), 13, C.Text, Modifier.padding(14.dp, 6.dp)) }
 
-        SectionLabel(s("THIẾT BỊ UPnP ĐÃ THẤY", "UPnP DEVICES SEEN"))
-        if (seen.isEmpty()) T(s("Chưa thấy thiết bị UPnP nào. Bấm “Quét” để tìm.", "No UPnP device seen yet. Tap “Scan”."), 13, C.Muted, lines = 2)
+        SectionLabel(s("THIẾT BỊ MẠNG ĐÃ THẤY (UPnP / GOOGLE CAST)", "NETWORK DEVICES SEEN (UPnP / GOOGLE CAST)"))
+        if (seen.isEmpty()) T(s("Chưa thấy thiết bị mạng nào. Bấm “Quét” để tìm.", "No network device seen yet. Tap “Scan”."), 13, C.Muted, lines = 2)
         for (r in seen) {
-            T(r.name + " · UPnP/DLNA", 14, C.Text, bold = true, lines = 2)
+            val rc = if (r.kind == "cast") Route.CAST else Route.UPNP
+            T(r.name + " · " + connLabel(rc), 14, C.Text, bold = true, lines = 2)
             if (r.maker.isNotEmpty() || r.model.isNotEmpty()) T(s("Thiết bị tự khai: ", "Self-reported: ") + (r.maker + " " + r.model).trim(), 12, C.Muted, lines = 2)
-            val det = DeviceRegistry.Detected(r.name, Route.UPNP, -1, -1, false)
-            val x = DeviceCatalog.Discovered(r.maker, r.model, r.name, Route.UPNP).also { it.modelDescription = r.modelDesc; it.udn = r.id }
+            val det = DeviceRegistry.Detected(r.name, rc, -1, -1, false)
+            val x = DeviceCatalog.Discovered(r.maker, r.model, r.name, rc).also { it.modelDescription = r.modelDesc; it.udn = r.id }
             Identify(det, x, r.id)
         }
-        Focusable({ if (!scanning) { scanning = true; scope.launch { runCatching { Renderers.discover(ctx) }; seen = Renderers.loadKnown(ctx).filter { it.kind == "upnp" }; scanning = false } } }) {
-            T(if (scanning) s("Đang quét…", "Scanning…") else s("Quét thiết bị UPnP", "Scan UPnP devices"), 14, C.Gold, Modifier.padding(14.dp, 6.dp), bold = true)
+        Focusable({ if (!scanning) { scanning = true; scope.launch { runCatching { Renderers.discover(ctx) }; seen = Renderers.loadKnown(ctx).filter { it.kind == "upnp" || it.kind == "cast" }; scanning = false } } }) {
+            T(if (scanning) s("Đang quét…", "Scanning…") else s("Quét thiết bị mạng", "Scan network devices"), 14, C.Gold, Modifier.padding(14.dp, 6.dp), bold = true)
         }
 
         SectionLabel(s("HỒ SƠ ĐÃ LƯU TRÊN MÁY", "PROFILES SAVED ON THIS DEVICE"))

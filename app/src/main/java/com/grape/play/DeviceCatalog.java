@@ -298,7 +298,7 @@ public final class DeviceCatalog {
                 for (String c : cand) {
                     List<String> ct = tokens(c);
                     if (ct.isEmpty() || norm(c).length() < 4) continue;
-                    if (containsTokens(names, ct) || containsTokens(desc, ct) || modelEq(x.modelName, c)) { q = ALIAS; len = Math.max(len, norm(c).length()); }
+                    if (containsTokens(names, ct) || containsTokens(desc, ct) || modelEq(x.modelName, c) || modelEq(stripMaker(x.modelName, d), c)) { q = ALIAS; len = Math.max(len, norm(c).length()); }
                 }
             }
             if (q == NONE) continue;

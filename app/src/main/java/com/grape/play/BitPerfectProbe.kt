@@ -109,6 +109,7 @@ object BitPerfectProbe {
             x.route = if (remote.kind == "cast") BitPerfect.Route.CAST else BitPerfect.Route.UPNP
             x.deviceName = remote.name
             x.dopActive = dopActive(t, i, remote)
+            x.userCfgVerified = DeviceProfiles.userVerifiedFor(x, remote.name)      // kết quả người dùng tự kiểm tra (User Verified) cho đúng tổ hợp này
             return x
         }
         x.dspActive = !DspParams.isFlat()

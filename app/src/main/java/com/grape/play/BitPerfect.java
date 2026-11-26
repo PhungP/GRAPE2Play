@@ -20,7 +20,7 @@ public final class BitPerfect {
     public enum Route { ROUTE_UNKNOWN, SPEAKER, HDMI, SPDIF, USB, BLUETOOTH, WIRED_ANALOG, OTHER, UPNP, CAST }
     public enum Tri { YES, NO, UNKNOWN }
     /** Mức xác minh của phiên phát hiện tại (VERIFIED có hai mức). */
-    public enum VerLevel { NONE, CONFIGURATION, END_TO_END }
+    public enum VerLevel { NONE, CONFIGURATION, END_TO_END, USER_CONFIGURATION }
     /** Trạng thái xác minh của TỔ HỢP thiết bị + phương thức kết nối (tách khỏi trạng thái phiên phát). */
     public enum DevLevel { NONE, USER_DECLARED, REGISTRY_UNVERIFIED, REGISTRY_CONFIG, REGISTRY_E2E }
 
@@ -31,7 +31,7 @@ public final class BitPerfect {
         // Bằng chứng dữ liệu bị đổi → NOT_BIT_PERFECT
         DSP_ON, DEPTH_REDUCED, DSD_TO_PCM, BT_LOSSY_CODEC, RATE_CONVERSION_EVIDENCE,
         // Đã xác minh được (không đồng nghĩa VERIFIED)
-        DSP_OFF, DSP_NOT_APPLIED_REMOTE, SENDS_ORIGINAL_FILE, APP_NO_RESAMPLE,
+        USER_VERIFIED_CONFIG, DSP_OFF, DSP_NOT_APPLIED_REMOTE, SENDS_ORIGINAL_FILE, APP_NO_RESAMPLE,
         // Chưa xác minh / chỉ là gợi ý
         ROUTE_UNKNOWN, PATH_UNVERIFIED, DEV_NOT_VERIFIED, DEV_ROUTE_MISMATCH, DEV_FORMAT_OUTSIDE_REGISTRY, SRC_INCOMPLETE, SOURCE_SINK_RATE_DIFFERS, CONFIG_CRITERIA_MET, CAPABILITY_ONLY, CAPABILITY_MISMATCH_HINT, MIXER_RATE_HINT, SELECTED_NOT_CONFIRMED,
         RENDERER_NO_OUTPUT_INFO, CAST_NO_OUTPUT_INFO, TV_PATH_UNKNOWN, USB_ACTUAL_UNVERIFIED,
@@ -68,6 +68,12 @@ public final class BitPerfect {
         public boolean rateEvidence;
         /** Bằng chứng đã xác minh toàn đường truyền. Hiện KHÔNG có mã nào đặt true. */
         public boolean pathProof;
+        /**
+         * 3.0.2: người dùng đã tự kiểm tra ĐÚNG tổ hợp thiết bị + kết nối + định dạng + điều kiện đang phát (User Verified: kết quả "dữ liệu không đổi",
+         * phương pháp ít nhất là báo hiệu trên thiết bị, đủ điều kiện) — do DeviceProfiles tính, BitPerfect chỉ đọc. Chỉ có hiệu lực với phiên phát tới thiết bị ngoài (UPnP/Cast),
+         * nơi app không thể tự quan sát đường ra; KHÔNG bao giờ lấn át bằng chứng dữ liệu bị đổi.
+         */
+        public boolean userCfgVerified;
     }
 
     public static final class Result {
@@ -151,10 +157,13 @@ public final class BitPerfect {
 
         boolean cfgOk = false;
         if (!rem && !in.srcDsd && !in.pathProof && r.changes.isEmpty() && !in.dspActive) cfgOk = configCriteria(in, r);
+        // Thiết bị ngoài: chỉ khi người dùng đã tự kiểm tra đúng tổ hợp này và nguồn có thông tin định dạng đầy đủ
+        boolean userCfg = rem && in.userCfgVerified && !in.pathProof && r.changes.isEmpty() && (in.srcDsd || (in.srcBits > 0 && in.srcRate > 0));
         r.resampling = rateConv ? Tri.YES : (in.pathProof && r.changes.isEmpty() ? Tri.NO : Tri.UNKNOWN);
         if (!r.changes.isEmpty()) r.status = Status.NOT_BIT_PERFECT;
         else if (in.pathProof) { r.status = Status.VERIFIED; r.level = VerLevel.END_TO_END; }
         else if (cfgOk) { r.status = Status.VERIFIED; r.level = VerLevel.CONFIGURATION; r.confirmed.add(Code.CONFIG_CRITERIA_MET); }
+        else if (userCfg) { r.status = Status.VERIFIED; r.level = VerLevel.USER_CONFIGURATION; r.confirmed.add(Code.USER_VERIFIED_CONFIG); }
         else if (!rem && !in.hasSink) r.status = Status.UNKNOWN;
         else r.status = Status.NOT_VERIFIED;
         return r;

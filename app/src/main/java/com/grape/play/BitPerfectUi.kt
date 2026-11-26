@@ -37,6 +37,7 @@ private fun codeText(c: BitPerfect.Code): String = when (c) {
     BitPerfect.Code.DSP_NOT_APPLIED_REMOTE -> s("DSP của app không áp dụng khi gửi file tới thiết bị ngoài.", "The app DSP is not applied when sending the file to an external device.")
     BitPerfect.Code.SENDS_ORIGINAL_FILE -> s("App gửi file gốc, không giải mã hay chuyển mã.", "The app sends the original file, without decoding or transcoding.")
     BitPerfect.Code.APP_NO_RESAMPLE -> s("App không phát hiện đổi tần số trước bộ xuất âm thanh (chỉ phần app; hệ thống chưa xác minh).", "The app detects no sample-rate change before the audio sink (app side only; the system is not verified).")
+    BitPerfect.Code.USER_VERIFIED_CONFIG -> s("Bạn đã tự kiểm tra ĐÚNG tổ hợp này (thiết bị, kết nối, định dạng, điều kiện) và ghi nhận dữ liệu không đổi (User Verified). Đây là kết quả của bạn, app không tự quan sát được bên trong thiết bị nhận.", "You tested EXACTLY this combination (device, connection, format, conditions) and recorded that the data is unchanged (User Verified). This is your own result; the app cannot observe inside the receiver.")
     BitPerfect.Code.CONFIG_CRITERIA_MET -> s("Đủ điều kiện cấu hình: thiết bị + phương thức kết nối khớp danh mục, đúng thiết bị Android đang định tuyến, định dạng nằm trong thông số, không DSP, âm lượng tối đa. Đây là xác minh theo CẤU HÌNH, không phải phép đo toàn tuyến.", "Configuration criteria met: device + connection match the registry, it is the device Android is routing to, the format is within its specs, no DSP, volume at maximum. This is a CONFIGURATION check, not an end-to-end measurement.")
     BitPerfect.Code.ROUTE_UNKNOWN -> s("System Default – Route Unknown: Android không cho biết thiết bị nào thực sự đang nhận âm thanh (cần Android 13+ và đúng một thiết bị định tuyến). App không đoán HDMI/quang/Bluetooth.", "System Default – Route Unknown: Android does not say which device is actually receiving the audio (needs Android 13+ and exactly one routed device). The app does not guess HDMI/optical/Bluetooth.")
     BitPerfect.Code.SELECTED_NOT_CONFIRMED -> s("Thiết bị bạn chọn trong app chưa được Android xác nhận là thiết bị đang phát.", "The device you selected in the app is not confirmed by Android as the one playing.")
@@ -64,7 +65,7 @@ private fun codeText(c: BitPerfect.Code): String = when (c) {
 }
 
 internal fun statusText(st: BitPerfect.Status, lv: BitPerfect.VerLevel = BitPerfect.VerLevel.NONE) = when (st) {
-    BitPerfect.Status.VERIFIED -> if (lv == BitPerfect.VerLevel.CONFIGURATION) "VERIFIED – CONFIGURATION" else if (lv == BitPerfect.VerLevel.END_TO_END) "VERIFIED – END-TO-END" else "VERIFIED"
+    BitPerfect.Status.VERIFIED -> if (lv == BitPerfect.VerLevel.CONFIGURATION) "VERIFIED – CONFIGURATION" else if (lv == BitPerfect.VerLevel.END_TO_END) "VERIFIED – END-TO-END" else if (lv == BitPerfect.VerLevel.USER_CONFIGURATION) "VERIFIED – USER-VERIFIED CONFIGURATION" else "VERIFIED"
     BitPerfect.Status.NOT_VERIFIED -> "NOT VERIFIED"
     BitPerfect.Status.NOT_BIT_PERFECT -> "NOT BIT-PERFECT"
     BitPerfect.Status.UNKNOWN -> "UNKNOWN"
@@ -111,6 +112,7 @@ fun BitPerfectDialog() {
             T(s("Trạng thái Bit-perfect", "Bit-perfect status"), if (compact) 18 else 22, serif = true)
             T(statusText(r.status, r.level), if (compact) 17 else 22, grade.color, bold = true)
             T(why(r.status), 13, C.Muted, lines = 6)
+            if (r.level == BitPerfect.VerLevel.USER_CONFIGURATION) T(s("Mức xác minh: do chính bạn xác minh (User Verified) cho đúng tổ hợp thiết bị + kết nối + định dạng đang phát — không phải phép đo từ nguồn tới DAC.", "Verification level: verified by you (User Verified) for exactly this device + connection + format combination — not a measurement from source to DAC."), 12, C.Gold, lines = 5)
             if (t != null) T(t.title, 14, C.Gold, bold = true, lines = 1)
 
             SectionLabel(s("THÔNG TIN TÁCH RIÊNG", "SEPARATE INFORMATION"))
@@ -168,12 +170,7 @@ fun BitPerfectDialog() {
             val actDet = remember(inp, profVer) { runCatching { BitPerfectProbe.detected(lctx) }.getOrNull() }
             val key = if (remote != null) DeviceRegistry.keyOf(DeviceRegistry.Detected(remote!!.name, inp.route, -1, -1, false)) else actDet?.let { DeviceRegistry.keyOf(it) }
             val prof = key?.let { DeviceProfiles.store.find(it) }
-            val combo = DeviceVerification.Combo().also {
-                it.catalogId = prof?.catalogId.orEmpty(); it.firmware = prof?.firmware.orEmpty(); it.conn = inp.route; it.dsd = inp.srcDsd
-                it.dsdMode = if (!inp.srcDsd) DeviceCatalog.Dsd.UNDOCUMENTED else if (inp.dopActive) DeviceCatalog.Dsd.DOP else if (remote != null) DeviceCatalog.Dsd.NATIVE else DeviceCatalog.Dsd.DSD_TO_PCM
-                it.rate = inp.srcRate; it.bits = inp.srcBits
-                it.dspOff = !inp.dspActive; it.volumeFixed = inp.volumeFixed || remote != null; it.resamplingOff = remote != null || (inp.hasSink && inp.sinkRate == inp.srcRate)
-            }
+            val combo = DeviceProfiles.comboOf(inp, prof)
             T(s("Kết quả xác minh của một thiết bị/kết nối/cấu hình KHÔNG đại diện cho phương thức hay cấu hình khác, và không thay thế bằng chứng của phiên phát này.", "A verification of one device/connection/configuration does not stand for another, and does not replace the evidence of this playback session."), 12, C.Muted, lines = 5)
             if (prof == null) T(s("Thiết bị chưa được lưu trong “Thiết bị âm thanh của tôi”: chưa áp dụng được xác minh theo thiết bị. Vào đó để Confirm Device Identity.", "The device is not saved in “My Audio Devices”: no device-specific verification can be applied. Open it to Confirm Device Identity."), 12, C.Muted, lines = 5)
             else {

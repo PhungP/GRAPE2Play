@@ -1,3 +1,16 @@
+# GRAPE2Play 3.0.2 — Ghi chú phát hành
+
+**Sửa lỗi con trỏ D-pad (TV):** mở "Bit-perfect Verified Devices" / "Thiết bị âm thanh của tôi" không còn làm con trỏ nhảy sang menu khác — nguyên nhân gốc là khung hộp thoại điều khiển tiêu điểm của cửa sổ chính thay vì của chính hộp thoại.
+
+**Dò loa JBL L75ms UPnP:** đo thật cho thấy loa không trả lời gói tìm kiếm multicast (nhưng trả lời gói gửi thẳng IP). App nay quét thêm unicast toàn mạng con nên thấy cả UPnP lẫn Google Cast.
+
+**Cast/UPnP và trạng thái Bit-perfect:** app không thể quan sát bên trong loa/thiết bị nhận nên mặc định "NOT VERIFIED". Nay bạn có thể xác nhận thiết bị (mục "Thiết bị âm thanh của tôi" liệt kê cả Google Cast) rồi "Verify Playback Capability"; nếu bạn tự kiểm tra đúng tổ hợp đang phát (thiết bị, kết nối, định dạng, tần số/bit) với phương pháp ít nhất là báo hiệu trên thiết bị, trạng thái sẽ là "VERIFIED – USER-VERIFIED CONFIGURATION" — kết quả của bạn, không phải phép đo của app.
+
+**Chạy ngầm:** chữ xanh "Đang bật chạy ngầm" nay chỉ phản ánh nút Bật/Tắt; quyền miễn tối ưu pin hiển thị riêng.
+
+Không đổi: Audio Engine, DSP/EQ, ký và cập nhật OTA. Chưa kiểm thử trên TV/loa thật.
+
+---
 # GRAPE2Play 3.0.1 — Ghi chú phát hành
 
 **Sửa lỗi TV/D-pad:** mở "Bit-perfect Verified Devices", "Thiết bị âm thanh của tôi", Chi tiết thiết bị và form Verify không còn làm con trỏ nhảy ra các menu khác của app.
