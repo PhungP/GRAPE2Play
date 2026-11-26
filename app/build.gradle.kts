@@ -26,7 +26,19 @@ android {
         // Client ID của Microsoft là public client, không có secret.
         buildConfigField("String", "MS_CLIENT_ID", "\"${secret("MS_CLIENT_ID", "9100e450-02b5-4808-9076-53125990fa0b")}\"")
     }
-    buildTypes { release { isMinifyEnabled = false } }
+    // Ký bản release: chỉ khi đặt biến môi trường (không bao giờ ghi khoá/mật khẩu vào mã nguồn):
+    //   GRAPE_KEYSTORE (đường dẫn .jks/.p12), GRAPE_KEYSTORE_PASSWORD, GRAPE_KEY_ALIAS, GRAPE_KEY_PASSWORD (bỏ trống = dùng mật khẩu keystore)
+    // Không đặt → bản release không được ký (không đổi hành vi cũ), bản debug không bị ảnh hưởng.
+    val releaseKeystore = System.getenv("GRAPE_KEYSTORE").orEmpty()
+    if (releaseKeystore.isNotEmpty()) {
+        signingConfigs.create("grapeRelease") {
+            storeFile = file(releaseKeystore)
+            storePassword = System.getenv("GRAPE_KEYSTORE_PASSWORD").orEmpty()
+            keyAlias = System.getenv("GRAPE_KEY_ALIAS").orEmpty()
+            keyPassword = System.getenv("GRAPE_KEY_PASSWORD")?.takeIf { it.isNotEmpty() } ?: System.getenv("GRAPE_KEYSTORE_PASSWORD").orEmpty()
+        }
+    }
+    buildTypes { release { isMinifyEnabled = false; if (releaseKeystore.isNotEmpty()) signingConfig = signingConfigs.getByName("grapeRelease") } }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true; buildConfig = true }

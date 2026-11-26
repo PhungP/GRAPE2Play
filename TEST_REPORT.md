@@ -68,3 +68,18 @@ gradle clean :app:assembleDebug :app:testDebugUnitTest      # hoặc ./gradlew n
 ./run_core_tests.sh
 ```
 Release: thêm `signingConfig` (đọc mật khẩu từ biến môi trường, không commit) rồi `gradle :app:assembleRelease`, kiểm tra bằng `apksigner verify --print-certs`.
+
+## Release Preparation (trạng thái: RELEASE CANDIDATE — chưa có APK release ký)
+- Git: commit `cd9d525` đã push lên `origin/main`.
+- Ký release: keystore PKCS12 `~/my-release-key.jks` (alias `key0`) có trên máy nhưng **mật khẩu không có trong môi trường** (không có biến môi trường, không có `signingConfig`) nên **chưa ký và chưa build release**. Không đoán/ghi mật khẩu. Chưa đối chiếu được fingerprint với APK v2.9.8 (SHA-256 chứng chỉ 853ecf48f9adf43e61ceacf7b921ac27a800e4546912b2b67ccfa4ed668106f4, CN=Peter Phan).
+- `app/build.gradle.kts` nay đọc khoá ký từ biến môi trường `GRAPE_KEYSTORE`, `GRAPE_KEYSTORE_PASSWORD`, `GRAPE_KEY_ALIAS`, `GRAPE_KEY_PASSWORD` (tuỳ chọn); không đặt thì hành vi cũ. Build debug sau thay đổi: BUILD SUCCESSFUL.
+- Kiểm thử nâng cấp 2.9.8 → 2.9.9, hồi quy USB/UPnP/Cast/HDMI/quang, giao diện catalog, persistence sau restart, Updater, About: **chưa thực hiện** (không có thiết bị test được cho phép; emulator không ổn định).
+- GitHub Release v2.9.9: **chưa tạo** (chưa có APK ký đúng khoá).
+
+Để hoàn tất (trên máy có mật khẩu):
+```
+export GRAPE_KEYSTORE=~/my-release-key.jks GRAPE_KEY_ALIAS=key0
+read -s GRAPE_KEYSTORE_PASSWORD && export GRAPE_KEYSTORE_PASSWORD
+gradle clean :app:testDebugUnitTest :app:assembleRelease
+apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk   # SHA-256 phải = 853ecf48…06f4
+```
