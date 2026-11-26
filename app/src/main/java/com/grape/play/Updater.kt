@@ -101,89 +101,6 @@ object Updater {
         }
     }
 
-    // ---------------- Quay về phiên bản trước (rollback) ----------------
-    // Giới hạn của Android: KHÔNG cho cài đè một APK có versionCode THẤP HƠN bản đang cài (INSTALL_FAILED_VERSION_DOWNGRADE).
-    // Vì vậy rollback = tải APK bản cũ vào Download/GRAPE2Play (còn lại sau khi gỡ app) → người dùng gỡ bản hiện tại → cài file đó.
-    // Gỡ app sẽ xoá dữ liệu của app (nguồn nhạc đã thêm, cài đặt, hồ sơ thiết bị); KHÔNG xoá file nhạc của bạn.
-    val older = mutableStateOf<List<Release>>(emptyList())
-    val olderBusy = mutableStateOf(false)
-    val olderMsg = mutableStateOf("")
-    val savedPath = mutableStateOf("")
-
-    private fun parseOlder(cur: String): List<Release> {
-        val req = Request.Builder().url("https://api.github.com/repos/$REPO/releases?per_page=30")
-            .header("Accept", "application/vnd.github+json").header("User-Agent", "GRAPEPlay-Updater").build()
-        Http.client.newCall(req).execute().use { r ->
-            if (!r.isSuccessful) throw IOException("HTTP ${r.code}")
-            val arr = org.json.JSONArray(r.body?.string().orEmpty())
-            val all = ArrayList<Release>()
-            for (i in 0 until arr.length()) {
-                val j = arr.getJSONObject(i)
-                if (j.optBoolean("draft") || j.optBoolean("prerelease")) continue
-                val tag = j.optString("tag_name").trim().trimStart { !it.isDigit() }
-                val assets = j.optJSONArray("assets") ?: continue
-                var url = ""; var size = 0L
-                for (k in 0 until assets.length()) {
-                    val a = assets.getJSONObject(k)
-                    if (a.optString("name").endsWith(".apk", ignoreCase = true)) { url = a.optString("browser_download_url"); size = a.optLong("size"); break }
-                }
-                if (tag.isNotEmpty() && url.isNotEmpty()) all.add(Release(tag, url, size, j.optString("body").trim()))
-            }
-            val keep = Versions.olderThan(cur, all.map { it.version }, 10)
-            return keep.mapNotNull { v -> all.firstOrNull { Versions.compare(it.version, v) == 0 } }
-        }
-    }
-
-    suspend fun loadOlder(ctx: Context) {
-        if (olderBusy.value) return
-        olderBusy.value = true; olderMsg.value = ""; savedPath.value = ""
-        try {
-            older.value = withContext(Dispatchers.IO) { parseOlder(currentVersion(ctx)) }
-            if (older.value.isEmpty()) olderMsg.value = "Không có bản cũ hơn trên GitHub (cần Release công khai có file .apk)."
-        } catch (e: Exception) { olderMsg.value = "Không lấy được danh sách: " + (e.message ?: e.javaClass.simpleName) }
-        olderBusy.value = false
-    }
-
-    private fun saveToDownloads(ctx: Context, f: File): String {
-        val rel = "Download/GRAPE2Play"
-        if (Build.VERSION.SDK_INT >= 29) {
-            val cv = android.content.ContentValues().apply {
-                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, f.name)
-                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/vnd.android.package-archive")
-                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, rel)
-            }
-            val uri = ctx.contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv) ?: throw IOException("Không tạo được file trong Download")
-            ctx.contentResolver.openOutputStream(uri)?.use { os -> f.inputStream().use { it.copyTo(os) } } ?: throw IOException("Không ghi được file vào Download")
-        } else {
-            val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "GRAPE2Play").apply { mkdirs() }
-            f.copyTo(File(dir, f.name), overwrite = true)
-        }
-        return rel + "/" + f.name
-    }
-
-    /** Tải bản cũ (kiểm kích thước + đúng package như bản cập nhật) rồi lưu vào Download/GRAPE2Play. Trả về thông báo cho người dùng. */
-    suspend fun downloadOlder(ctx: Context, rel: Release): String {
-        if (state.value == St.DOWNLOADING) return "Đang tải bản khác, hãy chờ."
-        val prev = state.value
-        state.value = St.DOWNLOADING; progress.value = 0
-        return try {
-            val f = withContext(Dispatchers.IO) { download(ctx, rel) }
-            val path = withContext(Dispatchers.IO) { saveToDownloads(ctx, f) }
-            savedPath.value = path
-            state.value = prev
-            "Đã lưu bản ${rel.version} vào $path. Android không cho cài đè bản thấp hơn: hãy gỡ GRAPEPlay hiện tại rồi mở file này để cài."
-        } catch (e: Exception) {
-            AppLog.e("Update", "Tải bản cũ lỗi", e)
-            state.value = prev
-            "Lỗi tải bản ${rel.version}: " + (e.message ?: e.javaClass.simpleName)
-        }
-    }
-
-    /** Mở hộp thoại gỡ cài đặt của Android cho chính app này. */
-    fun uninstallSelf(ctx: Context): String? = try {
-        ctx.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${ctx.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); null
-    } catch (e: Exception) { "Không mở được hộp thoại gỡ cài đặt. Hãy gỡ GRAPEPlay trong Cài đặt ▸ Ứng dụng." }
-
     private val bg = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     /**
@@ -278,7 +195,6 @@ fun UpdateCard() {
     val pct by Updater.progress
     val err by Updater.error
     var msg by remember { mutableStateOf("") }
-    var rbOpen by remember { mutableStateOf(false) }
     val cur = remember { Updater.currentVersion(ctx) }
     LaunchedEffect(Unit) { Updater.autoCheck(ctx) }
 
@@ -317,9 +233,7 @@ fun UpdateCard() {
             else -> Btn("Kiểm tra cập nhật") { msg = ""; scope.launch { Updater.check(ctx) } }
         }
         T("Cập nhật được tải từ trang phát hành GitHub của GRAPEPlay. Bản mới sẽ cài đè, không mất nguồn nhạc và cài đặt.", 13, C.Muted, lines = 3)
-        Btn("Quay về phiên bản trước") { rbOpen = true; scope.launch { Updater.loadOlder(ctx) } }
     }
-    if (rbOpen) RollbackDialog(onClose = { rbOpen = false })
 }
 
 /** Cửa sổ thông báo khi có bản mới: tự hiện sau khi mở app. Nút "Để sau" đóng cửa sổ (lần mở app sau sẽ nhắc lại). */
@@ -371,53 +285,6 @@ fun UpdateDialog() {
                     T(if (st == Updater.St.READY) "Cài đặt ngay" else if (st == Updater.St.ERROR) "Thử lại" else "Cập nhật ngay", f(18), C.Gold, Modifier.padding(if (big) 22.dp else 14.dp, if (big) 10.dp else 6.dp), bold = true)
                 }
             }
-        }
-    }
-}
-
-/** Quay về phiên bản trước: chọn bản cũ → tải vào Download/GRAPE2Play → (tuỳ chọn) gỡ bản hiện tại. Nói rõ giới hạn của Android và rủi ro mất dữ liệu app. */
-@Composable
-fun RollbackDialog(onClose: () -> Unit) {
-    val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val list by Updater.older
-    val busy by Updater.olderBusy
-    val listMsg by Updater.olderMsg
-    val st by Updater.state
-    val pct by Updater.progress
-    val saved by Updater.savedPath
-    var chosen by remember { mutableStateOf<Updater.Release?>(null) }
-    var msg by remember { mutableStateOf("") }
-    val first = remember { FocusRequester() }
-    val compact = LocalCompact.current
-    LaunchedEffect(busy) { delay(150); runCatching { first.requestFocus() } }
-    Dialog(onDismissRequest = { if (st != Updater.St.DOWNLOADING) onClose() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            (if (compact) Modifier.dlgW(560) else Modifier.dlgFrac(0.45f)).clip(RoundedCornerShape(14.dp)).background(C.Dlg).border(1.dp, C.Line, RoundedCornerShape(14.dp)).dlgPad(26, 18),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            T("QUAY VỀ PHIÊN BẢN TRƯỚC", 13, C.Muted, spaced = true)
-            T("Đang dùng bản ${Updater.currentVersion(ctx)}", 18, C.Text)
-            T("Android không cho cài đè bản có versionCode thấp hơn. Để quay về, app tải bản cũ vào thư mục Download/GRAPE2Play, sau đó bạn gỡ GRAPEPlay hiện tại rồi cài file đó. " +
-                "Gỡ app sẽ XOÁ dữ liệu của app (nguồn nhạc đã thêm, cài đặt, hồ sơ thiết bị Bit-perfect); file nhạc của bạn không bị xoá. Hãy ghi lại các nguồn nhạc trước khi làm.", 13, C.Gold, lines = 8)
-            if (busy) T("Đang lấy danh sách…", 15, C.Muted)
-            else if (list.isEmpty()) T(listMsg.ifEmpty { "Không có bản cũ hơn." }, 15, C.Muted, lines = 3)
-            else {
-                T("CHỌN BẢN CẦN QUAY VỀ", 12, C.Muted, spaced = true)
-                list.forEachIndexed { i, r ->
-                    Focusable({ chosen = r; msg = "" }, if (i == 0) Modifier.fillMaxWidth() else Modifier.fillMaxWidth(), selected = chosen === r, requester = if (i == 0) first else null) {
-                        T((if (chosen === r) "● " else "○ ") + r.version + (if (r.size > 0) " · ${mb(r.size)}" else ""), 17, if (chosen === r) C.Gold else C.Text, Modifier.padding(14.dp, 8.dp))
-                    }
-                }
-            }
-            if (st == Updater.St.DOWNLOADING) T("Đang tải… $pct%", 17, C.Gold, bold = true)
-            if (msg.isNotEmpty()) T(msg, 14, C.Gold, lines = 6)
-            val c = chosen
-            if (c != null && st != Updater.St.DOWNLOADING)
-                Focusable({ msg = ""; scope.launch { msg = Updater.downloadOlder(ctx, c) } }) { T("Tải bản ${c.version} vào Download", 16, C.Gold, Modifier.padding(14.dp, 8.dp), bold = true) }
-            if (saved.isNotEmpty() && st != Updater.St.DOWNLOADING)
-                Focusable({ msg = Updater.uninstallSelf(ctx).orEmpty() }) { T("Gỡ GRAPEPlay hiện tại (mất dữ liệu app)", 15, C.Muted, Modifier.padding(14.dp, 8.dp)) }
-            if (st != Updater.St.DOWNLOADING) Focusable({ onClose() }) { T("Đóng", 16, C.Muted, Modifier.padding(14.dp, 8.dp), bold = true) }
         }
     }
 }

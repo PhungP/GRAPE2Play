@@ -111,6 +111,8 @@ public final class DeviceRegistry {
     public static final String SRC_DETECTED = "DETECTED", SRC_USER = "USER";
     public static final class Profile {
         public String key = "", source = SRC_DETECTED, entryId = "", manufacturer = "", model = "", name = "", notes = "";
+        /** 2.9.9: id thiết bị trong {@link DeviceCatalog} (người dùng xác nhận/sửa) và UDN UPnP. Chỉ là liên kết nhận dạng — KHÔNG cấp mức xác minh. */
+        public String catalogId = "", udn = "";
         public Route conn = Route.ROUTE_UNKNOWN; public int vid = -1, pid = -1; public long confirmedAt;
         public int[] bits = new int[0], rates = new int[0];   // do người dùng khai báo; chỉ để hiển thị, KHÔNG dùng để cấp xác minh
         public String label() { String s = (manufacturer + " " + model).trim(); return s.isEmpty() ? name : s; }
@@ -144,6 +146,18 @@ public final class DeviceRegistry {
         p.key = keyOf(d); p.source = SRC_USER; p.conn = d.conn; p.vid = d.vid; p.pid = d.pid; p.name = d.name; p.confirmedAt = now;
         p.manufacturer = manufacturer == null ? "" : manufacturer.trim(); p.model = model == null ? "" : model.trim(); p.notes = notes == null ? "" : notes.trim();
         p.bits = bits == null ? new int[0] : bits; p.rates = rates == null ? new int[0] : rates;
+        st.put(p); return p;
+    }
+    /**
+     * 2.9.9: người dùng xác nhận/sửa danh tính thiết bị theo bản ghi {@link DeviceCatalog}. Chỉ lưu liên kết nhận dạng (hãng/model/id catalog) với đúng phương thức kết nối;
+     * KHÔNG đổi mức xác minh và không phải bằng chứng bit-perfect. [dev] = null ⇒ gỡ liên kết catalog (giữ hồ sơ).
+     */
+    public static Profile linkCatalog(Store st, Detected d, String udn, DeviceCatalog.Device dev, long now) {
+        Profile p = st.find(keyOf(d));
+        if (p == null) { p = new Profile(); p.key = keyOf(d); p.source = SRC_DETECTED; p.conn = d.conn; p.vid = d.vid; p.pid = d.pid; p.name = d.name; }
+        p.confirmedAt = now; p.udn = udn == null ? "" : udn;
+        if (dev == null) { p.catalogId = ""; }
+        else { p.catalogId = dev.id; p.manufacturer = dev.manufacturer; p.model = dev.model; p.source = p.entryId.isEmpty() ? SRC_DETECTED : p.source; }
         st.put(p); return p;
     }
     public static void dismiss(Store st, Detected d) { st.dismissed.add(keyOf(d)); }
@@ -212,7 +226,7 @@ public final class DeviceRegistry {
         for (Profile p : st.profiles)
             b.append("P\t").append(esc(p.key)).append('\t').append(p.source).append('\t').append(esc(p.entryId)).append('\t').append(esc(p.manufacturer)).append('\t').append(esc(p.model)).append('\t')
                     .append(esc(p.name)).append('\t').append(p.conn.name()).append('\t').append(p.vid).append('\t').append(p.pid).append('\t').append(esc(p.notes)).append('\t')
-                    .append(p.confirmedAt).append('\t').append(csv(p.bits)).append('\t').append(csv(p.rates)).append('\n');
+                    .append(p.confirmedAt).append('\t').append(csv(p.bits)).append('\t').append(csv(p.rates)).append('\t').append(esc(p.catalogId)).append('\t').append(esc(p.udn)).append('\n');
         for (String r : st.rejected) b.append("R\t").append(esc(r)).append('\n');
         for (String r : st.dismissed) b.append("D\t").append(esc(r)).append('\n');
         return b.toString();
@@ -229,6 +243,7 @@ public final class DeviceRegistry {
                     p.key = unesc(f[1]); p.source = f[2].equals(SRC_USER) ? SRC_USER : SRC_DETECTED; p.entryId = unesc(f[3]); p.manufacturer = unesc(f[4]); p.model = unesc(f[5]); p.name = unesc(f[6]);
                     p.conn = Route.valueOf(f[7]); p.vid = Integer.parseInt(f[8]); p.pid = Integer.parseInt(f[9]); p.notes = unesc(f[10]); p.confirmedAt = Long.parseLong(f[11]);
                     p.bits = parseCsv(f[12]); p.rates = f.length > 13 ? parseCsv(f[13]) : new int[0];
+                    p.catalogId = f.length > 14 ? unesc(f[14]) : ""; p.udn = f.length > 15 ? unesc(f[15]) : "";
                     if (!p.key.isEmpty()) st.profiles.removeIf(x -> x.key.equals(p.key)); if (!p.key.isEmpty()) st.profiles.add(p);
                 } else if (f[0].equals("R") && f.length >= 2 && !f[1].isEmpty()) st.rejected.add(unesc(f[1]));
                 else if (f[0].equals("D") && f.length >= 2 && !f[1].isEmpty()) st.dismissed.add(unesc(f[1]));

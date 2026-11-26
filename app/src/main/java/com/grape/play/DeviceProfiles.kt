@@ -31,6 +31,9 @@ object DeviceProfiles {
         version.value = version.value + 1
     }
 
+    /** Lưu lại sau khi Store bị sửa từ bên ngoài (ví dụ liên kết danh mục). */
+    fun persist() = save()
+
     fun applyTo(x: BitPerfect.Input, det: DeviceRegistry.Detected) = DeviceRegistry.apply(x, det, regs, store)
 
     /**

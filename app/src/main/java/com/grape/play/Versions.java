@@ -1,9 +1,6 @@
 package com.grape.play;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/** So sánh số phiên bản và lọc "các bản cũ hơn" cho tính năng rollback — thuần Java (có test). */
+/** So sánh số phiên bản  — thuần Java (có test). */
 public final class Versions {
     private Versions() {}
 
@@ -30,16 +27,4 @@ public final class Versions {
         return 0;
     }
     public static boolean isNewer(String remote, String local) { return compare(remote, local) > 0; }
-
-    /** Các phiên bản CŨ HƠN [current], mới nhất trước, bỏ trùng, tối đa [max]. */
-    public static List<String> olderThan(String current, List<String> all, int max) {
-        List<String> out = new ArrayList<>();
-        for (String v : all) {
-            if (v == null || !v.matches(".*\\d.*") || compare(v, current) >= 0) continue;   // bỏ tag không có chữ số
-            boolean dup = false; for (String o : out) if (compare(o, v) == 0) dup = true;
-            if (!dup) out.add(v);
-        }
-        out.sort((a, b) -> compare(b, a));
-        return out.size() > max ? new ArrayList<>(out.subList(0, max)) : out;
-    }
 }

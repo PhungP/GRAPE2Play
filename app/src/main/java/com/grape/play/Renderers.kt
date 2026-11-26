@@ -35,6 +35,8 @@ import kotlin.coroutines.resume
 data class Renderer(
     val kind: String, val name: String, val id: String, val host: String, val port: Int = 0,
     val avCtrl: String = "", val rcCtrl: String = "",
+    /** 2.9.9: metadata từ UPnP device description (chỉ để nhận diện thiết bị trong danh mục; không ảnh hưởng phát nhạc). */
+    val maker: String = "", val model: String = "", val modelDesc: String = "",
 ) {
     val label: String get() = name + if (kind == "cast") " · Google Cast" else " · UPnP"
 }
@@ -110,17 +112,17 @@ object Renderers {
     }
 
     // ---------------- Nhớ thiết bị đã thấy ----------------
-    private fun loadKnown(ctx: Context): List<Renderer> = runCatching {
+    fun loadKnown(ctx: Context): List<Renderer> = runCatching {
         val arr = org.json.JSONArray(ctx.getSharedPreferences("renderers", Context.MODE_PRIVATE).getString("known", "[]"))
         (0 until arr.length()).map { i -> arr.getJSONObject(i).let {
-            Renderer(it.getString("kind"), it.getString("name"), it.getString("id"), it.getString("host"), it.optInt("port"), it.optString("av"), it.optString("rc"))
+            Renderer(it.getString("kind"), it.getString("name"), it.getString("id"), it.getString("host"), it.optInt("port"), it.optString("av"), it.optString("rc"), it.optString("mk"), it.optString("md"), it.optString("mdesc"))
         } }
     }.getOrDefault(emptyList())
 
     private fun saveKnown(ctx: Context, list: List<Renderer>) {
         runCatching {
             val arr = org.json.JSONArray()
-            list.take(40).forEach { r -> arr.put(org.json.JSONObject().put("kind", r.kind).put("name", r.name).put("id", r.id).put("host", r.host).put("port", r.port).put("av", r.avCtrl).put("rc", r.rcCtrl)) }
+            list.take(40).forEach { r -> arr.put(org.json.JSONObject().put("kind", r.kind).put("name", r.name).put("id", r.id).put("host", r.host).put("port", r.port).put("av", r.avCtrl).put("rc", r.rcCtrl).put("mk", r.maker).put("md", r.model).put("mdesc", r.modelDesc)) }
             ctx.getSharedPreferences("renderers", Context.MODE_PRIVATE).edit().putString("known", arr.toString()).apply()
         }
     }
@@ -215,13 +217,16 @@ object Renderers {
         val http = Http.client.newBuilder().callTimeout(6, TimeUnit.SECONDS).build()
         val xml = http.newCall(Request.Builder().url(loc).build()).execute().use { it.body!!.string() }
         val p = Xml.newPullParser(); p.setInput(StringReader(xml))
-        var name = ""; var udn = ""; var base = ""; var st = ""; var inSvc = false; var av = ""; var rc = ""
+        var name = ""; var udn = ""; var base = ""; var st = ""; var inSvc = false; var av = ""; var rc = ""; var mk = ""; var md = ""; var mdesc = ""
         var ev = p.eventType
         while (ev != XmlPullParser.END_DOCUMENT) {
             if (ev == XmlPullParser.START_TAG) {
                 when (p.name) {
                     "friendlyName" -> { val v = p.nextText(); if (name.isEmpty()) name = v }
                     "UDN" -> { val v = p.nextText(); if (udn.isEmpty()) udn = v }
+                    "manufacturer" -> { val v = p.nextText(); if (mk.isEmpty()) mk = v.trim() }
+                    "modelName" -> { val v = p.nextText(); if (md.isEmpty()) md = v.trim() }
+                    "modelDescription" -> { val v = p.nextText(); if (mdesc.isEmpty()) mdesc = v.trim() }
                     "URLBase" -> base = p.nextText()
                     "service" -> { inSvc = true; st = "" }
                     "serviceType" -> { val v = p.nextText(); if (inSvc) st = v }
@@ -238,7 +243,7 @@ object Renderers {
         val root = URL(if (base.isNotEmpty()) base else loc)
         val u = URL(loc)
         return Renderer("upnp", name.ifEmpty { "Thiết bị UPnP" }, udn.ifEmpty { loc }, u.host, u.port,
-            URL(root, av).toString(), if (rc.isEmpty()) "" else URL(root, rc).toString())
+            URL(root, av).toString(), if (rc.isEmpty()) "" else URL(root, rc).toString(), mk, md, mdesc)
     }
 
     // ---------------- Google Cast (mDNS qua NsdManager) ----------------

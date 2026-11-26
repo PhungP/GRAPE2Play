@@ -1,4 +1,4 @@
-# Cơ chế Bit-perfect và Device Registry (2.9.5)
+# Cơ chế Bit-perfect và Device Registry (2.9.5; danh mục thiết bị 2.9.9)
 
 > Trạng thái: mã nguồn viết xong, **BUILD NOT VERIFIED**, **chưa kiểm thử thiết bị thật**. Chỉ phần Java thuần có test chạy thật (TEST_REPORT.md).
 
@@ -66,3 +66,13 @@ Quản lý (BitPerfect ⓘ → "Quản lý thiết bị Bit-perfect"): xem thi�
 
 ## 8. Không thay đổi
 `Playback.kt`, Audio Engine, decoder, DSD/DoP/PCM, DSP/EQ, USB/NAS, UPnP/Cast, buffering, chuyển bài, thuật toán chọn thiết bị. Chỉ thêm các lệnh **đọc** (`Playback.sinkFmt`, `Playback.context`, `AudioManager`, `UsbManager`) và các lời gọi `DeviceProfiles.check()` ở `MainActivity`/`OutputPage` (không làm thay đổi việc chọn/phát).
+
+## 9. Danh mục thiết bị Bit-perfect Verified Devices (2.9.9)
+Chi tiết ở DEVICE_REGISTRY.md. Tóm tắt phương pháp:
+- **Bốn khái niệm tách biệt:** (1) *nhận diện thiết bị* — biết đúng model; (2) *xác minh khả năng định dạng/giao thức* — tài liệu/thử nghiệm cho thấy thiết bị nhận định dạng đó qua kết nối đó; (3) *xác minh cấu hình có thể bit-perfect* — thiết bị + kết nối + cấu hình giữ nguyên dữ liệu, kèm điều kiện DSP/âm lượng/resampling/DSD và bằng chứng; (4) *bit-perfect đầu cuối* — đo được dữ liệu không đổi tại đầu nhận. Chỉ (3)–(4) mới là kết luận về bit-perfect; hiện danh mục chỉ đạt (1)–(2).
+- Không xếp "Verified" chỉ vì: hỗ trợ FLAC/WAV/Hi-Res/DSD, có cổng USB/quang/đồng trục/HDMI, người dùng xác nhận tên model, hay ứng dụng khác phát được.
+- Khả năng theo từng kết nối: cấu hình UPnP của một thiết bị không áp dụng cho USB/HDMI/quang của chính nó.
+- Danh mục (tra cứu) và `BitPerfect.evaluate` (phiên phát) độc lập: danh mục không làm phiên phát thành VERIFIED; luật `VERIFIED – CONFIGURATION` giữ nguyên, vẫn dựa vào `DeviceRegistry.builtin()`.
+- Ngày nghiên cứu cuối: 2026-11-25. Nguồn: trang thông số/manual chính thức đã đọc được; nguồn người dùng (JBL L75ms Native DSD qua mconnect; WiiM Ultra DSD→PCM qua DLNA) ghi rõ là `USER_TEST`, tối đa mức 2.
+- Giới hạn: độ phủ nhỏ (35 thiết bị), nhiều thông số chỉ là trang hãng (không đo), tên UPnP modelName và USB VID:PID chưa được xác minh cho hầu hết model (nên khớp chủ yếu theo hãng+model), không có thiết bị nào đạt mức 3–4.
+- Dự phòng dữ liệu: schema lạ hoặc tệp lỗi → danh mục rỗng + cảnh báo trong app; phiên phát và `BitPerfect.evaluate` không bị ảnh hưởng. Trạng thái kiểm thử: xem TEST_REPORT.md (giao diện chưa được chạy trên thiết bị).

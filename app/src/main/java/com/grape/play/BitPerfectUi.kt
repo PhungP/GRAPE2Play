@@ -62,7 +62,7 @@ private fun codeText(c: BitPerfect.Code): String = when (c) {
     BitPerfect.Code.DEVICE_DISCONNECTED -> s("Thiết bị đã chọn không còn kết nối; app đang dùng đầu ra mặc định hệ thống.", "The selected device is no longer connected; the app is using the system default output.")
 }
 
-private fun statusText(st: BitPerfect.Status, lv: BitPerfect.VerLevel = BitPerfect.VerLevel.NONE) = when (st) {
+internal fun statusText(st: BitPerfect.Status, lv: BitPerfect.VerLevel = BitPerfect.VerLevel.NONE) = when (st) {
     BitPerfect.Status.VERIFIED -> if (lv == BitPerfect.VerLevel.CONFIGURATION) "VERIFIED – CONFIGURATION" else if (lv == BitPerfect.VerLevel.END_TO_END) "VERIFIED – END-TO-END" else "VERIFIED"
     BitPerfect.Status.NOT_VERIFIED -> "NOT VERIFIED"
     BitPerfect.Status.NOT_BIT_PERFECT -> "NOT BIT-PERFECT"
@@ -166,6 +166,9 @@ fun BitPerfectDialog() {
             if (r.unverified.isNotEmpty()) { SectionLabel(s("CHƯA XÁC MINH ĐƯỢC", "NOT VERIFIED")); r.unverified.distinct().forEach { T("• " + codeText(it), 13, C.Muted, lines = 4) } }
             T(s("Giới hạn: Android không cho app đọc dữ liệu tại tầng mixer/HAL/DAC, TV hay thiết bị nhận, nên app chưa có phương pháp xác minh toàn đường truyền. VERIFIED – Configuration cần thiết bị + phương thức kết nối đã xác nhận trong danh mục VÀ Android thực sự định tuyến tới đó; không cấp chỉ dựa trên tên model, thông số công bố, thiết bị bạn chọn hay việc tắt EQ.",
                 "Limits: Android does not let the app read data at the mixer/HAL/DAC, the TV or the receiver, so the app has no method to verify the whole path. VERIFIED – Configuration needs a confirmed registry device + connection that Android is actually routing to; it is never granted from a model name alone, advertised specs, the device you selected, or EQ being off."), 12, C.Muted, lines = 8)
+            T(s("Danh mục thiết bị chưa đầy đủ: thiết bị không có trong danh mục không có nghĩa là không hỗ trợ Bit-perfect, và có trong danh mục không có nghĩa là đã bit-perfect.", "The device catalog is incomplete: a device missing from it does not mean it lacks Bit-perfect support, and being listed does not mean it is bit-perfect."), 12, C.Muted, lines = 5)
+            Focusable({ BitPerfectUi.open.value = false; DeviceCatalogStore.open.value = true }) { T(s("Bit-perfect Verified Devices (danh mục thiết bị)", "Bit-perfect Verified Devices (catalog)"), 15, C.Text, Modifier.padding(24.dp, 8.dp)) }
+            Focusable({ BitPerfectUi.open.value = false; DeviceCatalogStore.mine.value = true }) { T(s("Thiết bị âm thanh của tôi", "My Audio Devices"), 15, C.Text, Modifier.padding(24.dp, 8.dp)) }
             Focusable({ BitPerfectUi.open.value = false; DeviceProfiles.manage.value = true }) { T(s("Quản lý thiết bị Bit-perfect", "Manage Bit-perfect devices"), 15, C.Text, Modifier.padding(24.dp, 8.dp)) }
             Focusable({ BitPerfectUi.open.value = false }, requester = ok) { T(s("Đóng", "Close"), 16, C.Gold, Modifier.padding(24.dp, 8.dp), bold = true) }
         }

@@ -1,3 +1,18 @@
+# GRAPE2Play 2.9.9 — Ghi chú phát hành (build debug + unit test đạt; chưa kiểm thử trên thiết bị, chưa có APK release ký)
+
+**Bit-perfect Verified Devices (mới):** danh mục 35 thiết bị / 80 cấu hình kết nối đã nghiên cứu từ trang chính thức của nhà sản xuất (ngày nghiên cứu 2026-11-25), dùng offline. Mở từ Đầu ra ▸ "Bit-perfect Verified Devices". Mỗi kết nối được đánh giá riêng, với bốn trạng thái hiển thị khác nhau: *cấu hình bit-perfect đã xác minh*, *khả năng định dạng/giao thức đã xác minh*, *ứng viên*, *không bit-perfect theo cấu hình đã ghi nhận*.
+
+**Trung thực về bằng chứng:** hiện mọi mục chỉ ở mức 1–2 (nhận diện / khả năng theo tài liệu). Chưa có mục nào đạt mức 3–4 vì GRAPE2Play chưa đo dữ liệu tại đầu nhận. Có tên trong danh mục **không** có nghĩa là thiết bị bit-perfect. Danh mục chưa phải toàn bộ thiết bị trên thế giới (xem BITPERFECT.md, phần độ phủ).
+
+**Thiết bị âm thanh của tôi (mới):** đầu ra đang dùng, thiết bị UPnP đã thấy, hồ sơ cục bộ; xác nhận/sửa/xoá danh tính. Xác nhận danh tính không phải bằng chứng bit-perfect.
+
+**Lưu ý hiển thị:** danh mục chưa đầy đủ; thiết bị không có trong danh mục không có nghĩa là không hỗ trợ Bit-perfect.
+
+**Đã bỏ:** dòng dedication ở màn Về ứng dụng; chức năng "Quay về phiên bản trước".
+
+Không đổi: Playback.kt, Audio Engine, DSD/DoP/PCM, DSP/EQ, USB/NAS, UPnP, Cast, TV. Sleep Timer / Fade Out vẫn đã gỡ. Không tạo APK phát hành.
+
+---
 # GRAPE2Play 2.9.6 — Ghi chú phát hành (chưa biên dịch/kiểm thử trên thiết bị)
 
 **Tích hợp launcher GRAPE2Launcher:** app công bố MediaSession (tên bài, nghệ sĩ, album, thời lượng, ảnh bìa, trạng thái/vị trí, hàng đợi, điều khiển phát/tạm dừng/tiếp/trước/tua), thông báo dạng media, và ContentProvider `content://com.grape.play.library/albums` (≤12 album). Launcher có thể mở thẳng thư viện bằng extra `grape_open=library`. Xem LAUNCHER_INTEGRATION.md (giả định và cách kiểm tra). Bản 2.9.6 gồm cả các thay đổi của 2.9.5 bên dưới (chưa phát hành riêng).

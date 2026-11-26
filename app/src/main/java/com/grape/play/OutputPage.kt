@@ -114,6 +114,10 @@ fun OutputPage(onNav: (Screen) -> Unit) {
         rnItems.forEach { OutCard(it, null) }
         if (scanning) T("Đang tìm thiết bị…", 15, C.Muted)
         else if (scanned && Renderers.report.isNotEmpty()) T(Renderers.report, 12, C.Muted, lines = 6)
+        Spacer(Modifier.height(6.dp))
+        SectionLabel("BIT-PERFECT")
+        OptionCard(Icons.Outlined.HighQuality, "Bit-perfect Verified Devices", "Danh mục thiết bị đã nghiên cứu, theo từng kết nối và mức bằng chứng", false) { DeviceCatalogStore.open.value = true }
+        OptionCard(Icons.Outlined.PushPin, "Thiết bị âm thanh của tôi", "Thiết bị đã phát hiện/xác nhận và hồ sơ cục bộ", false) { DeviceCatalogStore.mine.value = true }
         if (!scanning && scanned && rnItems.isEmpty()) T("Không thấy thiết bị nào. Kiểm tra thiết bị và ${if (Device.tv) "TV" else "máy"} cùng mạng Wi-Fi/LAN, rồi quét lại.", 14, C.Muted, lines = 3)
     }
 

@@ -55,7 +55,7 @@ fun devLevelText(l: DevLevel): String = when (l) {
 }
 
 @Composable
-private fun DevField(label: String, value: String, onChange: (String) -> Unit) {
+internal fun DevField(label: String, value: String, onChange: (String) -> Unit) {
     var f by remember { mutableStateOf(false) }
     T(label, 12, C.Muted, bold = true)
     Box(Modifier.fillMaxWidth().border(if (f) 2.dp else 1.dp, if (f) C.Gold else C.Dim, RoundedCornerShape(10.dp)).background(C.Inset, RoundedCornerShape(10.dp)).padding(horizontal = 14.dp, vertical = 10.dp)) {
@@ -68,7 +68,7 @@ private fun DevField(label: String, value: String, onChange: (String) -> Unit) {
 }
 
 @Composable
-private fun Frame(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+internal fun Frame(onDismiss: () -> Unit, content: @Composable () -> Unit) {
     val compact = LocalCompact.current
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(

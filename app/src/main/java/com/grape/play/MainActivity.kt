@@ -106,6 +106,7 @@ class MainActivity : ComponentActivity() {
         SourceVisibility.init(applicationContext)
         Playback.init(applicationContext)
         DeviceProfiles.init(applicationContext)
+        DeviceCatalogStore.init(applicationContext)
         MediaSessionBridge.init(applicationContext)   // phiên media cho launcher (tên bài, ảnh bìa, hàng đợi, điều khiển)
         watchSystem()
         perm = ContextCompat.checkSelfPermission(this, storagePerm) == PackageManager.PERMISSION_GRANTED
@@ -170,6 +171,8 @@ class MainActivity : ComponentActivity() {
                         AiSaverHost()
                         if (BitPerfectUi.open.value) BitPerfectDialog()
                         if (DeviceProfiles.manage.collectAsState().value) DeviceManagerDialog()
+                        if (DeviceCatalogStore.open.collectAsState().value) DeviceCatalogDialog()
+                        if (DeviceCatalogStore.mine.collectAsState().value) MyAudioDevicesDialog()
                         DeviceConfirmDialog()
                         androidx.compose.runtime.LaunchedEffect(permDone) { if (permDone) DeviceProfiles.check(applicationContext) }
                         if (Overlay.ai.value) AiHubDialog(onClose = { Overlay.ai.value = false }, onPlayed = { screen = Screen.NOW })

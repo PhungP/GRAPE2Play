@@ -458,7 +458,6 @@ private fun AboutBody(modifier: Modifier, big: Boolean) {
     fun f(n: Int) = (n * k).toInt()
     Column(modifier, verticalArrangement = Arrangement.spacedBy(if (big) 12.dp else 8.dp)) {
         T("LIMITED EDITION", f(13).coerceAtLeast(10), C.PlumSoft, spaced = true, bold = true)
-        T("Viết tặng Ngọc Nho và các anh em yêu âm thanh", f(24), C.Gold, serif = true, bold = true, lines = 3)
         Box(Modifier.fillMaxWidth().height(1.dp).background(C.Line))
         T("App được viết dựa trên ý tưởng tặng cho một chuyên gia âm thanh già rất mê âm thanh nhưng không có tiền để đầu tư thiết bị.", f(18), C.Text, lines = 5)
         T("Dùng để cứu vãn vòng đời của chiếc TV Sony Bravia 2015 hiện đã bị sọc màn 🙏🙏🙏🤣", f(18), C.Muted, lines = 3)

@@ -1,7 +1,7 @@
-# TEST REPORT — 2.9.6 (gồm 2.9.5)
+# TEST REPORT — 2.9.9 (gồm 2.9.5–2.9.8)
 
 ## Môi trường
-Linux container, JDK có sẵn (javac/java). **Không có Android SDK, Gradle không tải được thư viện → BUILD NOT VERIFIED.** Không có thiết bị Android. Mọi con số dưới đây là đầu ra thật của `./run_core_tests.sh`.
+macOS (Apple Silicon), JBR/OpenJDK 21, Android SDK (platform 33/34, build-tools 36) và Gradle 8.7 có sẵn trên máy → **build thật đã chạy**. Không dùng thiết bị thật của người dùng (192.168.1.3) để cài thử.
 
 ## Phân biệt mức hoàn thành
 | Mức | Trạng thái |
@@ -33,7 +33,7 @@ Số test: 9.782 đạt, 0 lỗi (9.703 ở 2.9.4; 2.9.5 thay các assertion the
 | Vét cạn | BitPerfect | 345.600 tổ hợp: NOT_BIT_PERFECT ⇔ có bằng chứng; VERIFIED chỉ khi pathProof hoặc đủ điều kiện cấu hình; Resampling YES ⇔ bằng chứng; khả năng/mixer/âm lượng/hồ sơ không tạo bằng chứng |
 | Device Registry | DeviceRegistry | khớp danh mục; thiết bị lạ; trùng tên khác VID/PID; nhiều phương thức kết nối; xác nhận đúng/sai; khai báo không cấp xác minh; lưu/tải (ký tự đặc biệt, dữ liệu hỏng/rỗng); ngắt kết nối; đổi phương thức; không hỏi lặp; không hỏi loa/UPnP/Cast; bản ghi danh mục biến mất; tích hợp với BitPerfect.evaluate |
 | Cửa sổ hàng đợi MediaSession | QueueWindow | rỗng, ngắn, giữa/đầu/cuối danh sách dài, chỉ số ngoài phạm vi |
-| Versions (rollback) | Versions | so sánh phiên bản, tiền tố v/V, lọc bản cũ hơn, bỏ trùng/tag rác |
+| Versions | Versions | so sánh phiên bản, tiền tố v/V (đã bỏ phần lọc rollback) bản cũ hơn, bỏ trùng/tag rác |
 
 ## Chưa chạy / không thể chạy ở đây
 - Biên dịch Kotlin/Compose (BitPerfectProbe, DeviceProfiles, DeviceRegistryUi, BitPerfectUi, Updater/rollback, MainActivity, OutputPage); JUnit trong Gradle.
@@ -43,3 +43,28 @@ Số test: 9.782 đạt, 0 lỗi (9.703 ở 2.9.4; 2.9.5 thay các assertion the
 
 ## Tình trạng
 Test logic: ĐẠT (9788/0). Build: **BUILD NOT VERIFIED**. Kiểm thử thiết bị: **chưa thực hiện**.
+
+## 2.9.9 — kết quả chạy thật
+| Hạng mục | Lệnh | Kết quả |
+|---|---|---|
+| Test lõi thuần Java | `./run_core_tests.sh` | `passed=9854 failed=0` (trước thay đổi: 9785/0) |
+| Biên dịch debug (clean) | `gradle clean :app:assembleDebug` | **BUILD SUCCESSFUL** (Kotlin/Java/Compose/resource/dependency); `app-debug.apk` ≈ 23,4 MB |
+| Unit test Gradle | `gradle :app:testDebugUnitTest` | **BUILD SUCCESSFUL**, `AudioCoreJUnitTest` tests=1 failures=0 (chạy toàn bộ AudioCoreTests gồm DeviceCatalogTests) |
+| Lint | `gradle :app:lintDebug` | **FAILED: 149 lỗi, 42 cảnh báo — đều đã có từ trước**, nằm ở file không thuộc thay đổi này (Playback/Remote/Decoders/Dsp/LevelProcessor… : `UnsafeOptInUsageError` ×133, `RestrictedApi` ×15, `UnspecifiedRegisterReceiverFlag` ×1). Không sửa vì ngoài phạm vi (không đụng Playback/Audio Engine). Không có lỗi lint mới ở file của 2.9.9 (chỉ cảnh báo `ObsoleteSdkInt`, `StaticFieldLeak` ở Updater/Renderers đã có từ trước). |
+| Release APK | — | **KHÔNG build**: `app/build.gradle.kts` không có `signingConfig`; APK 2.9.8 đã phát hành ký bằng khoá riêng (CN=Peter Phan, SHA-256 853ecf48…) khác khoá debug. Không tự tạo/đổi khoá. |
+| Chạy trên emulator/thiết bị | — | **KHÔNG xác minh**: cài debug APK lên emulator API 37 thành công nhưng emulator bị treo ("Process system isn't responding") nên không kiểm tra được giao diện. |
+
+Sửa trong lúc kiểm tra: `AudioCoreTests.java` dùng `out.flip().order(...)` (chạy được với JDK 21 nhưng không biên dịch với `android.jar`) khiến `testDebugUnitTest` lỗi biên dịch từ trước → đổi thành ép kiểu `ByteBuffer`. Test đọc catalog nay thử cả `app/src/main/assets` lẫn `src/main/assets` (Gradle chạy với thư mục `app/`).
+
+Bộ `DeviceCatalogTests` kiểm: nạp dữ liệu thật (≥30 thiết bị, không cảnh báo); không mục nào mức ≥3/Verified khi thiếu bằng chứng; WXC-50 / L75ms / WiiM Ultra; Native/DoP/DSD→PCM; chính sách hạ mức; **schema lạ/thiếu tiêu đề/dữ liệu cụt/nhị phân → danh mục rỗng, không lỗi**; khớp chính xác, bí danh, hãng, VID:PID, mơ hồ, tên hãng quá ngắn; **WXC-50 ≠ WXC-500 (modelName, biến thể khoảng trắng, tên thân thiện)**; K9 Pro ≠ K9 Pro ESS; kết nối khác không mượn kết quả; tìm kiếm/lọc/sắp xếp; hồ sơ cục bộ (xác nhận, sửa, gỡ liên kết, lưu/tải); di trú hồ sơ cũ (13 trường, dòng hỏng, trường mới); xác nhận danh tính không làm phiên phát thành VERIFIED.
+
+## Chưa thực hiện / chưa xác minh
+Giao diện Compose chưa được chạy (chỉ biên dịch + rà mã) · phát nhạc, UPnP, Cast, USB, TV trên thiết bị thật · release APK ký · GitHub Release · kiểm tra lại từng URL nguồn sau ngày nghiên cứu.
+
+## Chạy build trên máy phát triển
+```
+export ANDROID_HOME=~/Library/Android/sdk
+gradle clean :app:assembleDebug :app:testDebugUnitTest      # hoặc ./gradlew nếu có wrapper
+./run_core_tests.sh
+```
+Release: thêm `signingConfig` (đọc mật khẩu từ biến môi trường, không commit) rồi `gradle :app:assembleRelease`, kiểm tra bằng `apksigner verify --print-certs`.

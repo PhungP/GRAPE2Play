@@ -56,3 +56,15 @@ MediaSession (metadata + ảnh bìa + trạng thái + hàng đợi + actions), t
 
 ## 2.9.8 — Sửa lỗi biên dịch (versionCode 101)
 `MediaSessionBridge.kt`: `MediaSession` của framework không có `setActiveQueueItemId` (chỉ có ở MediaSessionCompat) → chuyển sang `PlaybackState.Builder.setActiveQueueItemId`.
+
+## 2.9.9 — Bit-perfect Verified Devices (versionCode 102)
+- **Danh mục thiết bị công khai trong app** ("Bit-perfect Verified Devices"; mở từ trang Đầu ra hoặc hộp thoại Bit-perfect): 35 thiết bị / 80 cấu hình kết nối, dữ liệu offline `assets/device_catalog.tsv`. Tìm kiếm + lọc (loại, kết nối, PCM, DSD, mức, trạng thái), màn chi tiết, bằng chứng + URL + ngày xem xét.
+- **Mỗi cấu hình theo từng kết nối** (UPnP / USB / HDMI / S/PDIF…) có mức xác minh 1–4 và trạng thái riêng; `DeviceCatalog.validate` hạ mọi tuyên bố vượt bằng chứng. Hiện KHÔNG có cấu hình nào ở mức 3–4 (chưa có phép đo).
+- **Nhận diện tự động** theo VID:PID → hãng + model → bí danh (chỉ là bằng chứng phụ, luôn xin xác nhận); WXC-50 ≠ WXC-500; trùng điểm → mơ hồ. Renderer UPnP nay lưu manufacturer/modelName/modelDescription từ device description.
+- **Thiết bị âm thanh của tôi**: đầu ra đang dùng, thiết bị UPnP đã thấy, hồ sơ cục bộ (xác nhận/sửa danh tính/xoá), trạng thái Bit-perfect của phiên phát hiện tại — tách khỏi danh mục toàn cục. Hồ sơ lưu thêm `catalogId`, `udn` (tương thích ngược với hồ sơ cũ).
+- Ba thiết bị bắt buộc: Yamaha WXC-50 (DSD có trong tài liệu nhưng KHÔNG coi là Native qua UPnP), JBL L75ms (Native DSD qua mconnect = bằng chứng do người dùng cung cấp, mức 2), WiiM Ultra (DSD qua DLNA → PCM, không Native).
+- **Bỏ** dòng "Viết tặng Ngọc Nho…" ở màn Về ứng dụng (gây sọc màn).
+- **Bỏ** "Quay về phiên bản trước" (Android không cho cài đè bản thấp hơn): xoá `Updater.loadOlder/downloadOlder/uninstallSelf`, `RollbackDialog`, `Versions.olderThan` và test tương ứng.
+- Không đổi: Playback.kt, Audio Engine, PCM/DSD/DoP, DSP/EQ, USB/NAS, UPnP phát nhạc, Cast, TV, điều khiển từ xa. Quy tắc `BitPerfect.evaluate` và `DeviceRegistry.builtin()` giữ nguyên.
+- Hoàn thiện (audit): schema catalog được kiểm tra (schema lạ/thiếu tiêu đề → danh mục rỗng, app vẫn chạy); khớp hãng cần ≥3 ký tự; thông báo "danh mục chưa đầy đủ / vắng mặt ≠ không hỗ trợ" trên mọi màn catalog và hộp thoại Bit-perfect; nhãn mức 2 ghi rõ "chưa phải bit-perfect"; sửa lỗi biên dịch có sẵn của `AudioCoreTests` với `android.jar`.
+- Build debug thật + unit test Gradle đạt; lint có 149 lỗi đã tồn tại từ trước (ngoài phạm vi); release APK ký chưa tạo; chưa chạy trên thiết bị (xem TEST_REPORT.md).

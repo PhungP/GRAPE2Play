@@ -23,7 +23,7 @@ public final class AudioCoreTests {
 
     public static List<String> runAll() {
         pass = 0; fail = 0; failures.clear(); info.clear();
-        queueAndShuffle(); skip(); errors(); retryRecovery(); devices(); dspFlat(); dspBands(); dspPreampBalance(); dspClipping(); dspFormats(); dspRecovery(); gaplessVerdict(); BitPerfectTests.run(); DeviceRegistryTests.run(); VersionTests.run(); QueueWindowTests.run();
+        queueAndShuffle(); skip(); errors(); retryRecovery(); devices(); dspFlat(); dspBands(); dspPreampBalance(); dspClipping(); dspFormats(); dspRecovery(); gaplessVerdict(); BitPerfectTests.run(); DeviceRegistryTests.run(); DeviceCatalogTests.run(); VersionTests.run(); QueueWindowTests.run();
         return failures;
     }
 
@@ -245,7 +245,7 @@ public final class AudioCoreTests {
         for (int i = 0; i < x.length; i++) { st[2 * i] = x[i]; st[2 * i + 1] = x[i]; }
         ByteBuffer out = ByteBuffer.allocate(st.length * 2);
         DspMath.process(pcm16(st, 2), out, DspMath.PCM16, 2, p, new DspMath.State());
-        out.flip().order(ByteOrder.LITTLE_ENDIAN); int maxL = 0, maxR = 0;
+        ((java.nio.ByteBuffer) out.flip()).order(ByteOrder.LITTLE_ENDIAN); int maxL = 0, maxR = 0;
         while (out.remaining() >= 4) { maxL = Math.max(maxL, Math.abs(out.getShort())); maxR = Math.max(maxR, Math.abs(out.getShort())); }
         check(maxR == 0 && maxL > 16000, "cân bằng -1: phải im, trái còn nguyên (L=" + maxL + " R=" + maxR + ")");
     }
@@ -310,7 +310,7 @@ public final class AudioCoreTests {
             in.flip();
             ByteBuffer out = ByteBuffer.allocate(in.remaining());
             long clip = DspMath.process(in, out, kind, 1, p, new DspMath.State());
-            out.flip().order(ByteOrder.LITTLE_ENDIAN);
+            ((java.nio.ByteBuffer) out.flip()).order(ByteOrder.LITTLE_ENDIAN);
             double tol = kind == DspMath.PCM16 ? 3e-4 : kind == DspMath.PCM24 ? 2e-6 : 1e-6, worst = 0;
             for (int i = 0; i < n; i++) {
                 double v = kind == DspMath.PCM16 ? out.getShort() / 32768.0 : kind == DspMath.PCM24 ? ((out.get(out.position() + 2) << 16) | ((out.get(out.position() + 1) & 0xff) << 8) | (out.get(out.position()) & 0xff)) / 8388608.0 : kind == DspMath.PCM32 ? out.getInt() / 2147483648.0 : out.getFloat();
@@ -325,7 +325,7 @@ public final class AudioCoreTests {
             for (int i = 0; i < frames; i++) for (int c = 0; c < ch; c++) inter[i * ch + c] = mono[i];
             ByteBuffer out = ByteBuffer.allocate(inter.length * 2);
             DspMath.process(pcm16(inter, ch), out, DspMath.PCM16, ch, p, new DspMath.State());
-            out.flip().order(ByteOrder.LITTLE_ENDIAN); boolean same = true; short[] row = new short[ch];
+            ((java.nio.ByteBuffer) out.flip()).order(ByteOrder.LITTLE_ENDIAN); boolean same = true; short[] row = new short[ch];
             for (int i = 0; i < frames; i++) { for (int c = 0; c < ch; c++) row[c] = out.getShort(); for (int c = 1; c < ch; c++) same &= row[c] == row[0]; }
             check(same, "đa kênh " + ch + ": các kênh giống nhau cho kết quả giống nhau");
         }
@@ -352,7 +352,7 @@ public final class AudioCoreTests {
         for (float[] c : seq) {
             DspMath.Plan q = DspMath.plan(c, 0f, 0f, SR, true);
             ByteBuffer o = ByteBuffer.allocate(3000 * 2); DspMath.process(pcm16(sine(120, 1.0, 3000, SR), 1), o, DspMath.PCM16, 1, q, s2);
-            o.flip().order(ByteOrder.LITTLE_ENDIAN);
+            ((java.nio.ByteBuffer) o.flip()).order(ByteOrder.LITTLE_ENDIAN);
             while (o.remaining() >= 2) { short v = o.getShort(); sane &= v >= -32768; }
         }
         check(sane, "đổi EQ liên tục giữa các đoạn: đầu ra hợp lệ");
