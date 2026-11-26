@@ -1,3 +1,19 @@
+# TEST REPORT — 3.0.2
+
+## 3.0.2 — kết quả thực tế (2026-11-27)
+| Loại | Kết quả |
+|---|---|
+| Unit test lõi (`./run_core_tests.sh`) | `passed=9909 failed=0` (thêm UV1–UV9 cho User Verified trên thiết bị ngoài, MAT18) |
+| Build + JUnit Gradle (`clean :app:assembleDebug :app:testDebugUnitTest`) | BUILD SUCCESSFUL |
+| Lint | không chạy lại ở 3.0.2 (3.0.1: 149 lỗi cũ, không có lỗi mới ở file thay đổi) |
+| Đo thật trên mạng LAN (Python, từ máy Mac cùng mạng với loa) | JBL L75ms (192.168.1.41): **0/10** biến thể M-SEARCH multicast được trả lời; **unicast** tới IP được trả lời đầy đủ (MediaRenderer 1/2, AVTransport 1/2, QPlay); cổng UPnP ngẫu nhiên (34605 lúc đo) |
+| Emulator (điện thoại, xoay ngang), thao tác `adb` + chụp màn hình | (1) Cài đặt: nút "Tắt" + chữ "Chưa bật chạy ngầm" không còn xanh, dòng "✓ Đã miễn tối ưu pin" riêng. (2) Đầu ra: thấy JBL L75ms UPnP/OpenHome **và** Google Cast, thêm Samsung TV, "Quét 1 lượt · UPnP 2 · Google Cast 2". (3) Mở danh mục rồi nhấn ▼ bằng `adb input keyevent`: tiêu điểm đi trong hộp thoại (← Đóng → ô tìm kiếm có viền vàng), trang bên dưới không bị di chuyển |
+| Real-device | **KHÔNG thực hiện**: chưa thử trên TV/remote thật, chưa phát nhạc qua Cast/UPnP, chưa kiểm tra luồng "xác minh → VERIFIED" trong app với loa thật (chỉ có unit test của `BitPerfect.evaluate` và `DeviceVerification.appliesTo`) |
+
+Ghi chú: emulator không chứng minh được quét unicast "đổi kết quả" vì emulator vốn đã thấy JBL UPnP ở các bản trước (qua dò IP của thiết bị Cast); bằng chứng cho nguyên nhân là phép đo multicast/unicast ở trên. Lỗi con trỏ: nguyên nhân gốc được xác định bằng đọc mã (FocusManager lấy ngoài Dialog) và kiểm tra hành vi ▼ trong hộp thoại; chưa thử bằng remote TV thật.
+
+---
+
 # TEST REPORT — 3.0.0 (gồm 2.9.5–2.9.9)
 
 ## 3.0.0 — kết quả thực tế (2026-11-26)
