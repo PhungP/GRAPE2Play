@@ -97,7 +97,6 @@ object Lang {
         "• DSD là luồng 1-bit tốc độ hàng triệu mẫu/giây (DSD64 = 2,8224 MHz), không phải PCM nên không thể FFT trực tiếp như FLAC/WAV.\n• Nhiễu lượng tử của DSD được đẩy dồn lên dải siêu âm, nên biểu đồ sẽ chỉ thấy toàn nhiễu và không phản ánh chất lượng nhạc.\n• Khi phát, app chuyển DSD sang PCM qua bộ lọc; phổ lúc đó là kết quả của bộ lọc chứ không phải của file gốc."
             to "• DSD is a 1-bit stream at millions of samples per second (DSD64 = 2.8224 MHz), not PCM, so it cannot be FFT-analyzed directly like FLAC/WAV.\n• DSD quantization noise is pushed into the ultrasonic range, so the chart would show mostly noise and say nothing about the music.\n• During playback the app converts DSD to PCM through a filter; any spectrum would reflect that filter, not the original file.",
         "LIMITED EDITION" to "LIMITED EDITION", "NHÀ PHÁT TRIỂN" to "DEVELOPER",
-        "Dùng để cứu vãn vòng đời của chiếc TV Sony Bravia 2015 hiện đã bị sọc màn 🙏🙏🙏🤣" to "Built to extend the life of a 2015 Sony Bravia TV that now has a striped screen 🙏🙏🙏🤣",
         "Phân tích phổ tần số" to "Spectrum analyzer", "Dải hiển thị" to "Range", "Toàn dải" to "Full range", "Giữ đỉnh" to "Peak hold",
         "Chưa có bài nào đang phát — hãy phát một bài để xem phổ." to "Nothing is playing — start a track to see the spectrum.",
         "Đang stream ra thiết bị khác nên app không có dữ liệu âm thanh để phân tích." to "Streaming to another device, so the app has no audio data to analyze.",
@@ -153,7 +152,7 @@ object Lang {
         "Nếu TV nối ampli qua cổng quang/analogue, hãy chọn “Mặc định hệ thống” (chọn “Loa TV” sẽ ép ra loa TV). Lưu ý: trên TV Sony, việc chuyển giữa loa / cổng quang / headphone thường do mục Cài đặt ▸ Âm thanh ▸ Đầu ra âm thanh của TV quyết định. Danh sách trên là các đầu ra Android báo cho app." to
             "If the TV feeds an amplifier via optical/analogue, choose “System default” (choosing “TV speaker” forces the TV speakers). Note: on Sony TVs, switching between speakers / optical / headphones is usually decided by Settings ▸ Sound ▸ Audio output on the TV itself. The list above shows the outputs Android reports to the app.",
         // âm thanh / cài đặt
-        "Âm thanh và hệ thống" to "Sound & system", "DSD, đầu ra và tinh chỉnh chỉ dùng cho Sony Bravia" to "DSD, output and tuning for your Sony Bravia",
+        "Âm thanh và hệ thống" to "Sound & system",
         "PHÁT DSD" to "DSD PLAYBACK", "Chuyển DSD sang PCM" to "Convert DSD to PCM",
         "TV Android 8.0 không xuất DSD gốc: app giải mã DSF/DFF thành PCM 24-bit chất lượng cao rồi đưa ra cổng quang/analogue." to
             "Android 8.0 TVs cannot output native DSD: the app decodes DSF/DFF to high-quality 24-bit PCM and sends it to optical/analogue.",
@@ -164,8 +163,6 @@ object Lang {
         "NGÔN NGỮ" to "LANGUAGE", "Ngôn ngữ" to "Language",
         "Về ứng dụng" to "About", "Về ứng dụng (About)" to "About this app", "VỀ ỨNG DỤNG" to "ABOUT",
         "Áp dụng từ bài kế tiếp." to "Applies from the next track.", "khuyên dùng" to "recommended",
-        "App được viết dựa trên ý tưởng tặng cho một chuyên gia âm thanh già rất mê âm thanh nhưng không có tiền để đầu tư thiết bị.\nDùng để cứu vãn vòng đời của chiếc TV Sony Bravia 2015 hiện đã bị sọc màn 🙏🙏🙏🤣" to
-            "This app was written as a gift for an elderly audio expert who loves sound but has no money to invest in equipment.\nIt is meant to rescue the life of a 2015 Sony Bravia TV whose screen now has stripes 🙏🙏🙏🤣",
         "Trình phát nhạc hi-end cho Android TV" to "Hi-end music player for Android TV",
         "BIT-PERFECT" to "BIT-PERFECT", "✓ BIT-PERFECT" to "✓ BIT-PERFECT", "GẦN BIT-PERFECT" to "NEAR BIT-PERFECT", "BIT-PERFECT · DSD gốc, không chuyển mã" to "BIT-PERFECT · native DSD, not transcoded", "LOSSY" to "LOSSY",
         "nén mất dữ liệu" to "lossy compression", "EQ đang bật" to "EQ active", "DSD chuyển sang PCM" to "DSD converted to PCM", "chưa rõ codec" to "codec unknown",

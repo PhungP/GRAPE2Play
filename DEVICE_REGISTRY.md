@@ -1,16 +1,16 @@
 # Built-in Device Registry / Device Catalog (2.9.9)
 
-Ngày nghiên cứu: **2026-11-25** · phiên bản dữ liệu: 2.9.9 · schema: 1 · tệp: `app/src/main/assets/device_catalog.tsv` · mã: `DeviceCatalog.java`, giao diện `DeviceCatalogUi.kt`.
+Ngày nghiên cứu: **2026-11-26** (đợt đầu 2026-11-25, bổ sung 2026-11-26) · phiên bản dữ liệu: 2.9.10 · schema: 1 · tệp: `app/src/main/assets/device_catalog.tsv` · mã: `DeviceCatalog.java`, giao diện `DeviceCatalogUi.kt`.
 
 ## Độ phủ (nói thẳng)
-35 thiết bị, 80 cấu hình kết nối (UPnP, USB, HDMI, S/PDIF, Bluetooth, I2S, Roon Ready). Gồm streamer/UPnP (Yamaha WXC-50, JBL L75ms, WiiM Ultra/Mini/Pro/Amp, Cambridge MXN10/CXN V2, LUMIN U2/U2 mini, Aurender N150, Linn Klimax DSM, Matrix element X2), USB DAC (FiiO K9 Pro ESS/K11 R2R/K13 R2R/KA17, Chord Mojo 2/Qutest, RME ADI-2 DAC FS, SMSL D-6/D200, Cambridge DacMagic 200M, Questyle CMA Twelve, Shanling UA5) và AVR/ampli (Denon AVR-X3800H/X1800H, Marantz Cinema 50/Cinema 50 S2/ND8006/PM7000N, Cambridge CXA81/AXR100, Yamaha RX-V6A, Sony STR-AN1000).
-**Đây không phải toàn bộ thiết bị trên thế giới.** Chỉ đưa vào model có trang thông số chính thức đã đọc được; hãng/model bị chặn (403/429/JS) bị bỏ qua, không đoán: Topping, iFi, Gustard, Holo, Denafrips, Eversolo, Bluesound, NAD, Naim, Onkyo, Pioneer, Anthem, Arcam, Audiolab, Rotel, HiFi Rose, Pro-Ject, Cocktail Audio, Technics, T+A, Advance Paris, Primare, DCS, AURALiC, Cayin… cần bổ sung ở lần nghiên cứu sau.
+**91 thiết bị, 197 cấu hình kết nối** (USB 60, S/PDIF 60, UPnP 37, HDMI 21, Bluetooth 10, BluOS/I2S/Roon 8, Cast 1), từ 27 hãng: Arcam, AudioQuest, Aurender, Bluesound, Cambridge Audio, Chord, Denon, Eversolo, FiiO, iFi, JBL, LUMIN, Linn, Marantz, Matrix Audio, Naim, Onkyo, Pro-Ject, Questyle, RME, Rotel, SMSL, Shanling, Sony, Technics, WiiM, Yamaha. Chỉ đưa vào model có trang thông số/hướng dẫn chính thức đã đọc được trong đợt nghiên cứu; không suy từ model cùng dòng.
+**Đây không phải toàn bộ thiết bị trên thế giới.** Chưa có (trang bị chặn 403/429, JS-rendered hoặc 404 khi nghiên cứu; KHÔNG đoán): Topping, Gustard, Holo Audio, Denafrips, Cayin, NAD, Pioneer, Anthem, Audiolab, HiFi Rose, Cocktail Audio, T+A, AURALiC, Advance Paris, Primare, DCS, nhiều model Sony/Onkyo/Eversolo (DMP) và nhiều sản phẩm của các hãng đã có. Cần bổ sung ở lần nghiên cứu sau.
 
 ## Bốn mức xác minh (mỗi cấu hình một mức)
 | Mức | Ý nghĩa | Hiện có |
 |---|---|---|
-| 1 | Đã nhận diện đúng model | 10 cấu hình |
-| 2 | Khả năng định dạng/giao thức được tài liệu hoá (hoặc người dùng báo) | 70 cấu hình |
+| 1 | Đã nhận diện đúng model | 29 cấu hình |
+| 2 | Khả năng định dạng/giao thức được tài liệu hoá (hoặc người dùng báo) | 149 cấu hình |
 | 3 | Cấu hình có thể bit-perfect được xác minh (DSP, âm lượng, resampling, DSD đều được biết rõ + bằng chứng) | **0** |
 | 4 | Đo dữ liệu thật tại đầu nhận (end-to-end) | **0** |
 
@@ -22,9 +22,18 @@ Nhận diện model ≠ khả năng định dạng ≠ cấu hình bit-perfect �
 ## Chính sách bằng chứng (`DeviceCatalog.validate`, ép khi nạp)
 Mức ≥2 cần nguồn (URL hoặc nguồn người dùng) + ngày bằng chứng; kết quả người dùng thử (`USER_TEST`) tối đa mức 2; `CONFIG_VERIFIED` cần mức ≥3 và DSP/âm lượng/resampling + điều kiện + định dạng được ghi rõ; mức 4 cần phương pháp `MEASUREMENT` có URL; DSD→PCM và Bluetooth không thể `CONFIG_VERIFIED`; `NOT_BIT_PERFECT` cần bằng chứng. Vi phạm → bị hạ và ghi vào `Catalog.problems`, không bị loại.
 
+## Nguồn xác minh ≠ Độ chắc chắn kỹ thuật (2.9.10)
+Hai thuộc tính **độc lập** trên từng cấu hình (`DeviceVerification.java`, dòng `E` trong tệp):
+- **Verification Source:** `Manufacturer Verified` (đối chiếu tài liệu chính thức) · `User Verified` (người dùng tự kiểm tra, lưu cục bộ) · `Community Verified` (nhiều báo cáo độc lập, nhất quán). Ba huy hiệu cùng kích thước và kiểu, thứ tự hiển thị cố định, màu chỉ để phân biệt nguồn; một cấu hình có thể có nhiều nguồn, không nguồn nào ghi đè nguồn khác. Màn chi tiết luôn liệt kê đủ ba nguồn (kể cả "chưa có bằng chứng").
+- **Technical Confidence:** `Confirmed` (đủ mạnh cho đúng thiết bị + kết nối + cấu hình) · `Supported` (phù hợp nhưng chưa đủ cho toàn chuỗi) · `Inconclusive` (chưa đủ/không thống nhất) · `Unverified`. Không có quy tắc nào suy độ chắc chắn từ nguồn: Manufacturer có thể chỉ Supported; User có thể Confirmed; Community cần đủ tiêu chí.
+- **Danh mục tích hợp:** chỉ có bằng chứng Manufacturer (Supported/Unverified) và hai bằng chứng User do người duy trì cung cấp (JBL L75ms Native DSD qua mconnect; WiiM Ultra DSD→PCM qua DLNA) — hiện **không** có Confirmed hay Community tích hợp. `enforce`: Confirmed bị hạ về Supported nếu cấu hình < mức 3; bằng chứng Community nhúng trực tiếp vào danh mục bị hạ về Unverified.
+- **User Verified (Verify Playback Capability):** người dùng chọn định dạng (PCM tần số/bit hoặc Native/DoP/DSD→PCM), điều kiện áp dụng (DSP tắt, âm lượng cố định, không resampling), phương pháp, kết quả, firmware, phần mềm, ghi chú; lưu kèm thời gian. Độ chắc chắn: chỉ nghe ⇒ Inconclusive; báo hiệu trên thiết bị + đủ điều kiện ⇒ Supported; bắt luồng số + so sánh bit + đủ điều kiện + mô tả ≥10 ký tự ⇒ Confirmed; thiếu kết nối/định dạng ⇒ Unverified. **Khác hẳn "Confirm Device Identity"** (chỉ liên kết hãng/model).
+- **Community Verified:** `DeviceVerification.aggregate` — mỗi người báo cáo tính một lần (báo cáo mới nhất thay cũ), báo cáo không có bằng chứng bị loại, hai người nộp cùng đoạn bằng chứng chỉ tính một, PASS và FAIL cùng tồn tại ⇒ mâu thuẫn ⇒ Inconclusive; ≥3 độc lập nhất quán ⇒ Supported; ≥5 độc lập, ≥3 bắt luồng số ⇒ Confirmed. Nguồn dữ liệu: `assets/community_reports.tsv` (hiện RỖNG — không có báo cáo cộng đồng nào được phát hành; không bịa).
+- **Đối chiếu phiên phát** (`appliesTo`): xác minh chỉ áp dụng khi cùng thiết bị, kết nối, loại định dạng, kiểu DSD, firmware (khác ⇒ không áp dụng, chưa rõ ⇒ một phần), tần số/bit và điều kiện; xác minh USB không đại diện cho UPnP. Hiển thị trong hộp thoại Bit-perfect ("Xác minh cho tổ hợp này") mà không đổi kết luận của `BitPerfect.evaluate`.
+
 ## Ba thiết bị bắt buộc
-- **Yamaha WXC-50 / UPnP:** trang Yamaha liệt kê DSD 5.6 MHz, FLAC/WAV/AIFF 192/24, ALAC 96/24, DLNA. Cách xử lý DSD (native/DoP/PCM) **không được tài liệu hoá** → `UNDOCUMENTED`, không coi là Native DSD.
-- **JBL L75ms / UPnP:** *Native DSD xác nhận bằng mconnect* — bằng chứng do người dùng (người duy trì) cung cấp, `USER_TEST`, mức 2, không phải DSD→PCM; chưa tái lập, chưa đo tại DAC. Trang JBL chính thức không đọc được khi nghiên cứu (403/PDF nhị phân) nên không ghi thông số của hãng.
+- **Yamaha WXC-50 / UPnP:** trang Yamaha liệt kê (DLNA 1.5, DSD 5.6 MHz, FLAC/WAV/AIFF 192/24, ALAC 96/24, DLNA. Cách xử lý DSD (native/DoP/PCM) **không được tài liệu hoá** → `UNDOCUMENTED`, không coi là Native DSD.
+- **JBL L75ms / UPnP:** *Native DSD xác nhận bằng mconnect* — bằng chứng do người dùng (người duy trì) cung cấp (nguồn **User**, độ chắc chắn Supported), mức 2, không phải DSD→PCM; chưa tái lập, chưa đo tại DAC. Tài liệu chính thức (quick-specs PDF, đọc 2026-11-26) ghi Chromecast built-in, AirPlay 2, Bluetooth 4.2, tới 32-bit/192 kHz và **không** nhắc UPnP/DLNA hay DSD — vì vậy không xác nhận cũng không mâu thuẫn với kết quả của người dùng; cấu hình Cast ghi riêng.
 - **WiiM Ultra:** UPnP PCM (mức 2, theo trang spec); UPnP DSD = `DSD_TO_PCM` (người dùng báo; FAQ WiiM cũng nói không hỗ trợ native DSD) → `NOT_BIT_PERFECT`; USB/S-PDIF là cấu hình riêng.
 
 ## Dự phòng khi dữ liệu lỗi

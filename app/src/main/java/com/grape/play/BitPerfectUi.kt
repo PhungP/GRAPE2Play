@@ -21,6 +21,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 
 object BitPerfectUi { val open = mutableStateOf(false) }
 
@@ -160,6 +161,38 @@ fun BitPerfectDialog() {
                     if (r.resampling == BitPerfect.Tri.UNKNOWN) " — " + s("không có bằng chứng, nhưng cũng không thể xác minh tại hệ thống/thiết bị nhận", "no evidence found, but it cannot be verified in the system/receiver either") else "")
             // 10. Playback Bit-perfect Status
             field("Playback Bit-perfect Status", statusText(r.status, r.level))
+
+            // Xác minh theo TỔ HỢP: Device + Firmware + Transport + Protocol + Audio Format + Playback Configuration. Không thay đổi kết luận ở trên (chỉ dựa trên bằng chứng của phiên phát).
+            SectionLabel(s("XÁC MINH CHO TỔ HỢP NÀY", "VERIFICATION FOR THIS COMBINATION"))
+            val lctx = LocalContext.current
+            val actDet = remember(inp, profVer) { runCatching { BitPerfectProbe.detected(lctx) }.getOrNull() }
+            val key = if (remote != null) DeviceRegistry.keyOf(DeviceRegistry.Detected(remote!!.name, inp.route, -1, -1, false)) else actDet?.let { DeviceRegistry.keyOf(it) }
+            val prof = key?.let { DeviceProfiles.store.find(it) }
+            val combo = DeviceVerification.Combo().also {
+                it.catalogId = prof?.catalogId.orEmpty(); it.firmware = prof?.firmware.orEmpty(); it.conn = inp.route; it.dsd = inp.srcDsd
+                it.dsdMode = if (!inp.srcDsd) DeviceCatalog.Dsd.UNDOCUMENTED else if (inp.dopActive) DeviceCatalog.Dsd.DOP else if (remote != null) DeviceCatalog.Dsd.NATIVE else DeviceCatalog.Dsd.DSD_TO_PCM
+                it.rate = inp.srcRate; it.bits = inp.srcBits
+                it.dspOff = !inp.dspActive; it.volumeFixed = inp.volumeFixed || remote != null; it.resamplingOff = remote != null || (inp.hasSink && inp.sinkRate == inp.srcRate)
+            }
+            T(s("Kết quả xác minh của một thiết bị/kết nối/cấu hình KHÔNG đại diện cho phương thức hay cấu hình khác, và không thay thế bằng chứng của phiên phát này.", "A verification of one device/connection/configuration does not stand for another, and does not replace the evidence of this playback session."), 12, C.Muted, lines = 5)
+            if (prof == null) T(s("Thiết bị chưa được lưu trong “Thiết bị âm thanh của tôi”: chưa áp dụng được xác minh theo thiết bị. Vào đó để Confirm Device Identity.", "The device is not saved in “My Audio Devices”: no device-specific verification can be applied. Open it to Confirm Device Identity."), 12, C.Muted, lines = 5)
+            else {
+                T(prof.label().ifEmpty { prof.name } + " · " + connLabel(inp.route) + (if (prof.firmware.isNotEmpty()) " · firmware " + prof.firmware else " · " + s("firmware chưa rõ", "firmware unknown")), 13, C.Text, bold = true, lines = 3)
+                val cdev = if (prof.catalogId.isEmpty()) null else DeviceCatalogStore.catalog.byId(prof.catalogId)
+                val cfgs = cdev?.configsFor(inp.route).orEmpty()
+                if (cdev == null) T(s("Danh mục: chưa liên kết model.", "Catalog: model not linked."), 12, C.Muted)
+                else if (cfgs.isEmpty()) T(s("Danh mục: chưa có cấu hình cho kết nối này.", "Catalog: no configuration for this connection."), 12, C.Muted, lines = 2)
+                for (cf in cfgs) {
+                    T(cf.protocol + " · " + s("khả năng thiết bị (tài liệu): ", "device capability (documented): ") + cf.evidence.filter { it.confidence != DeviceVerification.Confidence.UNVERIFIED }.joinToString(", ") { sourceName(it.source) + " – " + confidenceName(it.confidence) }.ifEmpty { s("chưa có nguồn xác minh", "no verification source") }, 12, C.Text, lines = 4)
+                }
+                val mine = DeviceProfiles.store.verificationsFor(prof.key)
+                if (mine.isEmpty()) T(s("Chưa có kết quả bạn tự kiểm tra cho thiết bị này (User Verified).", "No result you tested for this device yet (User Verified)."), 12, C.Muted, lines = 2)
+                for (v in mine) {
+                    val ap = DeviceVerification.appliesTo(v, combo)
+                    T("User Verified – " + confidenceName(DeviceVerification.userConfidence(v)) + " · " + v.scope() + " · " + (when (ap.applies) { DeviceVerification.Applies.EXACT -> s("áp dụng cho phiên này", "applies to this session"); DeviceVerification.Applies.PARTIAL -> s("áp dụng MỘT PHẦN", "applies only PARTIALLY"); else -> s("KHÔNG áp dụng", "does NOT apply") }) +
+                        (if (ap.reasons.isEmpty()) "" else " (" + ap.reasons.joinToString("; ") + ")"), 12, C.Text, lines = 6)
+                }
+            }
 
             if (r.changes.isNotEmpty()) { SectionLabel(s("BẰNG CHỨNG THAY ĐỔI DỮ LIỆU", "EVIDENCE OF CHANGE")); r.changes.forEach { T("• " + codeText(it), 13, Grade.RED.color, lines = 4) } }
             if (r.confirmed.isNotEmpty()) { SectionLabel(s("ĐÃ XÁC MINH ĐƯỢC", "VERIFIED FACTS")); r.confirmed.forEach { T("• " + codeText(it), 13, C.Text, lines = 4) } }

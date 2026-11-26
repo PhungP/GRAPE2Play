@@ -63,7 +63,7 @@ MediaSession (metadata + ảnh bìa + trạng thái + hàng đợi + actions), t
 - **Nhận diện tự động** theo VID:PID → hãng + model → bí danh (chỉ là bằng chứng phụ, luôn xin xác nhận); WXC-50 ≠ WXC-500; trùng điểm → mơ hồ. Renderer UPnP nay lưu manufacturer/modelName/modelDescription từ device description.
 - **Thiết bị âm thanh của tôi**: đầu ra đang dùng, thiết bị UPnP đã thấy, hồ sơ cục bộ (xác nhận/sửa danh tính/xoá), trạng thái Bit-perfect của phiên phát hiện tại — tách khỏi danh mục toàn cục. Hồ sơ lưu thêm `catalogId`, `udn` (tương thích ngược với hồ sơ cũ).
 - Ba thiết bị bắt buộc: Yamaha WXC-50 (DSD có trong tài liệu nhưng KHÔNG coi là Native qua UPnP), JBL L75ms (Native DSD qua mconnect = bằng chứng do người dùng cung cấp, mức 2), WiiM Ultra (DSD qua DLNA → PCM, không Native).
-- **Bỏ** dòng "Viết tặng Ngọc Nho…" ở màn Về ứng dụng (gây sọc màn).
+- **Bỏ** dòng dedication cá nhân ở màn Về ứng dụng.
 - **Bỏ** "Quay về phiên bản trước" (Android không cho cài đè bản thấp hơn): xoá `Updater.loadOlder/downloadOlder/uninstallSelf`, `RollbackDialog`, `Versions.olderThan` và test tương ứng.
 - Không đổi: Playback.kt, Audio Engine, PCM/DSD/DoP, DSP/EQ, USB/NAS, UPnP phát nhạc, Cast, TV, điều khiển từ xa. Quy tắc `BitPerfect.evaluate` và `DeviceRegistry.builtin()` giữ nguyên.
 - Hoàn thiện (audit): schema catalog được kiểm tra (schema lạ/thiếu tiêu đề → danh mục rỗng, app vẫn chạy); khớp hãng cần ≥3 ký tự; thông báo "danh mục chưa đầy đủ / vắng mặt ≠ không hỗ trợ" trên mọi màn catalog và hộp thoại Bit-perfect; nhãn mức 2 ghi rõ "chưa phải bit-perfect"; sửa lỗi biên dịch có sẵn của `AudioCoreTests` với `android.jar`.
@@ -71,3 +71,14 @@ MediaSession (metadata + ảnh bìa + trạng thái + hàng đợi + actions), t
 
 ## Sau 2.9.9 — đổi tên repository
 Repo GitHub đổi từ `PhungP/grape2play` thành `PhungP/GRAPE2Play`. Cập nhật `Updater.REPO`, liên kết GitHub ở màn Về ứng dụng, Referer của OpenRouter và README. Bản 2.9.9 đã phát hành vẫn dùng tên cũ; GitHub tự chuyển hướng liên kết/API cũ nên cập nhật OTA vẫn hoạt động (không được tạo lại repo mới tên `grape2play`, vì sẽ làm hỏng chuyển hướng). Các thay đổi này nằm trong bản kế tiếp.
+
+## 2.9.10 — Nguồn xác minh, Verify Playback Capability, sửa cuộn, mở rộng danh mục (versionCode 103)
+- **Về ứng dụng:** bỏ câu chuyện cá nhân/đùa cợt (hoàn cảnh tài chính, TV cũ…) khỏi mọi chuỗi (UI, bản dịch, README); thay bằng giới thiệu trung lập về phát nhạc, xử lý âm thanh, quản lý đầu ra và xác minh Bit-perfect.
+- **Danh mục:** 91 thiết bị / 197 cấu hình (27 hãng; trước đó 35/80). JBL L75ms: đọc được quick-specs PDF chính thức → thêm cấu hình Cast, ghi rõ tài liệu không nhắc UPnP/DSD.
+- **Ba nguồn xác minh** (Manufacturer / User / Community Verified) tách khỏi **Technical Confidence** (Confirmed / Supported / Inconclusive / Unverified); ba huy hiệu cùng kích thước, thứ tự cố định, hiển thị đủ nhiều nguồn trên mỗi cấu hình. `DeviceVerification.java` + dòng `E` trong tệp danh mục (cấu hình cũ tự suy bằng chứng khi nạp, tương thích ngược).
+- **Verify Playback Capability** (Thiết bị của tôi): người dùng ghi nhận kết quả thử theo định dạng, điều kiện, phương pháp, firmware, phần mềm, ghi chú, thời gian → User Verified lưu cục bộ (dòng `V`, tương thích ngược). Tách khỏi Confirm Device Identity. Hồ sơ có thêm `firmware`.
+- **Community Verified:** bộ gộp báo cáo (độc lập, trùng lặp, mâu thuẫn, ngưỡng); `assets/community_reports.tsv` hiện rỗng.
+- **Hộp thoại Bit-perfect:** thêm mục "Xác minh cho tổ hợp này" (không đổi kết luận `evaluate`).
+- **Sửa lỗi cuộn** các hộp thoại Danh mục/Chi tiết/Thiết bị của tôi/Quản lý hồ sơ: trên TV/D-pad, tiêu điểm ban đầu rơi vào nút cuối nội dung và văn bản phía trên không nhận tiêu điểm nên không cuộn lên được → phím ▲/▼ cuộn khi không còn phần tử tiêu điểm kế tiếp, khung giới hạn 92% màn hình, nút đầu trang nhận tiêu điểm đầu tiên; mở/đóng chi tiết không còn xoá tìm kiếm/bộ lọc.
+- **Matcher UPnP:** nhận tên hãng mẹ (Harman→JBL, D&M/Sound United→Denon/Marantz, Panasonic→Technics) và bỏ tiền tố hãng khỏi tên model — phát hiện nhờ JBL L75ms thật trên LAN khai "Harman Luxury Audio" / "JBL L75ms" nhưng không khớp ở bản nháp; nay khớp chắc chắn.
+- Không đổi: Playback.kt, Audio Engine, PCM/DSD/DoP, DSP/EQ, UPnP phát nhạc, Cast, BitPerfect.evaluate, applicationId, ký, cơ chế cập nhật.

@@ -22,6 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.foundation.gestures.animateScrollBy
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -67,13 +72,32 @@ internal fun DevField(label: String, value: String, onChange: (String) -> Unit) 
     }
 }
 
+/**
+ * Khung hộp thoại cuộn dọc dùng chung (danh mục, chi tiết, thiết bị của tôi, quản lý hồ sơ).
+ * Lỗi cũ "không cuộn lên được" trên TV/D-pad: tiêu điểm ban đầu rơi vào nút ở CUỐI nội dung (đẩy trang xuống cuối), mà văn bản phía trên không nhận tiêu điểm nên phím ▲ không có đích để lên.
+ * Sửa tận gốc: (1) phím ▲/▼ chưa có phần tử nhận tiêu điểm tiếp theo thì cuộn nội dung; (2) khung có chiều cao tối đa 92% màn hình (không tràn ra ngoài vùng hiển thị);
+ * (3) nút đầu trang là nút nhận tiêu điểm đầu tiên. Cảm ứng vẫn cuộn bằng verticalScroll như cũ.
+ */
 @Composable
 internal fun Frame(onDismiss: () -> Unit, content: @Composable () -> Unit) {
     val compact = LocalCompact.current
+    val scroll = rememberScrollState()
+    val fm = androidx.compose.ui.platform.LocalFocusManager.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            (if (compact) Modifier.dlgW(560) else Modifier.dlgFrac(0.5f)).clip(RoundedCornerShape(14.dp)).background(C.Panel)
-                .border(1.dp, C.Line, RoundedCornerShape(14.dp)).dlgPad(24, 16).verticalScroll(rememberScrollState()),
+            (if (compact) Modifier.dlgW(560) else Modifier.dlgFrac(0.5f)).dlgH(1400).clip(RoundedCornerShape(14.dp)).background(C.Panel)
+                .border(1.dp, C.Line, RoundedCornerShape(14.dp))
+                .onKeyEvent { ev ->
+                    val up = ev.key == androidx.compose.ui.input.key.Key.DirectionUp
+                    val down = ev.key == androidx.compose.ui.input.key.Key.DirectionDown
+                    if ((up || down) && ev.type == androidx.compose.ui.input.key.KeyEventType.KeyDown) {
+                        val moved = fm.moveFocus(if (up) androidx.compose.ui.focus.FocusDirection.Up else androidx.compose.ui.focus.FocusDirection.Down)
+                        if (!moved) scope.launch { scroll.animateScrollBy(if (up) -420f else 420f) }
+                        true
+                    } else false
+                }
+                .verticalScroll(scroll).dlgPad(24, 16),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) { content() }
     }

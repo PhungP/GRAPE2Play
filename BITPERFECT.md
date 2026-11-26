@@ -76,3 +76,12 @@ Chi tiết ở DEVICE_REGISTRY.md. Tóm tắt phương pháp:
 - Ngày nghiên cứu cuối: 2026-11-25. Nguồn: trang thông số/manual chính thức đã đọc được; nguồn người dùng (JBL L75ms Native DSD qua mconnect; WiiM Ultra DSD→PCM qua DLNA) ghi rõ là `USER_TEST`, tối đa mức 2.
 - Giới hạn: độ phủ nhỏ (35 thiết bị), nhiều thông số chỉ là trang hãng (không đo), tên UPnP modelName và USB VID:PID chưa được xác minh cho hầu hết model (nên khớp chủ yếu theo hãng+model), không có thiết bị nào đạt mức 3–4.
 - Dự phòng dữ liệu: schema lạ hoặc tệp lỗi → danh mục rỗng + cảnh báo trong app; phiên phát và `BitPerfect.evaluate` không bị ảnh hưởng. Trạng thái kiểm thử: xem TEST_REPORT.md (giao diện chưa được chạy trên thiết bị).
+
+## 10. Nguồn xác minh, độ chắc chắn kỹ thuật và tổ hợp xác minh (2.9.10)
+Chi tiết: DEVICE_REGISTRY.md. Tóm tắt nguyên tắc:
+- **Hai thuộc tính độc lập:** *Verification Source* (Manufacturer / User / Community Verified — bằng chứng đến từ đâu) và *Technical Confidence* (Confirmed / Supported / Inconclusive / Unverified — bằng chứng mạnh đến đâu). Nguồn không quyết định độ chắc chắn và không phải thứ hạng độ tin cậy.
+- **Mọi kết quả gắn với tổ hợp** Device + Firmware + Transport + Protocol + Audio Format + Playback Configuration. Xác minh của một kết nối/định dạng/firmware không đại diện cho kết nối/định dạng/firmware khác (`DeviceVerification.appliesTo`).
+- **Bốn khái niệm tách biệt:** thiết bị có khả năng (catalog) · cấu hình có khả năng (User Verified) · đường truyền thực tế đang chạy · phiên phát hiện tại đã đủ bằng chứng. Hộp thoại Bit-perfect hiển thị xác minh theo tổ hợp **bên dưới** kết luận của `BitPerfect.evaluate`, không thay đổi kết luận đó.
+- **Thiếu bằng chứng ⇒ UNKNOWN/NOT_VERIFIED/Unverified/Inconclusive, không bao giờ NOT BIT-PERFECT** (quy tắc của 2.9.5 giữ nguyên, có test vét cạn 345.600 tổ hợp).
+- **Xác nhận danh tính (Confirm Device Identity) ≠ xác minh khả năng phát (Verify Playback Capability)**; tên hiển thị không đủ tin cậy không bao giờ tự xác nhận.
+- Chưa triển khai: ReplayGain (app không có tính năng này nên không có gì để kiểm); Sleep Timer / Fade Out vẫn đã gỡ như yêu cầu trước đó.

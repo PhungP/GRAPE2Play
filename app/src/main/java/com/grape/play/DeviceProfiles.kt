@@ -33,6 +33,13 @@ object DeviceProfiles {
 
     /** Lưu lại sau khi Store bị sửa từ bên ngoài (ví dụ liên kết danh mục). */
     fun persist() = save()
+    /** Lưu kết quả người dùng tự kiểm tra (User Verified); cập nhật firmware hồ sơ nếu người dùng nhập. Không liên quan tới danh tính thiết bị. */
+    fun addVerification(v: DeviceVerification.UserVerification, firmware: String) {
+        store.verifications.add(v)
+        store.find(v.profileKey)?.let { if (firmware.isNotEmpty()) it.firmware = firmware }
+        save()
+    }
+    fun removeVerification(v: DeviceVerification.UserVerification) { store.verifications.remove(v); save() }
 
     fun applyTo(x: BitPerfect.Input, det: DeviceRegistry.Detected) = DeviceRegistry.apply(x, det, regs, store)
 

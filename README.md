@@ -71,11 +71,11 @@ Lưu ý: refresh token lưu trong SharedPreferences của app (giống mật kh�
 ## Bản 0.5.1
 - Cài đặt ▸ HIỂN THỊ: Tự động / FHD (chữ to hơn, mặc định cho TV Full HD) / 4K (gọn, nhiều nội dung).
 - Màn Đang phát: dòng tín hiệu có nhãn BIT-PERFECT — xanh lá = đạt (lossless, không EQ, không hạ bit), vàng = gần đạt (EQ bật, hạ 24→16-bit, DSD→PCM, chưa rõ codec), đỏ = nén mất dữ liệu (MP3/AAC/OGG/Opus). Chỉ đánh giá phần app kiểm soát; TV/hệ điều hành vẫn có thể đổi tần số lấy mẫu ở tầng dưới.
-- About: thêm dòng phiên bản giới hạn cho Ngọc Nho và liên hệ phankimphung@gmail.com.
+- About: thêm thông tin nhà phát triển và liên hệ phankimphung@gmail.com.
 
 ## Bản 0.5.2
 - FHD: canvas 1560×878 (chữ to hơn ~23% so với 1080p gốc); ô thông số bài hát cho phép 2 dòng, không còn bị cắt "Stereo 2…" / "Google…".
-- About: bố cục 2 cột, đủ lời giới thiệu, dòng "Phiên bản giới hạn, viết tặng cho Ngọc Nho và các anh em yêu âm thanh", nhà phát triển Phan Kim Phụng và email.
+- About: bố cục 2 cột, đủ lời giới thiệu, nhà phát triển Phan Kim Phụng và email.
 - Dấu "Phiên bản giới hạn" (chữ serif nghiêng vàng chuyển sắc) ở góc dưới thanh điều hướng trái.
 
 ## Bản 0.5.3

@@ -1,3 +1,14 @@
+# GRAPE2Play 2.9.10 — Ghi chú phát hành
+
+**Nguồn xác minh minh bạch:** mỗi cấu hình thiết bị nay hiển thị riêng *nguồn* (Manufacturer Verified / User Verified / Community Verified) và *độ chắc chắn kỹ thuật* (Confirmed / Supported / Inconclusive / Unverified) — hai thứ độc lập, không phải thứ hạng. **Verify Playback Capability**: tự ghi nhận kết quả bạn đã thử (định dạng, điều kiện, phương pháp, firmware) — lưu trên máy, tách khỏi xác nhận danh tính.
+
+**Danh mục mở rộng:** 91 thiết bị / 197 cấu hình từ trang chính thức của hãng (ngày nghiên cứu 2026-11-26). Vẫn chưa đầy đủ; thiết bị không có trong danh mục không có nghĩa là không hỗ trợ Bit-perfect, và có trong danh mục không có nghĩa là đã bit-perfect. Chưa có cấu hình nào đạt Confirmed/mức 3–4.
+
+**Sửa lỗi:** các màn Danh mục/Chi tiết/Thiết bị của tôi không cuộn lên được trên TV/D-pad; mở/đóng chi tiết không còn mất bộ lọc. **Về ứng dụng:** nội dung giới thiệu mới, trung lập.
+
+Không đổi: phát nhạc, Audio Engine, DSP/EQ, UPnP, Cast, USB, TV, ký và cập nhật OTA.
+
+---
 # GRAPE2Play 2.9.9 — Ghi chú phát hành (build debug + unit test đạt; chưa kiểm thử trên thiết bị, chưa có APK release ký)
 
 **Bit-perfect Verified Devices (mới):** danh mục 35 thiết bị / 80 cấu hình kết nối đã nghiên cứu từ trang chính thức của nhà sản xuất (ngày nghiên cứu 2026-11-25), dùng offline. Mở từ Đầu ra ▸ "Bit-perfect Verified Devices". Mỗi kết nối được đánh giá riêng, với bốn trạng thái hiển thị khác nhau: *cấu hình bit-perfect đã xác minh*, *khả năng định dạng/giao thức đã xác minh*, *ứng viên*, *không bit-perfect theo cấu hình đã ghi nhận*.

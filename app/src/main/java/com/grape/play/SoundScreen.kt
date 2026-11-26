@@ -459,8 +459,8 @@ private fun AboutBody(modifier: Modifier, big: Boolean) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(if (big) 12.dp else 8.dp)) {
         T("LIMITED EDITION", f(13).coerceAtLeast(10), C.PlumSoft, spaced = true, bold = true)
         Box(Modifier.fillMaxWidth().height(1.dp).background(C.Line))
-        T("App được viết dựa trên ý tưởng tặng cho một chuyên gia âm thanh già rất mê âm thanh nhưng không có tiền để đầu tư thiết bị.", f(18), C.Text, lines = 5)
-        T("Dùng để cứu vãn vòng đời của chiếc TV Sony Bravia 2015 hiện đã bị sọc màn 🙏🙏🙏🤣", f(18), C.Muted, lines = 3)
+        T("Trình phát nhạc hi-end cho Android và Android TV: phát PCM và DSD (gốc hoặc DoP) từ thư viện cục bộ, NAS, UPnP/DLNA và Google Cast.", f(18), C.Text, lines = 5)
+        T("Bộ lọc EQ/DSP tùy chọn, quản lý thiết bị đầu ra và hệ thống xác minh Bit-perfect minh bạch: phân biệt khả năng của thiết bị, cấu hình và phiên phát thực tế, kèm danh mục thiết bị có nguồn bằng chứng.", f(16), C.Muted, lines = 6)
         Spacer(Modifier.height(2.dp))
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Inset).padding(horizontal = if (big) 20.dp else 12.dp, vertical = if (big) 14.dp else 8.dp),

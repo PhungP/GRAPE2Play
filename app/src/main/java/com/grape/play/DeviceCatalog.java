@@ -41,6 +41,14 @@ public final class DeviceCatalog {
         public Status status = Status.CANDIDATE;
         public Method method = Method.DOCUMENTATION;
         public boolean userConfirmationRequired = true;
+        /** Bằng chứng theo nguồn (Manufacturer/User/Community) + độ chắc chắn kỹ thuật độc lập với nguồn. Dòng "E" trong tệp; nếu không có thì suy từ trường cũ khi nạp. */
+        public final List<DeviceVerification.Evidence> evidence = new ArrayList<>();
+        public boolean explicitEvidence;
+        public DeviceVerification.Confidence bestConfidence(DeviceVerification.Source src) {
+            DeviceVerification.Confidence b = null;
+            for (DeviceVerification.Evidence e : evidence) if (e.source == src && (b == null || e.confidence.ordinal() < b.ordinal())) b = e.confidence;
+            return b;
+        }
         /** Ghi chú nếu {@link #validate} đã hạ mức/trạng thái của bản ghi này. */
         public String downgraded = "";
         public boolean nativeDsd() { return dsd == Dsd.NATIVE; }
@@ -105,6 +113,25 @@ public final class DeviceCatalog {
             if (c.dsd == Dsd.DSD_TO_PCM && c.status == Status.CONFIG_VERIFIED) { down(c, c.level, Status.NOT_BIT_PERFECT, "DSD→PCM không bảo toàn dữ liệu DSD"); p.add(w + ": DSD→PCM không thể CONFIG_VERIFIED"); }
             if (c.conn == Route.BLUETOOTH && c.status == Status.CONFIG_VERIFIED) { down(c, c.level, Status.CANDIDATE, "Bluetooth không mặc nhiên bit-perfect"); p.add(w + ": Bluetooth CONFIG_VERIFIED"); }
         }
+        return p;
+    }
+    /**
+     * Hoàn thiện bằng chứng sau validate (mức đã được hạ nếu cần). Cấu hình không có dòng E: suy từ trường cũ — URL ⇒ bằng chứng NHÀ SẢN XUẤT, nguồn do người dùng cung cấp ⇒ NGƯỜI DÙNG —
+     * với độ chắc chắn theo mức (mức 1 ⇒ Unverified, ≥2 ⇒ Supported); Confirmed chỉ có khi dòng E ghi rõ và cấu hình mức ≥3.
+     */
+    static List<String> finishEvidence(Device d, Config c) {
+        List<String> p = new ArrayList<>();
+        String scope = c.conn + " / " + c.protocol;
+        if (!c.explicitEvidence) {
+            DeviceVerification.Confidence conf = c.level >= 2 ? DeviceVerification.Confidence.SUPPORTED : DeviceVerification.Confidence.UNVERIFIED;
+            if (c.method == Method.USER_TEST) {
+                for (String s : c.evidenceSources) c.evidence.add(new DeviceVerification.Evidence(DeviceVerification.Source.USER, conf, scope, "", c.evidenceDate, "", s));
+            } else {
+                for (String u : c.evidenceUrls) c.evidence.add(new DeviceVerification.Evidence(DeviceVerification.Source.MANUFACTURER, conf, scope, "", c.evidenceDate, u, c.evidenceNote));
+                for (String s : c.evidenceSources) c.evidence.add(new DeviceVerification.Evidence(DeviceVerification.Source.MANUFACTURER, conf, scope, "", c.evidenceDate, "", s));
+            }
+        }
+        for (DeviceVerification.Evidence e : c.evidence) { String w = DeviceVerification.enforce(e, c.level); if (!w.isEmpty()) p.add(d.id + "/" + c.conn + ": " + w); }
         return p;
     }
     private static void down(Config c, int level, Status st, String why) { c.level = Math.min(c.level, level); c.status = st; c.downgraded = why; }
@@ -173,6 +200,13 @@ public final class DeviceCatalog {
                         c.userConfirmationRequired = !f(a, 22).equalsIgnoreCase("N");
                         d.configs.add(c); break;
                     }
+                    case "E": {   // bằng chứng của cấu hình ngay trước đó: nguồn, độ chắc chắn, phạm vi, firmware, ngày, tham chiếu, ghi chú
+                        Device d = cat.devices.isEmpty() ? null : cat.devices.get(cat.devices.size() - 1);
+                        if (d == null || d.configs.isEmpty()) { cat.problems.add("dòng " + n + ": bằng chứng không thuộc cấu hình nào"); break; }
+                        Config c = d.configs.get(d.configs.size() - 1);
+                        c.evidence.add(new DeviceVerification.Evidence(DeviceVerification.source(f(a, 1)), DeviceVerification.confidence(f(a, 2)), f(a, 3), f(a, 4), f(a, 5), f(a, 6), f(a, 7)));
+                        c.explicitEvidence = true; break;
+                    }
                     default: cat.problems.add("dòng " + n + ": loại dòng không hợp lệ"); break;
                 }
             } catch (RuntimeException e) { cat.problems.add("dòng " + n + ": " + e.getClass().getSimpleName()); }
@@ -182,6 +216,7 @@ public final class DeviceCatalog {
             cat.devices.clear(); return cat;
         }
         for (Device d : cat.devices) cat.problems.addAll(validate(d));
+        for (Device d : cat.devices) for (Config c : d.configs) cat.problems.addAll(finishEvidence(d, c));
         return cat;
     }
     private static String[] lowerAll(String[] a) { for (int i = 0; i < a.length; i++) a[i] = a[i].toLowerCase(Locale.ROOT); return a; }
@@ -220,10 +255,19 @@ public final class DeviceCatalog {
         for (int i = 0; i + needle.size() <= hay.size(); i++) if (hay.subList(i, i + needle.size()).equals(needle)) return true;
         return false;
     }
+    /** Tên công ty mẹ mà thiết bị UPnP hay khai ở trường manufacturer (vd. JBL L75ms khai "Harman Luxury Audio"). Chỉ gồm quan hệ sở hữu thương hiệu đã biết rõ. */
+    private static final String[][] PARENTS = {{"harman", "jbl"}, {"dmholdings", "denon"}, {"dmholdings", "marantz"}, {"soundunited", "denon"}, {"soundunited", "marantz"}, {"panasonic", "technics"}};
     private static boolean makerOk(Device d, Discovered x) {
         String a = norm(x.manufacturer), b = norm(d.manufacturer);
         if (a.length() < 3 || b.length() < 3) return false;      // tên hãng quá ngắn không đủ để so khớp tiền tố
-        return a.equals(b) || a.startsWith(b) || b.startsWith(a);      // "Yamaha Corporation" ~ "Yamaha"
+        if (a.equals(b) || a.startsWith(b) || b.startsWith(a)) return true;      // "Yamaha Corporation" ~ "Yamaha"
+        for (String[] p : PARENTS) if (a.startsWith(p[0]) && b.equals(p[1])) return true;
+        return false;
+    }
+    /** Bỏ tiền tố tên hãng khỏi tên model (UPnP hay khai "JBL L75ms" thay vì "L75ms"). */
+    private static String stripMaker(String model, Device d) {
+        String m = norm(model), b = norm(d.manufacturer);
+        return b.length() >= 3 && m.length() > b.length() && m.startsWith(b) ? m.substring(b.length()) : m;
     }
     private static boolean modelEq(String a, String b) { return !norm(a).isEmpty() && norm(a).equals(norm(b)); }
 
@@ -243,8 +287,8 @@ public final class DeviceCatalog {
             if (!hw.isEmpty()) for (String h : d.hwIds) if (h.equals(hw)) { q = HARDWARE; len = 100; }
             if (q == NONE && !x.mfrProductId.isEmpty() && !d.mfrProductId.isEmpty() && x.mfrProductId.equalsIgnoreCase(d.mfrProductId) && (x.manufacturer.isEmpty() || makerOk(d, x))) { q = MODEL; len = 90; }
             if (q == NONE && makerOk(d, x)) {
-                boolean eq = modelEq(x.modelName, d.model);
-                for (String u : d.upnpNames) if (modelEq(x.modelName, u)) eq = true;
+                boolean eq = modelEq(x.modelName, d.model) || modelEq(stripMaker(x.modelName, d), d.model);
+                for (String u : d.upnpNames) if (modelEq(x.modelName, u) || modelEq(stripMaker(x.modelName, d), u)) eq = true;
                 if (eq) { q = MODEL; len = norm(d.model).length(); }
             }
             if (q == NONE) {

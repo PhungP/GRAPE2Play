@@ -36,8 +36,8 @@ final class DeviceCatalogTests {
         Catalog cat = load();
         List<Device> all = cat.devices;
         // --- dữ liệu tích hợp
-        check(all.size() >= 30 && cat.problems.isEmpty(), "CAT1. danh mục nạp được ≥30 thiết bị, không có cảnh báo dữ liệu (" + all.size() + " thiết bị; " + cat.problems + ")");
-        check(cat.version.equals("2.9.9") && cat.researched.equals("2026-11-25"), "CAT1b. phiên bản và ngày nghiên cứu được ghi");
+        check(all.size() >= 80 && cat.problems.isEmpty(), "CAT1. danh mục nạp được ≥30 thiết bị, không có cảnh báo dữ liệu (" + all.size() + " thiết bị; " + cat.problems + ")");
+        check(cat.version.equals("2.9.10") && cat.researched.equals("2026-11-26"), "CAT1b. phiên bản và ngày nghiên cứu được ghi");
         boolean noUnsupported = true, evid = true;
         for (Device d : all) for (Config c : d.configs) {
             if (c.status == Status.CONFIG_VERIFIED || c.level >= 3) noUnsupported = false;   // dữ liệu hiện tại không có phép đo/bằng chứng đủ cho mức 3-4
@@ -113,11 +113,18 @@ final class DeviceCatalogTests {
         check(DeviceCatalog.match(new Discovered("FiiO", "K9 Pro", "K9 Pro", Route.USB), all).device == null, "MAT10b. K9 Pro (không ESS) không nhầm với K9 Pro ESS");
         check(DeviceCatalog.match(new Discovered("FiiO", "K9 Pro ESS", "x", Route.HDMI), all).active.isEmpty(), "MAT11. kết nối không có trong danh mục (HDMI) → không mượn kết quả của USB");
         check(DeviceCatalog.match(null, all).device == null && DeviceCatalog.match(new Discovered(), all).device == null, "MAT12. đầu vào rỗng/null không lỗi");
+        // Thiết bị thật quan sát trên LAN: JBL L75ms khai manufacturer "Harman Luxury Audio", modelName "JBL L75ms"
+        DeviceCatalog.CatMatch jm = DeviceCatalog.match(up("Harman Luxury Audio", "JBL L75ms", "JBL L75ms"), all);
+        check(jm.device == jbl && jm.quality == DeviceCatalog.MODEL && !jm.needsConfirmation(), "MAT15. JBL L75ms thật (Harman Luxury Audio / 'JBL L75ms') khớp chắc chắn");
+        check(DeviceCatalog.match(up("Harman Luxury Audio", "Ultra", "x"), all).device == null && DeviceCatalog.match(up("Harman", "JBL L750ms", "x"), all).device == null, "MAT16. hãng mẹ không làm khớp nhầm model/hãng khác (Ultra, L750ms)");
+        check(DeviceCatalog.match(up("Panasonic Corporation", "Technics SU-GX70", "x"), all).device != null, "MAT17. Panasonic → Technics, tiền tố hãng trong tên model được bỏ");
         // --- tìm kiếm và lọc
         Query q = new Query(); q.text = "wiim";
         check(DeviceCatalog.search(all, q).size() == 4, "SRCH1. tìm theo hãng (WiiM: Ultra, Mini, Pro, Amp)");
         q = new Query(); q.text = "x2";
-        check(DeviceCatalog.search(all, q).size() == 1 && DeviceCatalog.search(all, q).get(0).model.equals("element X2"), "SRCH2. tìm theo model");
+        List<Device> x2 = DeviceCatalog.search(all, q); boolean allMatch = !x2.isEmpty(), hasEl = false;
+        for (Device d : x2) { if (!DeviceRegistry.norm(d.label() + String.join("", d.aliases)).contains("x2")) allMatch = false; if (d.model.equals("element X2")) hasEl = true; }
+        check(allMatch && hasEl, "SRCH2. tìm theo model (mọi kết quả chứa 'x2', gồm element X2)");
         q = new Query(); q.text = "cxa 81";
         check(DeviceCatalog.search(all, q).size() >= 1, "SRCH2b. bí danh có khoảng trắng");
         q = new Query(); q.category = "AVR";

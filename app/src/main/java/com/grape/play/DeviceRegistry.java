@@ -112,7 +112,7 @@ public final class DeviceRegistry {
     public static final class Profile {
         public String key = "", source = SRC_DETECTED, entryId = "", manufacturer = "", model = "", name = "", notes = "";
         /** 2.9.9: id thiết bị trong {@link DeviceCatalog} (người dùng xác nhận/sửa) và UDN UPnP. Chỉ là liên kết nhận dạng — KHÔNG cấp mức xác minh. */
-        public String catalogId = "", udn = "";
+        public String catalogId = "", udn = "", firmware = "";
         public Route conn = Route.ROUTE_UNKNOWN; public int vid = -1, pid = -1; public long confirmedAt;
         public int[] bits = new int[0], rates = new int[0];   // do người dùng khai báo; chỉ để hiển thị, KHÔNG dùng để cấp xác minh
         public String label() { String s = (manufacturer + " " + model).trim(); return s.isEmpty() ? name : s; }
@@ -121,8 +121,11 @@ public final class DeviceRegistry {
         public final List<Profile> profiles = new ArrayList<>();
         public final Set<String> rejected = new LinkedHashSet<>();   // "key#entryId": người dùng nói "không đúng thiết bị"
         public final Set<String> dismissed = new LinkedHashSet<>();  // key thiết bị lạ người dùng chọn "để sau"
+        /** 2.9.10: kết quả người dùng tự kiểm tra khả năng phát (User Verified). Tách khỏi xác nhận danh tính. */
+        public final List<DeviceVerification.UserVerification> verifications = new ArrayList<>();
+        public List<DeviceVerification.UserVerification> verificationsFor(String key) { List<DeviceVerification.UserVerification> l = new ArrayList<>(); for (DeviceVerification.UserVerification v : verifications) if (v.profileKey.equals(key)) l.add(v); return l; }
         public Profile find(String key) { for (Profile p : profiles) if (p.key.equals(key)) return p; return null; }
-        public boolean remove(String key) { boolean r = profiles.removeIf(p -> p.key.equals(key)); dismissed.remove(key); rejected.removeIf(x -> x.startsWith(key + "#")); return r; }
+        public boolean remove(String key) { boolean r = profiles.removeIf(p -> p.key.equals(key)); dismissed.remove(key); rejected.removeIf(x -> x.startsWith(key + "#")); verifications.removeIf(v -> v.profileKey.equals(key)); return r; }
         public void put(Profile p) { profiles.removeIf(x -> x.key.equals(p.key)); profiles.add(p); dismissed.remove(p.key); }
     }
 
@@ -226,9 +229,10 @@ public final class DeviceRegistry {
         for (Profile p : st.profiles)
             b.append("P\t").append(esc(p.key)).append('\t').append(p.source).append('\t').append(esc(p.entryId)).append('\t').append(esc(p.manufacturer)).append('\t').append(esc(p.model)).append('\t')
                     .append(esc(p.name)).append('\t').append(p.conn.name()).append('\t').append(p.vid).append('\t').append(p.pid).append('\t').append(esc(p.notes)).append('\t')
-                    .append(p.confirmedAt).append('\t').append(csv(p.bits)).append('\t').append(csv(p.rates)).append('\t').append(esc(p.catalogId)).append('\t').append(esc(p.udn)).append('\n');
+                    .append(p.confirmedAt).append('\t').append(csv(p.bits)).append('\t').append(csv(p.rates)).append('\t').append(esc(p.catalogId)).append('\t').append(esc(p.udn)).append('\t').append(esc(p.firmware)).append('\n');
         for (String r : st.rejected) b.append("R\t").append(esc(r)).append('\n');
         for (String r : st.dismissed) b.append("D\t").append(esc(r)).append('\n');
+        for (DeviceVerification.UserVerification v : st.verifications) b.append(DeviceVerification.serialize(v)).append('\n');
         return b.toString();
     }
     /** Trả về Store (không bao giờ null); dòng hỏng bị bỏ qua. */
@@ -243,10 +247,11 @@ public final class DeviceRegistry {
                     p.key = unesc(f[1]); p.source = f[2].equals(SRC_USER) ? SRC_USER : SRC_DETECTED; p.entryId = unesc(f[3]); p.manufacturer = unesc(f[4]); p.model = unesc(f[5]); p.name = unesc(f[6]);
                     p.conn = Route.valueOf(f[7]); p.vid = Integer.parseInt(f[8]); p.pid = Integer.parseInt(f[9]); p.notes = unesc(f[10]); p.confirmedAt = Long.parseLong(f[11]);
                     p.bits = parseCsv(f[12]); p.rates = f.length > 13 ? parseCsv(f[13]) : new int[0];
-                    p.catalogId = f.length > 14 ? unesc(f[14]) : ""; p.udn = f.length > 15 ? unesc(f[15]) : "";
+                    p.catalogId = f.length > 14 ? unesc(f[14]) : ""; p.udn = f.length > 15 ? unesc(f[15]) : ""; p.firmware = f.length > 16 ? unesc(f[16]) : "";
                     if (!p.key.isEmpty()) st.profiles.removeIf(x -> x.key.equals(p.key)); if (!p.key.isEmpty()) st.profiles.add(p);
                 } else if (f[0].equals("R") && f.length >= 2 && !f[1].isEmpty()) st.rejected.add(unesc(f[1]));
                 else if (f[0].equals("D") && f.length >= 2 && !f[1].isEmpty()) st.dismissed.add(unesc(f[1]));
+                else if (f[0].equals("V")) { DeviceVerification.UserVerification v = DeviceVerification.parse(line); if (v != null) st.verifications.add(v); }
             } catch (RuntimeException ignored) { /* dòng hỏng: bỏ qua */ }
         }
         return st;
