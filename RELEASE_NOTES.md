@@ -1,3 +1,12 @@
+# GRAPE2Play 3.0.1 — Ghi chú phát hành
+
+**Sửa lỗi TV/D-pad:** mở "Bit-perfect Verified Devices", "Thiết bị âm thanh của tôi", Chi tiết thiết bị và form Verify không còn làm con trỏ nhảy ra các menu khác của app.
+
+**Dò loa UPnP chắc hơn:** app nhớ URL mô tả của loa đã thấy và tải lại trực tiếp khi lần quét SSDP không thấy (loa chờ, gói UDP rơi, cổng UPnP đổi sau khi khởi động lại); loa có cả Google Cast và UPnP (ví dụ JBL L75ms) ít bị chỉ hiện Cast hơn. Nếu loa vẫn không hiện, nguyên nhân có thể ở loa/mạng Wi-Fi — chưa loại trừ được.
+
+Không đổi: phát nhạc, Audio Engine, DSP/EQ, ký và cập nhật OTA. Chưa kiểm thử trên TV/loa thật.
+
+---
 # GRAPE2Play 3.0.0 — Ghi chú phát hành
 
 **Nguồn xác minh minh bạch:** mỗi cấu hình thiết bị nay hiển thị riêng *nguồn* (Manufacturer Verified / User Verified / Community Verified) và *độ chắc chắn kỹ thuật* (Confirmed / Supported / Inconclusive / Unverified) — hai thứ độc lập, không phải thứ hạng. **Verify Playback Capability**: tự ghi nhận kết quả bạn đã thử (định dạng, điều kiện, phương pháp, firmware) — lưu trên máy, tách khỏi xác nhận danh tính.

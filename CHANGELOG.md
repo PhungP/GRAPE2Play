@@ -83,6 +83,6 @@ Repo GitHub đổi từ `PhungP/grape2play` thành `PhungP/GRAPE2Play`. Cập nh
 - **Matcher UPnP:** nhận tên hãng mẹ (Harman→JBL, D&M/Sound United→Denon/Marantz, Panasonic→Technics) và bỏ tiền tố hãng khỏi tên model — phát hiện nhờ JBL L75ms thật trên LAN khai "Harman Luxury Audio" / "JBL L75ms" nhưng không khớp ở bản nháp; nay khớp chắc chắn.
 - Không đổi: Playback.kt, Audio Engine, PCM/DSD/DoP, DSP/EQ, UPnP phát nhạc, Cast, BitPerfect.evaluate, applicationId, ký, cơ chế cập nhật.
 
-## Sau 3.0.0 — sửa tiêu điểm D-pad và dò loa UPnP (chưa phát hành)
+## 3.0.1 — sửa tiêu điểm D-pad và dò loa UPnP (versionCode 104)
 - **Tiêu điểm D-pad (TV):** mở "Bit-perfect Verified Devices"/"Thiết bị âm thanh của tôi"/Chi tiết/Verify làm con trỏ nhảy ra menu khác của app vì hộp thoại yêu cầu tiêu điểm trước khi cửa sổ dựng xong (tiêu điểm còn ở trang bên dưới). Nay chờ 150 ms như các hộp thoại khác của app.
 - **Dò loa UPnP:** lưu URL device description của loa đã thấy; khi loa không trả lời SSDP lần quét này (loa chờ, UDP rơi gói, cổng UPnP đổi) app tải lại description theo URL, rồi thử cổng cũ, rồi SSDP unicast tới đúng IP; `describe` thử lại một lần. Trước đây chỉ thử cổng đã lưu (có thể đã đổi) nên loa có Cast + UPnP đôi khi chỉ hiện Cast. Chưa thử trên TV thật; nguyên nhân phía loa/mạng chưa loại trừ được.
