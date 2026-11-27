@@ -14,32 +14,25 @@ import java.nio.charset.Charset
 object UserPlaylists {
     class P(val name: String, val paths: List<String>, val at: Long)
     val list = mutableStateListOf<P>()
-    private lateinit var sp: SharedPreferences
+    private lateinit var store: SafePrefStore
 
-    fun init(ctx: Context) {
-        if (::sp.isInitialized) return
-        sp = ctx.applicationContext.getSharedPreferences("aiplaylists", Context.MODE_PRIVATE)
-        runCatching {
-            val a = JSONArray(sp.getString("v", "[]") ?: "[]")
-            for (i in 0 until a.length()) {
-                val o = a.getJSONObject(i); val p = o.getJSONArray("p")
-                list.add(P(o.getString("n"), (0 until p.length()).map { p.getString(it) }, o.optLong("t")))
-            }
-        }
+    /** Dữ liệu hỏng không bao giờ bị biến thành danh sách rỗng rồi ghi đè: xem [SafeJsonStore]. */
+    @Synchronized fun init(ctx: Context) {
+        if (::store.isInitialized) return
+        store = SafePrefStore(ctx.applicationContext, "aiplaylists", PersistCodec::isPlaylists, "Playlists")
+        PersistCodec.decodePlaylists(store.load().value ?: "[]")?.forEach { list.add(P(it.name, it.paths, it.at)) }
     }
 
-    fun add(name: String, tracks: List<Track>) {
+    @Synchronized fun add(name: String, tracks: List<Track>) {
         if (tracks.isEmpty()) return
         list.add(0, P(name.trim().ifEmpty { "Playlist" }.take(60), tracks.map { it.path }, System.currentTimeMillis())); save()
     }
-    fun remove(p: P) { list.remove(p); save() }
+    @Synchronized fun remove(p: P) { list.remove(p); save() }
     fun tracks(p: P, lib: List<Track>): List<Track> { val m = lib.associateBy { it.path }; return p.paths.mapNotNull { m[it] } }
 
-    private fun save() {
-        if (!::sp.isInitialized) return
-        val a = JSONArray()
-        list.forEach { p -> a.put(JSONObject().put("n", p.name).put("t", p.at).put("p", JSONArray().also { j -> p.paths.forEach { j.put(it) } })) }
-        sp.edit().putString("v", a.toString()).apply()
+    @Synchronized private fun save() {
+        if (!::store.isInitialized) return
+        store.writeAsync(PersistCodec.encodePlaylists(list.map { PersistCodec.Playlist(it.name, it.paths, it.at) }))
     }
 }
 

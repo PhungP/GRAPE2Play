@@ -1,48 +1,42 @@
 package com.grape.play
 
 import android.content.Context
-import android.content.SharedPreferences
 import androidx.compose.runtime.mutableStateOf
-import org.json.JSONArray
 
 /** Danh sách bài hát yêu thích (lưu đường dẫn bài). Thứ tự = thứ tự thêm; khi hiển thị, bài mới thêm lên đầu. */
 object Favorites {
-    private lateinit var sp: SharedPreferences
+    private lateinit var store: SafePrefStore
     private lateinit var app: Context
     val paths = mutableStateOf<Set<String>>(emptySet())
 
+    /** Dữ liệu hỏng không bao giờ bị biến thành danh sách rỗng rồi ghi đè: xem [SafeJsonStore]. */
     fun init(ctx: Context) {
-        if (::sp.isInitialized) return
+        if (::store.isInitialized) return
         app = ctx.applicationContext
-        sp = app.getSharedPreferences("favorites", Context.MODE_PRIVATE)
-        val a = runCatching { JSONArray(sp.getString("v", "[]") ?: "[]") }.getOrDefault(JSONArray())
-        val s = LinkedHashSet<String>()
-        for (i in 0 until a.length()) s.add(a.getString(i))
-        paths.value = s
+        store = SafePrefStore(app, "favorites", PersistCodec::isStrings, "Favorites")
+        paths.value = LinkedHashSet(PersistCodec.decodeStrings(store.load().value ?: "[]") ?: emptyList())
     }
 
     fun isFav(path: String): Boolean = path in paths.value
 
     /** Thêm/bỏ yêu thích. Trả về true nếu bài vừa được thêm. */
-    fun toggle(t: Track): Boolean {
+    @Synchronized fun toggle(t: Track): Boolean {
         val s = LinkedHashSet(paths.value)
         val added = if (t.path in s) { s.remove(t.path); false } else { s.add(t.path); true }
         paths.value = s
-        if (::sp.isInitialized) {
-            val a = JSONArray(); s.forEach { a.put(it) }
-            sp.edit().putString("v", a.toString()).apply()
+        if (::store.isInitialized) {
+            store.writeAsync(PersistCodec.encodeStrings(s.toList()))
             TvHome.schedule(app, 2000)
         }
         return added
     }
 
     /** Đổi đường dẫn khi file được di chuyển/đổi tên (đã đối chiếu an toàn ở [Library]). Giữ nguyên thứ tự; không xóa mục nào. */
-    fun remap(m: Map<String, String>) {
-        if (!::sp.isInitialized || paths.value.none { it in m }) return
+    @Synchronized fun remap(m: Map<String, String>) {
+        if (!::store.isInitialized || paths.value.none { it in m }) return
         val s = LinkedHashSet<String>(); paths.value.forEach { s.add(m[it] ?: it) }
         paths.value = s
-        val a = JSONArray(); s.forEach { a.put(it) }
-        sp.edit().putString("v", a.toString()).apply()
+        store.writeAsync(PersistCodec.encodeStrings(s.toList()))
     }
 
     /** Các bài yêu thích có trong thư viện, bài mới thêm đứng đầu. */
@@ -55,28 +49,25 @@ object Favorites {
 
 /** 30 bài phát gần nhất (dùng cho hàng "Phát gần đây" trên trang chủ TV). */
 object Recents {
-    private lateinit var sp: SharedPreferences
+    private lateinit var store: SafePrefStore
     private var list: List<String> = emptyList()
 
     @Synchronized fun init(ctx: Context) {
-        if (::sp.isInitialized) return
-        sp = ctx.applicationContext.getSharedPreferences("recents", Context.MODE_PRIVATE)
-        val a = runCatching { JSONArray(sp.getString("v", "[]") ?: "[]") }.getOrDefault(JSONArray())
-        list = (0 until a.length()).map { a.getString(it) }
+        if (::store.isInitialized) return
+        store = SafePrefStore(ctx.applicationContext, "recents", PersistCodec::isStrings, "Recents")
+        list = PersistCodec.decodeStrings(store.load().value ?: "[]") ?: emptyList()
     }
 
     @Synchronized fun add(path: String) {
-        if (!::sp.isInitialized) return
-        list = (listOf(path) + list.filter { it != path }).take(30)
-        val a = JSONArray(); list.forEach { a.put(it) }
-        sp.edit().putString("v", a.toString()).apply()
+        if (!::store.isInitialized) return
+        list = PersistCodec.pushRecent(list, path, 30)
+        store.writeAsync(PersistCodec.encodeStrings(list))
     }
 
     @Synchronized fun remap(m: Map<String, String>) {
-        if (!::sp.isInitialized || list.none { it in m }) return
+        if (!::store.isInitialized || list.none { it in m }) return
         list = list.map { m[it] ?: it }.distinct()
-        val a = JSONArray(); list.forEach { a.put(it) }
-        sp.edit().putString("v", a.toString()).apply()
+        store.writeAsync(PersistCodec.encodeStrings(list))
     }
 
     @Synchronized fun tracks(all: List<Track>): List<Track> {
