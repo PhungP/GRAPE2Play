@@ -53,6 +53,8 @@ object MediaSessionBridge {
             override fun onSkipToNext() { Playback.next() }
             override fun onSkipToPrevious() { Playback.prev() }
             override fun onSeekTo(pos: Long) { Playback.seekTo(pos) }
+            /** Launcher/hệ thống bấm một bài trong hàng đợi đã công bố: id = chỉ số trong danh sách đầy đủ ([publishQueue]); Playback.jump tự kiểm tra phạm vi. */
+            override fun onSkipToQueueItem(id: Long) { if (id in 0..Int.MAX_VALUE.toLong()) Playback.jump(id.toInt()) }
         })
         s.setSessionActivity(PendingIntent.getActivity(app, 2, Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
         session = s
@@ -132,7 +134,7 @@ object MediaSessionBridge {
     }
 
     private const val ACTIONS = PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_SKIP_TO_NEXT or
-        PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_SEEK_TO or PlaybackState.ACTION_STOP
+        PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_SEEK_TO or PlaybackState.ACTION_STOP or PlaybackState.ACTION_SKIP_TO_QUEUE_ITEM
 
     private fun setState(s: MediaSession, playing: Boolean, none: Boolean) {
         val pos = Playback.position.value.coerceAtLeast(0L)
