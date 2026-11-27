@@ -55,3 +55,10 @@ Bổ sung cho `CHECKPOINT_3.0.5_2026-11-27.md` (vẫn đúng với các ràng bu
 | AudD | phân tích phản hồi + chính sách | đường thu (im lặng) | chưa (khoá + micro thật) |
 | Bit-perfect, gapless, USB DAC, HDMI, UPnP, Cast | logic có | không áp dụng | chưa |
 | Cài đè OTA | cấu hình không đổi | có (khoá debug) | chưa (khoá release) |
+
+## Đợt nghiệm thu / chốt phát hành (cùng ngày)
+- **FLAC đối chiếu đặc tả**: đọc trực tiếp RFC 9639 (§8.2 STREAMINFO, §9.1 tiêu đề khung, §9.1.5 số khung/số mẫu, CRC-8/CRC-16) và `stream_decoder.c` của libFLAC (`read_frame_header_`, `frame_sync_`, xử lý CRC16 sai → `FRAME_CRC_MISMATCH` + quay lại sau mã đồng bộ, lấp im lặng khi thiếu khung chỉ với số mẫu).
+- Kết luận: vị trí mẫu của khung cố định (`0xFFF8`) suy ra được theo đặc tả **chỉ khi STREAMINFO min == max**. Với min != max hoặc thiếu, không khôi phục tin cậy được (libFLAC dùng quy ước cũ hoặc báo UNPARSEABLE). **Giữ giới hạn**, không đoán; nhưng mất khung không neo được và file cụt nay **được đếm là hư hại** (→ NOT_BIT_PERFECT, không bao giờ "giải mã hoàn chỉnh"). Thêm kiểm cỡ khối khi neo. Test FP14b/c/d [UNIT].
+- `docs/ACCEPTANCE_GUIDE.md`: thêm giới hạn FLAC, quy trình OTA bằng khoá release (chủ dự án), quy ước bằng chứng. `scripts/verify_ota.sh` (chỉ đọc APK; cùng chứng chỉ, cùng applicationId, versionCode > 108, versionName đổi).
+- Chưa làm (việc của chủ dự án): tăng version, ký release bằng keystore, chạy script, cài đè trên máy thật, toàn bộ mục thiết bị thật trong ACCEPTANCE_GUIDE. Không có mục nào được ghi VERIFIED.
+- Kiểm tra: 10275 test lõi đạt; `gradle clean :app:assembleDebug :app:testDebugUnitTest` thành công; không có file nhị phân/keystore/local.properties trong Git; không có mẫu bí mật trong diff so với f1bf769; applicationId/versionCode/versionName/cấu hình ký không đổi.

@@ -104,6 +104,17 @@ final class FlacPcmTests {
         // (d) file hợp lệ: không báo hư hỏng, không im lặng
         FlacPcm fp3 = new FlacPcm(mem(clean)); fp3.listener = m -> msgs.add("LỖI: " + m); msgs.clear(); readAll(fp3);
         check(fp3.damagedFrames() == 0 && fp3.silencedSamples() == 0 && msgs.isEmpty(), "FP15. file hợp lệ: 0 khung hỏng, 0 mẫu im lặng, không có thông báo");
+        // (d2) file cụt: phải được ghi nhận là hư hại (không bao giờ báo giải mã nguyên vẹn)
+        FlacPcm fpc = new FlacPcm(mem(cut)); msgs.clear(); fpc.listener = msgs::add; readAll(fpc);
+        check(fpc.damagedFrames() >= 1 && !msgs.isEmpty(), "FP14b. file cụt (thiếu mẫu so với STREAMINFO): damagedFrames>=1 → không được coi là giải mã hoàn chỉnh/Bit-perfect");
+        // (d3) giới hạn đã ghi nhận: khối cố định (0xFFF8) mà STREAMINFO min != max → KHÔNG neo được vị trí mẫu theo đặc tả (RFC 9639 §8.2/§9.1)
+        byte[] mm = clean.clone(); mm[9] = (byte) (mm[9] - 1);                       // min blocksize (STREAMINFO @ byte 8..9) nhỏ hơn max
+        byte[] mm2 = mm.clone(); mm2[starts.get(1) + 4] ^= 0x01;                      // làm hỏng CRC8 tiêu đề khung 1 → mất khung
+        FlacPcm fpm = new FlacPcm(mem(mm2)); msgs.clear(); fpm.listener = msgs::add; readAll(fpm);
+        boolean noGuess = fpm.silencedSamples() == 0 || fpm.silencedSamples() < FL * 2;
+        check(fpm.damagedFrames() >= 1 && noGuess && msgs.stream().anyMatch(m -> m.contains("vị trí")), "FP14c. khối cố định + STREAMINFO min!=max + mất khung: KHÔNG đoán vị trí, nhưng báo hư hại 'không xác định được vị trí' (damagedFrames>=1)");
+        FlacPcm fpm0 = new FlacPcm(mem(mm)); msgs.clear(); fpm0.listener = msgs::add; readAll(fpm0);
+        check(fpm0.damagedFrames() == 0 && fpm0.silencedSamples() == 0, "FP14d. cùng file min!=max nhưng KHÔNG hỏng: giải mã bình thường, 0 hư hại (không báo động giả)");
         // (e) fuzz: làm hỏng 1 byte ở 400 vị trí ngẫu nhiên (nhiều kiểu mã hoá) — không ném lỗi/treo; khung hỏng không rò dữ liệu sai ra ngoài khung k, k+1
         Random fz = new Random(21); boolean fuzzOk = true; int fuzzCases = 0;
         for (int it = 0; it < 400 && fuzzOk; it++) {

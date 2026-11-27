@@ -81,6 +81,11 @@ Tạo file lỗi từ một FLAC nguyên vẹn (trên máy tính), **không** d�
 | 7.6 | Tua qua chỗ hỏng, tua ngược | Không treo, âm thanh khác chỗ hỏng bình thường | | |
 Ghi ý kiến nghe: im lặng một khung có chấp nhận được không?
 
+**Giới hạn đã biết (đối chiếu RFC 9639 + libFLAC, đã có test đơn vị [UNIT])**:
+- Khung độ dài cố định (`0xFFF8`) chỉ định vị được mẫu chính xác khi STREAMINFO có `min == max` (số khung × cỡ khối). Nếu `min != max` hoặc STREAMINFO thiếu/0 thì sau khi mất khung **không thể** khôi phục vị trí mẫu theo đặc tả (libFLAC chỉ đoán theo quy ước cũ hoặc báo UNPARSEABLE_STREAM). App **không đoán**: không chèn im lặng, nhưng đếm là hư hại → trạng thái NOT_BIT_PERFECT, nhật ký ghi "không xác định được vị trí mẫu chính xác"; âm thanh phía sau có thể lệch thời gian.
+- File cụt (ít mẫu hơn STREAMINFO) cũng được đếm là hư hại; không bao giờ được coi là giải mã hoàn chỉnh.
+- Khung `0xFFF9` (khối thay đổi) mang số mẫu trực tiếp nên luôn neo được.
+
 ## 8. AudD (nhận diện nhạc)
 Cần khoá API AudD hợp lệ và thiết bị có micro (đa số TV KHÔNG có micro: kỳ vọng "Thiết bị này không có micro").
 | # | Bước | Mong đợi | Kết quả | Bằng chứng |
@@ -104,6 +109,18 @@ Cần khoá API AudD hợp lệ và thiết bị có micro (đa số TV KHÔNG c
 - `applicationId` (`com.grape.play`) và cấu hình ký **không thay đổi** so với 3.0.5.
 - Khi phát hành phải **tăng** `versionName`/`versionCode` (hiện vẫn 3.0.5 / 108): Updater chỉ đề nghị khi tag > phiên bản đang chạy, và Android cần versionCode lớn hơn để cập nhật.
 
+**Kiểm tra chứng chỉ bằng script (chủ dự án chạy; script CHỈ đọc APK, không dùng keystore/mật khẩu):**
+```
+scripts/verify_ota.sh <apk_dang_phat_hanh_3.0.5> <apk_moi_da_ky>
+```
+Script kiểm: chữ ký hợp lệ cả hai; **cùng chứng chỉ SHA-256** (phải là `853ecf48…06f4`); cùng `applicationId`; `versionCode` mới **>** 108; `versionName` đã đổi. Thoát 0 = đạt. (Đã thử trên APK debug: các kiểm tra chữ ký/applicationId chạy đúng; kiểm tra tăng phiên bản báo FAIL đúng như mong đợi khi so một APK với chính nó.)
+
+**Build bản release (chủ dự án, trên máy giữ keystore; mật khẩu chỉ nằm trong biến môi trường của phiên shell, không ghi vào repo/log/lệnh):**
+1. Tăng `versionCode`/`versionName` trong `app/build.gradle.kts` (bước của chủ dự án, chưa làm trong repo).
+2. `export GRAPE_KEYSTORE=… GRAPE_KEY_ALIAS=…` và nhập `GRAPE_KEYSTORE_PASSWORD` (`read -rs`) rồi `./gradlew :app:assembleRelease`.
+3. Chạy `scripts/verify_ota.sh`, rồi `adb install -r app-release.apk` đè lên máy đang có 3.0.5 và điền bảng dưới. Nếu **không có keystore** trên máy: đây là bước chỉ chủ dự án làm được — không tạo khoá mới (khoá khác ⇒ không cài đè được).
+Sau cài đè kiểm dữ liệu đọc được: `adb shell dumpsys package com.grape.play | grep -E "versionCode|versionName|lastUpdateTime"` và các mục 9.1–9.5.
+
 Quy trình thử trên thiết bị thật có dữ liệu thật (SAO LƯU file nhạc trước; app đặt `allowBackup=false`):
 | # | Bước | Mong đợi | Kết quả | Bằng chứng |
 |---|---|---|---|---|
@@ -121,6 +138,9 @@ Quy trình thử trên thiết bị thật có dữ liệu thật (SAO LƯU file
 - Rút USB/NAS rồi cắm lại: bài của ổ vắng được giữ, không bị xoá.
 - Kill app khi đang phát: hàng đợi/playlist/yêu thích/lịch sử còn nguyên sau khi mở lại.
 - Mở menu "Dừng quét" giữa lúc quét: thư viện không thu hẹp.
+
+## 10b. Quy ước bằng chứng
+Chỉ ghi **VERIFIED** khi đã thử trên đúng thiết bị thật và có bằng chứng (ảnh/log/ghi âm đo). Mức: [UNIT] test máy tính; [EMU] emulator; [REAL] thiết bị thật. Không có [REAL] thì giữ N/A/UNVERIFIED — kể cả Bit-perfect, Gapless, USB DAC, HDMI, UPnP, Cast.
 
 ## 11. Báo cáo kết quả
 Nộp bảng đã điền + log (`adb logcat -d -s GRAPEPlay > log.txt`) + ghi rõ thiết bị (hãng, model, firmware, Android). Hạng mục nào chưa làm thì để **N/A**, không suy diễn.

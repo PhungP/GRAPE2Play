@@ -317,15 +317,25 @@ public final class FlacPcm implements PcmStream {
             long frameStartPos = fpos - (ibLen - ibPos);
             try {
                 if (decodeFrameInner(frameStartPos)) return true;
-                return false;
+                return endOfData();
             } catch (EOFException e) {
-                return false;
+                return endOfData();
             } catch (IOException e) {
-                if (++attempts > 50) throw e;
+                if (++attempts > 50) { endOfData(); throw e; }
                 lost = true;                                   // khung bị mất: khung hợp lệ kế tiếp sẽ lấp khoảng trống bằng im lặng
-                if (!resync()) return false;
+                if (!resync()) return endOfData();
             }
         }
+    }
+
+    private boolean eofReported;
+    /** Hết dữ liệu: nếu STREAMINFO hứa nhiều mẫu hơn đã giải mã được (file cụt) → ghi nhận hư hại một lần. */
+    private boolean endOfData() {
+        if (!eofReported && meta.totalSamples > 0 && decSample < meta.totalSamples) {
+            eofReported = true;
+            damage("FLAC: tệp kết thúc sớm — thiếu " + (meta.totalSamples - decSample) + " mẫu so với STREAMINFO");
+        }
+        return false;
     }
 
     /** Tìm mã đồng bộ frame kế tiếp (0xFFF8/0xFFF9) có CRC8 header hợp lệ. */
@@ -380,7 +390,8 @@ public final class FlacPcm implements PcmStream {
         if (c != (int) crcByte) { crcOn = false; throw new IOException("CRC8 header sai"); }
         // Mẫu đầu tiên của khung (từ số khung/số mẫu trong tiêu đề): khung độ dài cố định → số khung × cỡ khối; độ dài thay đổi → chính số mẫu
         long startSample = -1;
-        if (frameNum >= 0) startSample = second == 0xf8 ? (meta.maxBlock > 0 && meta.minBlock == meta.maxBlock ? frameNum * meta.maxBlock : -1) : frameNum;
+        if (frameNum >= 0) startSample = second == 0xf8 ? (meta.maxBlock > 0 && meta.minBlock == meta.maxBlock && blocksize <= meta.maxBlock ? frameNum * meta.maxBlock : -1) : frameNum;
+        // RFC 9639 §9.1/§8.2: vị trí mẫu của khung cố định chỉ suy ra được khi STREAMINFO min == max (và khung không vượt cỡ đó). Ngược lại → -1 (không xác định, KHÔNG đoán như libFLAC).
         int bps;
         switch (szCode) { case 0: bps = meta.bps; break; case 1: bps = 8; break; case 2: bps = 12; break; case 4: bps = 16; break; case 5: bps = 20; break; case 6: bps = 24; break; case 7: bps = 32; break; default: throw new IOException("bit depth không hợp lệ"); }
         int nch = chAsg <= 7 ? chAsg + 1 : 2;
@@ -416,6 +427,11 @@ public final class FlacPcm implements PcmStream {
         if (lost) {
             lost = false;
             if (startSample > decSample && startSample - decSample <= MAX_GAP && (meta.totalSamples <= 0 || startSample + blocksize <= meta.totalSamples)) gap = startSample - decSample;
+            else if (startSample != decSample) {
+                // Không neo được vị trí mẫu (khối cố định mà STREAMINFO min != max/không rõ, hoặc khoảng trống quá lớn/bất thường): không im lặng chèn, nhưng PHẢI ghi nhận hư hại
+                // để không bao giờ báo giải mã nguyên vẹn / Bit-perfect.
+                damage("FLAC: mất khung nhưng không xác định được vị trí mẫu chính xác (" + (startSample < 0 ? "khối cố định, STREAMINFO min!=max hoặc thiếu" : "khoảng trống bất thường") + ") — vị trí phía sau có thể lệch");
+            }
         }
         int gapBytes = (int) (gap * frameBytes);
         int need = blocksize * frameBytes;
