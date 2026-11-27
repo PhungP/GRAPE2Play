@@ -19,6 +19,8 @@ object Library {
     const val META_VER = 2
     val tracks = MutableStateFlow<List<Track>>(emptyList())
     val scanning = MutableStateFlow(false)
+    /** true khi cache của mọi nguồn đã được nạp (trước khi quét lại) — để khôi phục hàng đợi đã lưu. */
+    val cacheLoaded = MutableStateFlow(false)
     val status = MutableStateFlow("")
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val lists = HashMap<String, List<Track>>()
@@ -114,6 +116,7 @@ object Library {
         withContext(Dispatchers.IO) {
             for (id in listOf("local") + SourceStore.list.value.map { it.id })
                 readCache(ctx, id)?.let { publish(id, it) }
+            cacheLoaded.value = true
         }
     }
 
@@ -122,6 +125,7 @@ object Library {
         withContext(Dispatchers.IO) {
             for (id in listOf("local") + SourceStore.list.value.map { it.id })
                 readCache(ctx, id)?.let { publish(id, it) }
+            cacheLoaded.value = true
         }
         rescanLocal(ctx)
     }

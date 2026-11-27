@@ -310,6 +310,7 @@ object Playback {
             }, Handler(Looper.getMainLooper()))
         }
         Keepalive.init(appCtx)
+        QueuePersist.start(appCtx)   // lưu/khôi phục hàng đợi (chỉ quan sát, không chạm luồng âm thanh)
         main.launch {
             while (true) { if (exo.isPlaying) { position.value = exo.currentPosition; if (position.value > 8000) { errCount = 0; if (!retries.isEmpty()) retries.clear() }; if (position.value > 4000 && error.value != null) error.value = null }; delay(250) }
         }
@@ -417,6 +418,25 @@ object Playback {
         AppLog.i("Player", "Phát danh sách ${tracks.size} bài từ #$start · ${tracks.getOrNull(start)?.ext} · đầu ra ${outName.value}")
         if (rc != null) { sync(); loadRemote(start) } else { exo.prepare(); exo.play(); sync() }
     }
+    /**
+     * Khôi phục hàng đợi đã lưu sau khi app bị tắt: TẠM DỪNG, không prepare ExoPlayer (không mở đầu ra âm thanh cho đến khi người dùng bấm phát),
+     * không ghi "phát gần đây"/thống kê. Chỉ thực hiện khi chưa có hàng đợi nào. Trả true nếu đã khôi phục.
+     */
+    fun restoreQueue(tracks: List<Track>, start: Int, posMs: Long, shuffleOn: Boolean, repeatMode: Int): Boolean {
+        if (tracks.isEmpty() || queue.value.isNotEmpty() || rc != null || exo.mediaItemCount > 0) return false
+        val k = start.coerceIn(0, tracks.lastIndex)
+        exo.playWhenReady = false
+        exo.shuffleModeEnabled = shuffleOn
+        exo.repeatMode = repeatMode.coerceIn(Player.REPEAT_MODE_OFF, Player.REPEAT_MODE_ALL)
+        queue.value = tracks
+        exo.setMediaItems(tracks.map { MediaItem.fromUri(Remote.toUri(it)) }, k, posMs)
+        if (shuffleOn) pinShuffle(k) else shuffleIdx = IntArray(0)
+        index.value = k; position.value = posMs; duration.value = tracks[k].durationMs
+        info.value = null
+        probeJob?.cancel()
+        probeJob = ioScope.launch { info.value = Probe.probe(tracks[k]) }
+        return true
+    }
     /** Đang phát tới thiết bị ngoài (UPnP/Cast) — âm lượng trong app không áp dụng. */
     fun isRemote() = rc != null
     /** Thêm bài vào cuối danh sách đang phát (AI DJ). */
@@ -480,16 +500,18 @@ object Playback {
         val p = ms.coerceIn(0L, d)
         if (c != null) { position.value = p; c.seek(p) }
         else { exo.seekTo(p); position.value = p }
+        QueuePersist.touch()
     }
     fun seekBy(ms: Long) {
         val c = rc
         if (c != null) {
             val d = if (duration.value > 0) duration.value else Long.MAX_VALUE
-            val p = (position.value + ms).coerceIn(0L, d); position.value = p; c.seek(p)
+            val p = (position.value + ms).coerceIn(0L, d); position.value = p; c.seek(p); QueuePersist.touch()
             return
         }
         val d = if (exo.duration > 0) exo.duration else Long.MAX_VALUE
         exo.seekTo((exo.currentPosition + ms).coerceIn(0L, d)); position.value = exo.currentPosition
+        QueuePersist.touch()
     }
 
     // ---------- Stream không dây ----------
