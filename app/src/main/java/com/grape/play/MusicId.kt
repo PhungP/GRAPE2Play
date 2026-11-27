@@ -99,6 +99,8 @@ object MusicId {
         catch (e: Exception) { fail("Không kết nối được dịch vụ nhận diện: ${e.message ?: e.javaClass.simpleName}") }
     }
 
+    // Quyền RECORD_AUDIO được kiểm bằng hasPermission() ngay trước khi gọi; thu âm cũng nằm trong try/catch Exception ở nơi gọi (SecurityException → thông báo lỗi).
+    @android.annotation.SuppressLint("MissingPermission")
     private suspend fun record(): ShortArray {
         val total = SAMPLE_RATE * SECONDS
         val min = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)

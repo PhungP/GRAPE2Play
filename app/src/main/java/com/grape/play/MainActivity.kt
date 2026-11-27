@@ -211,7 +211,8 @@ class MainActivity : ComponentActivity() {
                 addAction(android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS); addAction("android.media.action.HDMI_AUDIO_PLUG")
                 addAction("android.intent.action.HDMI_PLUGGED"); addAction(android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY)
             }
-            registerReceiver(sysRx, f)
+            // targetSdk 34: bắt buộc khai báo cờ; chỉ nhận broadcast hệ thống (NOT_EXPORTED) — trước đây ngoại lệ bị runCatching nuốt nên nhật ký chẩn đoán này không chạy
+            androidx.core.content.ContextCompat.registerReceiver(this, sysRx, f, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
         }
         runCatching {
             val am = getSystemService(AUDIO_SERVICE) as android.media.AudioManager

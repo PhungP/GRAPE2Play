@@ -190,7 +190,7 @@ fun CoverWebCard() {
 @Composable
 fun MusicIdCard() {
     val ctx = LocalContext.current
-    remember { MusicId.init(ctx) }
+    remember(ctx) { MusicId.init(ctx); true }
     val st by MusicId.state.collectAsState()
     var key by remember { mutableStateOf(MusicId.apiKey) }
     val mic = remember { MusicId.hasMic(ctx) }
