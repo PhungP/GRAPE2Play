@@ -201,6 +201,7 @@ fun MusicIdCard() {
     Card {
         T("NHẬN DIỆN NHẠC (AudD)", 13, C.Muted, spaced = true)
         DevField("Khoá API AudD (api.audd.io) — do bạn tự cung cấp", key) { v -> key = v.trim(); MusicId.apiKey = key }
+        if (MusicId.keyUnreadable()) T("⚠ Khoá đã lưu không giải mã được (khoá bảo mật của máy đã mất). Hãy nhập lại khoá — dữ liệu cũ vẫn được giữ nguyên.", 14, C.Gold, lines = 3)
         if (!mic) T("Thiết bị này không có micro nên không dùng được tính năng này.", 15, C.Muted, lines = 3)
         else {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

@@ -23,7 +23,7 @@ public final class AudioCoreTests {
 
     public static List<String> runAll() {
         pass = 0; fail = 0; failures.clear(); info.clear();
-        queueAndShuffle(); skip(); errors(); retryRecovery(); devices(); dspFlat(); dspBands(); dspPreampBalance(); dspClipping(); dspFormats(); dspRecovery(); gaplessVerdict(); BitPerfectTests.run(); DeviceRegistryTests.run(); DeviceCatalogTests.run(); DeviceVerificationTests.run(); VersionTests.run(); QueueWindowTests.run(); QueueStoreTests.run(); QueueSessionTests.run(); SafeStoreTests.run(); ScanTests.run(); ScanSafetyTests.run(); SourceRemovalTests.run(); PersistSafetyTests.run(); LibraryOrderTests.run(); MusicIdTests.run(); ManageTests.run(); FlacPcmTests.run(); DsdPcmTests.run(); StartupScanTests.run();
+        queueAndShuffle(); skip(); errors(); retryRecovery(); devices(); dspFlat(); dspBands(); dspPreampBalance(); dspClipping(); dspFormats(); dspRecovery(); gaplessVerdict(); BitPerfectTests.run(); DeviceRegistryTests.run(); DeviceCatalogTests.run(); DeviceVerificationTests.run(); VersionTests.run(); QueueWindowTests.run(); QueueStoreTests.run(); QueueSessionTests.run(); SafeStoreTests.run(); ScanTests.run(); ScanSafetyTests.run(); SourceRemovalTests.run(); PersistSafetyTests.run(); LibraryOrderTests.run(); MusicIdTests.run(); ManageTests.run(); FlacPcmTests.run(); DsdPcmTests.run(); StartupScanTests.run(); SecretMigrationTests.run();
         return failures;
     }
 

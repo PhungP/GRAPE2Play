@@ -45,4 +45,23 @@ object SecretBox {
             String(c.doFinal(raw, 12, raw.size - 12), Charsets.UTF_8)
         }.getOrNull()
     }
+
+    /**
+     * Di trú MỘT giá trị SharedPreferences plaintext → mã hoá, theo thứ tự an toàn (gọi trên luồng nền): mã hoá (đã kiểm giải mã lại) → commit() → ĐỌC LẠI từ prefs →
+     * giải mã đối chiếu với bản rõ gốc; sai bất kỳ bước nào thì khôi phục đúng bản rõ gốc và ghi nhật ký (không bao giờ để mất bí mật). commit() là thay thế file nguyên tử:
+     * tiến trình bị dừng giữa chừng thì prefs còn nguyên bản rõ hoặc đã là bản mã, không có trạng thái ở giữa.
+     */
+    fun migratePref(sp: android.content.SharedPreferences, name: String): Boolean {
+        val stored = sp.getString(name, "").orEmpty()
+        if (stored.isEmpty() || isEncrypted(stored)) return true
+        val enc = encrypt(stored) ?: run { AppLog.w("Secret", "$name: Keystore không dùng được — giữ nguyên bản rõ"); return false }
+        if (!sp.edit().putString(name, enc).commit()) { AppLog.w("Secret", "$name: ghi bản mã hoá thất bại — giữ nguyên bản rõ"); return false }
+        val back = sp.getString(name, null)
+        if (back != enc || decrypt(back) != stored) {
+            sp.edit().putString(name, stored).commit()
+            AppLog.w("Secret", "$name: đọc lại sau khi ghi không khớp — đã khôi phục bản rõ gốc")
+            return false
+        }
+        return true
+    }
 }

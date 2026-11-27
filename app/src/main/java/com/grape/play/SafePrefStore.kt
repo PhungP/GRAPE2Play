@@ -32,9 +32,32 @@ class SafePrefStore(ctx: Context, prefName: String, validator: SafeJsonStore.Val
         override fun canRetry() = store.isWritable
     }
 
-    /** Ghi một lần, KHÔNG gộp, và xoá bản sao lưu cũ (dùng khi di trú bí mật plaintext → mã hoá). Chạy trên luồng ghi chung, không chặn UI. */
-    fun writeScrubbed(raw: String) {
-        exec.execute { try { store.write(raw, true) } catch (e: Throwable) { AppLog.w("Data", "$tag: lỗi khi ghi (xoá bản sao lưu plaintext)", e) } }
+    /**
+     * Di trú bí mật plaintext → mã hoá, theo thứ tự an toàn (trên luồng ghi chung, không chặn UI):
+     *  1) ghi bản MỚI (bản cũ plaintext chuyển sang .bak, chưa xoá); 2) đọc lại bản chính từ kho; 3) [verify] giải mã đối chiếu với bản rõ gốc;
+     *  4) chỉ khi (3) đạt mới xoá .bak plaintext. Bất kỳ bước nào lỗi: giữ nguyên .bak (không mất bí mật) và ghi nhật ký.
+     */
+    fun migrate(raw: String, verify: (String) -> Boolean) {
+        exec.execute {
+            try {
+                if (!store.write(raw)) { AppLog.w("Data", "$tag: di trú bí mật — ghi thất bại, giữ nguyên dữ liệu cũ"); return@execute }
+                val back = store.peekMain()
+                if (back != null && verify(back)) {
+                    if (store.scrubBackup()) AppLog.i("Data", "$tag: di trú bí mật xong, đã xoá bản sao lưu plaintext")
+                    else AppLog.w("Data", "$tag: đã mã hoá nhưng chưa xoá được bản sao lưu cũ — sẽ thử lại lần khởi động sau")
+                } else AppLog.w("Data", "$tag: đọc lại sau khi ghi không khớp — GIỮ bản sao lưu cũ, không xoá gì")
+            } catch (e: Throwable) { AppLog.w("Data", "$tag: lỗi di trú bí mật", e) }
+        }
+    }
+
+    /** Dọn bản sao lưu còn plaintext từ lần di trú dở dang (tiến trình bị dừng giữa chừng): chỉ khi bản chính đã xác minh đạt. */
+    fun scrubStaleBackup(backupIsPlain: (String) -> Boolean, mainVerified: (String) -> Boolean) {
+        exec.execute {
+            try {
+                val bak = store.peekBackup(); val main = store.peekMain()
+                if (bak != null && main != null && backupIsPlain(bak) && mainVerified(main) && store.scrubBackup()) AppLog.i("Data", "$tag: đã dọn bản sao lưu plaintext còn sót")
+            } catch (e: Throwable) { AppLog.w("Data", "$tag: lỗi dọn sao lưu plaintext", e) }
+        }
     }
 
     fun writeAsync(raw: String) {

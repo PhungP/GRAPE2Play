@@ -63,6 +63,17 @@ public final class SafeJsonStore {
         return new Loaded(status, null);
     }
 
+    /** Giá trị thô hiện có của khoá chính / sao lưu (đọc thẳng từ backend, không thay đổi trạng thái); null nếu không có hoặc không đọc được. Dùng để ĐỌC LẠI & XÁC MINH sau khi ghi. */
+    public synchronized String peekMain() { try { return backend.get(KEY); } catch (RuntimeException e) { return null; } }
+    public synchronized String peekBackup() { try { return backend.get(BAK); } catch (RuntimeException e) { return null; } }
+
+    /** Xoá bản sao lưu — chỉ gọi SAU KHI bản chính mới đã được ghi, đọc lại và xác minh. Từ chối khi kho đang khoá ghi. */
+    public synchronized boolean scrubBackup() {
+        if (!loaded || !isWritable()) return false;
+        Map<String, String> batch = new LinkedHashMap<>(); batch.put(BAK, null);
+        try { return backend.putAll(batch) && backend.get(BAK) == null; } catch (RuntimeException e) { lastError = "lỗi khi xoá sao lưu: " + e; log(lastError); return false; }
+    }
+
     public synchronized Status status() { return loaded ? status : null; }
     public synchronized boolean isWritable() { return loaded && status != Status.CORRUPT && status != Status.UNREADABLE; }
     public synchronized String lastError() { return lastError; }

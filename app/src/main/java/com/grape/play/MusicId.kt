@@ -42,25 +42,33 @@ object MusicId {
     @Volatile private var job: Job? = null
     private lateinit var sp: SharedPreferences
 
-    fun init(ctx: Context) { if (!::sp.isInitialized) sp = ctx.applicationContext.getSharedPreferences("musicid", Context.MODE_PRIVATE) }
+    @Synchronized fun init(ctx: Context) {
+        if (::sp.isInitialized) return
+        sp = ctx.applicationContext.getSharedPreferences("musicid", Context.MODE_PRIVATE)
+        Thread({ runCatching { SecretBox.migratePref(sp, "audd") } }, "MusicIdKeyMigrate").apply { isDaemon = true }.start()
+    }
     /**
-     * Khoá AudD của người dùng, lưu MÃ HOÁ bằng Android Keystore ([SecretBox]); khoá cũ dạng plaintext được mã hoá lại ngay khi đọc.
-     * Không bao giờ ghi log, chỉ gửi qua HTTPS tới api.audd.io. Nếu không giải mã được (khoá Keystore bị mất) thì coi như chưa có khoá và KHÔNG xoá dữ liệu đã lưu.
+     * Khoá AudD của người dùng, lưu MÃ HOÁ bằng Android Keystore ([SecretBox]); khoá plaintext cũ được di trú ở luồng nền (ghi → đọc lại → giải mã đối chiếu).
+     * Không bao giờ ghi log, chỉ gửi qua HTTPS tới api.audd.io. Không giải mã được (khoá Keystore mất) thì coi như chưa có khoá nhưng KHÔNG xoá dữ liệu đã lưu ([keyUnreadable]).
      */
     var apiKey: String
         get() {
             if (!::sp.isInitialized) return ""
             val stored = sp.getString("audd", "").orEmpty()
             if (stored.isEmpty()) return ""
-            val plain = SecretBox.decrypt(stored) ?: return ""
-            if (!SecretBox.isEncrypted(stored)) SecretBox.encrypt(plain)?.let { sp.edit().putString("audd", it).apply() }   // di trú khoá cũ
-            return plain
+            return SecretBox.decrypt(stored) ?: ""
         }
         set(v) {
             if (!::sp.isInitialized) return
             val t = v.trim()
             sp.edit().putString("audd", if (t.isEmpty()) "" else (SecretBox.encrypt(t) ?: t)).apply()      // Keystore lỗi: giữ bản rõ, không làm mất khoá
         }
+    /** Có khoá đã lưu nhưng không giải mã được (khoá bảo mật của máy đã mất): cần nhập lại. */
+    fun keyUnreadable(): Boolean {
+        if (!::sp.isInitialized) return false
+        val stored = sp.getString("audd", "").orEmpty()
+        return stored.isNotEmpty() && SecretBox.decrypt(stored) == null
+    }
 
     fun hasMic(ctx: Context) = ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE)
     fun hasPermission(ctx: Context) = ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED

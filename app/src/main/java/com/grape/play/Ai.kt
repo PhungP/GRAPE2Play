@@ -80,6 +80,7 @@ object Ai {
         sp = ctx.applicationContext.getSharedPreferences("ai", Context.MODE_PRIVATE)
         sp.edit().remove("key_mistral").remove("key_cerebras").apply()   // đã bỏ hai dịch vụ này
         refresh()
+        migrateKeysAsync()
         typing.value = sp.getBoolean("typing", false)
         dark.value = sp.getBoolean("glassDark", android.os.Build.VERSION.SDK_INT < 31); glass.value = sp.getInt("glass", 85); blur.value = sp.getInt("blur", 0)
         AiMeta.init(ctx)
@@ -90,20 +91,27 @@ object Ai {
     private fun keyName(id: String) = if (id == "gemini") "key" else "key_$id"
     private val keyCache = java.util.concurrent.ConcurrentHashMap<String, String>()
     /** Khoá dịch vụ AI, lưu MÃ HOÁ bằng Keystore ([SecretBox]); khoá cũ dạng plaintext được mã hoá lại ngay khi đọc. Giải mã được lưu tạm trong RAM (không ghi đĩa). */
+    private val lostKeys = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    /** Khoá đã lưu (mã hoá) nhưng KHÔNG giải mã được — khoá Keystore bị mất/hỏng. Dữ liệu đã lưu được giữ nguyên; người dùng cần nhập lại khoá. */
+    fun keyUnreadable(id: String) = id in lostKeys
     fun keyOf(id: String): String {
         if (!::sp.isInitialized) return ""
         keyCache[id]?.let { return it }
         val stored = sp.getString(keyName(id), "").orEmpty()
         if (stored.isEmpty()) return ""
-        val plain = SecretBox.decrypt(stored) ?: return ""                  // khoá Keystore mất: coi như chưa có khoá, KHÔNG xoá dữ liệu đã lưu
-        if (!SecretBox.isEncrypted(stored)) SecretBox.encrypt(plain)?.let { sp.edit().putString(keyName(id), it).apply() }   // di trú
+        val plain = SecretBox.decrypt(stored)
+        if (plain == null) { if (lostKeys.add(id)) AppLog.w("AI", "khoá $id đã lưu nhưng không giải mã được (khoá bảo mật của máy đã mất) — cần nhập lại; dữ liệu đã lưu được giữ nguyên"); return "" }
         keyCache[id] = plain
         return plain
+    }
+    /** Di trú khoá plaintext cũ sang mã hoá (luồng nền, ghi → đọc lại → giải mã đối chiếu; xem [SecretBox.migratePref]). */
+    private fun migrateKeysAsync() {
+        Thread({ for (p in AiProvs.ALL) runCatching { SecretBox.migratePref(sp, keyName(p.id)) } }, "AiKeyMigrate").apply { isDaemon = true }.start()
     }
     fun has(id: String) = keyOf(id).isNotEmpty()
     fun setKey(id: String, v: String) {
         val t = v.trim()
-        keyCache.remove(id)
+        keyCache.remove(id); lostKeys.remove(id)
         if (::sp.isInitialized) sp.edit().putString(keyName(id), if (t.isEmpty()) "" else (SecretBox.encrypt(t) ?: t)).apply()   // Keystore lỗi: giữ bản rõ, không làm mất khoá
         refresh()
     }

@@ -135,7 +135,7 @@ fun SourcesPage(onNav: (Screen) -> Unit) {
             SectionLabel("ĐÃ THÊM")
             mine.forEach { s ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(Modifier.weight(1f)) { T(s.name, 19, lines = 1); T("${typeLabel(s.type)} · ${all.count { it.src == s.id }} bài", 14, C.Muted, lines = 1) }
+                    Column(Modifier.weight(1f)) { T(s.name, 19, lines = 1); T("${typeLabel(s.type)} · ${all.count { it.src == s.id }} bài" + (if (s.id in SourceStore.undecryptable.collectAsState().value) " · ⚠ cần nhập lại mật khẩu (khoá bảo mật đã mất)" else ""), 14, C.Muted, lines = 2) }
                     Focusable({ Library.scanSourceAsync(ctx, s) }) { T("Quét lại", 16, C.Gold, Modifier.padding(12.dp, 8.dp)) }
                     Focusable({ Library.removeSource(ctx, s.id) }) { T("Xoá", 16, C.Text, Modifier.padding(12.dp, 8.dp)) }
                 }

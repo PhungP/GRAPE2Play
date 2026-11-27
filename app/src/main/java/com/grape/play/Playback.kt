@@ -298,7 +298,7 @@ object Playback {
         Themes.init(appCtx)
         Covers.init(appCtx)
         Favorites.init(appCtx)
-        Recents.init(appCtx); PlayHistory.init(appCtx); UsageStats.init(appCtx); Ai.init(appCtx); UserPlaylists.init(appCtx); TagFix.init(appCtx); AiDj.init(appCtx); AiSaver.init(appCtx); LibNav.init(appCtx); SourceOrder.init(appCtx)
+        Recents.init(appCtx); PlayHistory.init(appCtx); UsageStats.init(appCtx); Ai.init(appCtx); MusicId.init(appCtx); UserPlaylists.init(appCtx); TagFix.init(appCtx); AiDj.init(appCtx); AiSaver.init(appCtx); LibNav.init(appCtx); SourceOrder.init(appCtx)
         TvHome.init(appCtx)
         BackgroundAccess.init(appCtx)
         exo = build()

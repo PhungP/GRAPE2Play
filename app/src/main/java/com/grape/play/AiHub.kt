@@ -264,7 +264,7 @@ private fun KeyPage(prov: Prov, onDone: () -> Unit) {
     val link = remember { AiPhoneLink(prov, { k -> ui.post { accept(k) } }, null) }
     LaunchedEffect(Unit) { if (Device.tv) { if (link.start()) url = link.url else status = "Không lấy được địa chỉ mạng — hãy dán khóa trực tiếp ở ô bên dưới." } }
     DisposableEffect(Unit) { onDispose { link.stop() } }
-    T(if (has) "Đã có khóa ${prov.name}. Có thể thay bằng khóa khác." else "Cần khóa API ${prov.name} (miễn phí): ${prov.keyUrl.removePrefix("https://")}", 14, C.Muted, lines = 2)
+    T(if (Ai.keyUnreadable(prov.id)) "⚠ Khóa ${prov.name} đã lưu không giải mã được (khóa bảo mật của máy đã mất). Hãy nhập lại; dữ liệu cũ vẫn được giữ nguyên." else if (has) "Đã có khóa ${prov.name}. Có thể thay bằng khóa khác." else "Cần khóa API ${prov.name} (miễn phí): ${prov.keyUrl.removePrefix("https://")}", 14, C.Muted, lines = 2)
     val u = url
     if (!Device.tv) Btn("🌐 Mở trang tạo khóa của ${prov.name}") {
         try { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(prov.keyUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
