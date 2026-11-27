@@ -75,7 +75,12 @@ object Renderers {
         val back = known.filter { k -> found.none { it.kind == k.kind && (it.id == k.id || it.host == k.host && it.name == k.name) } }
             .map { k -> async(Dispatchers.IO) { revive(k) } }.awaitAll().filterNotNull()
         val all = merge(found, back)
-        saveKnown(app, all)
+        // Không "quên" thiết bị chỉ vì một lần quét hụt: giữ trong danh sách nhớ (không hiện) tối đa 8 lần quét liên tiếp không thấy; lần sau tự hồi sinh khi trả lời lại.
+        val miss = loadMiss(app); val newMiss = HashMap<String, Int>()
+        val seen = all.map { it.kind + "|" + it.id }.toSet()
+        val keep = known.filter { (it.kind + "|" + it.id) !in seen }.filter { k -> val key = k.kind + "|" + k.id; val n = (miss[key] ?: 0) + 1; newMiss[key] = n; n <= 8 }
+        saveKnown(app, merge(all, keep)); saveMiss(app, newMiss)
+        if (keep.isNotEmpty()) dlog("giữ trong danh sách nhớ (chưa thấy lần này): " + keep.joinToString { it.name + "@" + it.host })
         report = "Quét $passes lượt · UPnP ${all.count { it.kind == "upnp" }} · Google Cast ${all.count { it.kind == "cast" }}" +
             (if (back.isNotEmpty()) " (${back.size} thiết bị nhớ từ lần trước, vẫn trả lời)" else "") + " · SSDP $lastReplies phản hồi" + (if (scanSummary.isEmpty()) "" else "\nChi tiết: " + scanSummary.joinToString(" · ") + " (số phản hồi SSDP theo từng cách quét)")
         all.sortedBy { it.name.lowercase() }
@@ -118,7 +123,8 @@ object Renderers {
 
     private fun reachable(host: String, port: Int): Boolean {
         if (port <= 0) return false
-        return runCatching { java.net.Socket().use { it.connect(InetSocketAddress(host, port), 1500); true } }.getOrDefault(false)
+        repeat(2) { if (runCatching { java.net.Socket().use { it.connect(InetSocketAddress(host, port), 3000); true } }.getOrDefault(false)) return true }
+        return false
     }
 
     private suspend fun pass(app: Context): List<Renderer> = coroutineScope {
@@ -152,6 +158,14 @@ object Renderers {
             Renderer(it.getString("kind"), it.getString("name"), it.getString("id"), it.getString("host"), it.optInt("port"), it.optString("av"), it.optString("rc"), it.optString("mk"), it.optString("md"), it.optString("mdesc"), it.optString("loc"))
         } }
     }.getOrDefault(emptyList())
+
+    private fun loadMiss(ctx: Context): Map<String, Int> = runCatching {
+        val o = org.json.JSONObject(ctx.getSharedPreferences("renderers", Context.MODE_PRIVATE).getString("miss", "{}") ?: "{}")
+        o.keys().asSequence().associateWith { o.optInt(it) }
+    }.getOrDefault(emptyMap())
+    private fun saveMiss(ctx: Context, m: Map<String, Int>) {
+        runCatching { ctx.getSharedPreferences("renderers", Context.MODE_PRIVATE).edit().putString("miss", org.json.JSONObject(m as Map<*, *>).toString()).apply() }
+    }
 
     private fun saveKnown(ctx: Context, list: List<Renderer>) {
         runCatching {
@@ -217,38 +231,48 @@ object Renderers {
      * Gửi M-SEARCH unicast tới MỌI địa chỉ trong mạng con /24 (hoặc nhỏ hơn) của card mạng [addr] rồi nghe phản hồi ~4,5 giây.
      * Chỉ ~250 gói UDP nhỏ × vài vòng; thiết bị không phải UPnP bỏ qua hoặc trả ICMP, vô hại.
      */
-    private fun sweepOn(addr: InetAddress, locs: MutableSet<String>, replies: AtomicInteger) {
-        val mine = AtomicInteger(0)
-        try { sweepOn0(addr, locs, replies, mine) } finally { dlog("quét unicast ${addr.hostAddress}: ${mine.get()} phản hồi"); scanSummary.add("unicast ${addr.hostAddress}: ${mine.get()}") }
+    private fun sweepOn(addr: InetAddress, locs: MutableSet<String>, replies: AtomicInteger, priority: Set<String>) {
+        val mine = AtomicInteger(0); val t0 = System.currentTimeMillis()
+        try { sweepOn0(addr, locs, replies, mine, priority) } finally { val ms = System.currentTimeMillis() - t0; dlog("quét unicast ${addr.hostAddress}: ${mine.get()} phản hồi trong ${ms} ms"); scanSummary.add("unicast ${addr.hostAddress}: ${mine.get()}") }
     }
-    private fun sweepOn0(addr: InetAddress, locs: MutableSet<String>, replies: AtomicInteger, mine: AtomicInteger) {
+    /**
+     * Quét unicast cả mạng con. ĐO THỰC TẾ trên Mibox 4: gửi tuần tự ~760 gói mất ~9,4 giây (mỗi IP lạ phải chờ ARP) nên khi gửi xong cửa sổ nghe 4,5 giây đã hết
+     * và mọi phản hồi (kể cả của JBL L75ms) nằm trong bộ đệm mà không ai đọc. Nay: 8 luồng gửi song song (ưu tiên IP đã biết trước, 3 vòng cách nhau 1,2 s,
+     * chỉ một loại ST), luồng chính nghe liên tục trong 7 giây.
+     */
+    private fun sweepOn0(addr: InetAddress, locs: MutableSet<String>, replies: AtomicInteger, mine: AtomicInteger, priority: Set<String>) {
         val ni = NetworkInterface.getByInetAddress(addr) ?: return
         val ia = ni.interfaceAddresses.firstOrNull { it.address == addr } ?: return
         val prefix = ia.networkPrefixLength.toInt().coerceIn(24, 30)           // dải rộng hơn /24 chỉ quét /24 chứa máy này
         val me = addr.address.fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
         val mask = (-1) shl (32 - prefix)
         val net = me and mask; val last = net or mask.inv()
-        val sts = listOf("urn:schemas-upnp-org:device:MediaRenderer:1", "urn:schemas-upnp-org:service:AVTransport:1", "ssdp:all")
+        val targets = ArrayList<InetAddress>()
+        for (h in net + 1 until last) { if (h == me) continue; targets += InetAddress.getByAddress(byteArrayOf((h ushr 24).toByte(), (h ushr 16).toByte(), (h ushr 8).toByte(), h.toByte())) }
+        val ordered = targets.sortedBy { if (it.hostAddress in priority) 0 else 1 }
+        val m = msearch("urn:schemas-upnp-org:device:MediaRenderer:1", 1)
         DatagramSocket(InetSocketAddress(addr, 0)).use { sock ->
             sock.soTimeout = 250
-            val end = System.currentTimeMillis() + 4500
-            var round = 0; var nextSend = 0L
+            val end = System.currentTimeMillis() + 7000
+            val workers = (0 until 8).map { w ->
+                Thread {
+                    for (round in 0 until 3) {
+                        if (System.currentTimeMillis() > end - 1500) break
+                        var i = w
+                        while (i < ordered.size) { runCatching { sock.send(DatagramPacket(m, m.size, ordered[i], 1900)) }; i += 8 }
+                        try { Thread.sleep(1200) } catch (e: InterruptedException) { break }
+                    }
+                }.also { it.isDaemon = true; it.start() }
+            }
             val buf = ByteArray(4096)
             while (System.currentTimeMillis() < end) {
-                if (round < 2 && System.currentTimeMillis() >= nextSend) {
-                    for (h in net + 1 until last) {
-                        if (h == me) continue
-                        val ip = InetAddress.getByAddress(byteArrayOf((h ushr 24).toByte(), (h ushr 16).toByte(), (h ushr 8).toByte(), h.toByte()))
-                        for (st in sts) { val m = msearch(st, 1); runCatching { sock.send(DatagramPacket(m, m.size, ip, 1900)) } }
-                    }
-                    round++; nextSend = System.currentTimeMillis() + 1800
-                }
                 try {
                     val p = DatagramPacket(buf, buf.size); sock.receive(p)
                     replies.incrementAndGet(); mine.incrementAndGet()
                     locationOf(String(p.data, 0, p.length))?.let { l -> locs += l }
                 } catch (e: SocketTimeoutException) { }
             }
+            workers.forEach { it.interrupt() }
         }
     }
 
@@ -265,7 +289,8 @@ object Renderers {
             val multicast = targets.map { a -> async(Dispatchers.IO) { runCatching { searchOn(a, locs, replies) }.onFailure { dwarn("multicast ${a?.hostAddress} lỗi", it) } } }
             // Nhiều loa (JBL L75ms…) KHÔNG trả lời M-SEARCH multicast (AP/router lọc multicast, loa chỉ nghe unicast) nhưng trả lời ngay gói gửi thẳng tới IP:
             // quét unicast cả dải mạng con của từng card mạng song song với multicast.
-            val sweep = addrs.map { a -> async(Dispatchers.IO) { runCatching { sweepOn(a, locs, replies) }.onFailure { dwarn("quét unicast ${a.hostAddress} lỗi", it) } } }
+            val prio = runCatching { loadKnown(ctx.applicationContext).map { it.host }.toSet() }.getOrDefault(emptySet())
+            val sweep = addrs.map { a -> async(Dispatchers.IO) { runCatching { sweepOn(a, locs, replies, prio) }.onFailure { dwarn("quét unicast ${a.hostAddress} lỗi", it) } } }
             multicast.awaitAll(); sweep.awaitAll()
         } finally { runCatching { lock?.release() } }
         dlog("SSDP: ${replies.get()} phản hồi, ${locs.size} địa chỉ mô tả khác nhau")

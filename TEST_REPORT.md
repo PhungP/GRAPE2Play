@@ -1,3 +1,13 @@
+# TEST REPORT — 3.0.4
+
+## 3.0.4 — bằng chứng và kết quả (2026-11-27)
+- **Đọc nhật ký TV (adb chỉ đọc, Mibox 4 / Android 12 / 192.168.1.29, app 3.0.3):** quét 07:13:30: multicast 21 phản hồi; quét unicast **1 phản hồi, mất 9,4 s** (lượt 2: 0 phản hồi, 9,6 s); UPnP chỉ thấy Samsung TV; Cast chỉ thấy 2 thiết bị (không có JBL). Cùng thời điểm từ máy Mac: ping JBL 10 ms, cổng Cast 8009 mở, SSDP unicast 4/6.
+- **Mô phỏng quét dồn dập từ Mac (Python):** JBL trả lời 4/4 lần ở cả kiểu dồn và kiểu giãn cách, và thấy thêm 5 thiết bị khác ⇒ loa không bỏ gói khi bị dồn; khác biệt nằm ở thời gian gửi trên TV (đọc từ nhật ký) khiến phản hồi không được đọc.
+- Unit test lõi `passed=9909 failed=0`; build + JUnit Gradle đạt.
+- **Chưa kiểm tra:** bản 3.0.4 trên TV (chưa cài; chưa quét lại); phần mềm sửa này chỉ được kiểm bằng biên dịch và lập luận từ nhật ký.
+
+---
+
 # TEST REPORT — 3.0.3
 
 ## 3.0.3 — kết quả thực tế (2026-11-27)

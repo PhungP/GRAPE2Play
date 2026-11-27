@@ -1,3 +1,10 @@
+# GRAPE2Play 3.0.4 — Ghi chú phát hành
+
+**Sửa dò loa trên TV (JBL L75ms UPnP):** đọc nhật ký của Mibox cho thấy lượt quét unicast quá chậm trên TV (gửi mất ~9 giây, vượt cửa sổ nghe 4,5 giây) nên phản hồi của loa bị bỏ sót. Nay gửi song song và nghe đủ lâu. App cũng không còn "quên" loa sau một lần quét hụt (giữ trong danh sách nhớ tối đa 8 lần quét liên tiếp và tự hồi sinh khi loa trả lời lại).
+
+Không đổi: phát nhạc, Audio Engine, DSP/EQ, ký và cập nhật OTA. Chưa kiểm thử trên TV sau bản sửa này.
+
+---
 # GRAPE2Play 3.0.3 — Ghi chú phát hành
 
 **Ô nhập mặc định đóng:** ô tìm kiếm của danh mục, các ô firmware/giao thức/phần mềm/ghi chú và ô tìm model chỉ mở khi bạn bấm vào — không còn chặn con trỏ khi bạn không định gõ.
