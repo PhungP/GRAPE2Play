@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
     private val storagePerm: String get() = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
     private val req = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         perm = ok; permDone = true
-        if (ok) lifecycleScope.launch { Library.load(applicationContext) }
+        if (ok) Library.startupScanAsync(applicationContext)
     }
     private val reqNotif = registerForActivityResult(ActivityResultContracts.RequestPermission()) { BackgroundAccess.requestBattery(this) }
 
@@ -114,7 +114,7 @@ class MainActivity : ComponentActivity() {
         if (isTv) TvHome.schedule(applicationContext, 15_000)   // làm mới hàng trên trang chủ TV sau khi thư viện nạp xong
         handleOpen(intent)
         handleLaunch(intent)
-        if (perm) { if (Library.tracks.value.isEmpty()) lifecycleScope.launch { Library.load(applicationContext) } }
+        if (perm) Library.startupScanAsync(applicationContext)    // luôn kiểm tra nhu cầu quét khi khởi động (một lần/tiến trình), không phụ thuộc cache đã nạp trước hay chưa
         else req.launch(storagePerm)
         val dm = resources.displayMetrics
         // Mi Box và nhiều box Android TV chạy giao diện 1080p dù xuất ra TV 4K: hệ thống báo cho app chỉ 1920×1080.

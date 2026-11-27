@@ -5,7 +5,9 @@ import android.media.MediaMetadataRetriever as MMR
 import android.os.Environment
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import org.json.JSONArray
 import org.json.JSONObject
@@ -112,24 +114,41 @@ object Library {
     }
     private fun rootLabel(f: File) = if (f.path.startsWith("/storage/emulated") || f.path.startsWith("/sdcard")) "TV" else "USB ${f.name}"
 
-    /** Chỉ nạp cache (không quét) — dành cho LibraryProvider khi tiến trình vừa được launcher đánh thức. */
-    suspend fun loadCacheOnly(ctx: Context) {
-        if (tracks.value.isNotEmpty()) return
-        withContext(Dispatchers.IO) {
-            for (id in listOf("local") + SourceStore.list.value.map { it.id })
-                readCache(ctx, id)?.let { publish(id, it) }
-            cacheLoaded.value = true
+    private val cacheMutex = Mutex()
+    private val startup = StartupScan()
+
+    /** Nạp cache của mọi nguồn đúng một lần (an toàn khi gọi đồng thời từ LibraryProvider và Activity). */
+    private suspend fun ensureCacheLoaded(ctx: Context) {
+        cacheMutex.withLock {
+            if (cacheLoaded.value) return
+            withContext(Dispatchers.IO) {
+                for (id in listOf("local") + SourceStore.list.value.map { it.id })
+                    readCache(ctx, id)?.let { publish(id, it) }
+                cacheLoaded.value = true
+            }
         }
     }
 
-    /** Nạp cache (nhanh) rồi quét lại bộ nhớ TV/USB. Nguồn NAS chỉ quét khi người dùng bấm. */
+    /** Chỉ nạp cache (không quét) — dành cho LibraryProvider khi tiến trình vừa được launcher đánh thức. */
+    suspend fun loadCacheOnly(ctx: Context) = ensureCacheLoaded(ctx)
+
+    /** Nạp cache (nếu chưa) rồi quét lại bộ nhớ TV/USB. Nguồn NAS chỉ quét khi người dùng bấm. */
     suspend fun load(ctx: Context) {
-        withContext(Dispatchers.IO) {
-            for (id in listOf("local") + SourceStore.list.value.map { it.id })
-                readCache(ctx, id)?.let { publish(id, it) }
-            cacheLoaded.value = true
-        }
+        ensureCacheLoaded(ctx)
         rescanLocal(ctx)
+    }
+
+    /**
+     * Quét khởi động: gọi mỗi lần Activity khởi tạo; chỉ chạy đúng một lần mỗi tiến trình, KỂ CẢ khi cache đã được nạp trước (xem [StartupScan]).
+     * Chạy trên scope của Library (IO, sống lâu hơn Activity) nên không chặn UI và không bị huỷ khi Activity bị tạo lại; lỗi/huỷ giữa chừng cho phép thử lại lần sau.
+     */
+    fun startupScanAsync(ctx: Context) {
+        if (!startup.tryBegin()) return
+        val app = ctx.applicationContext
+        scope.launch {
+            var completed = false
+            try { load(app); completed = true } finally { startup.finished(completed) }
+        }
     }
 
     private val localPending = AtomicBoolean(false)
