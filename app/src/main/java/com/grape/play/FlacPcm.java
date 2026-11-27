@@ -355,10 +355,16 @@ public final class FlacPcm implements PcmStream {
         if (first != 0xff || (second != 0xf8 && second != 0xf9)) { capture = false; crcOn = false; throw new IOException("Mất đồng bộ FLAC"); }
         long hdr = readU(16);
         int bsCode = (int) ((hdr >> 12) & 15), srCode = (int) ((hdr >> 8) & 15), chAsg = (int) ((hdr >> 4) & 15), szCode = (int) ((hdr >> 1) & 7);
+        // Đặc tả: bit dành riêng phải = 0, mã tần số 15 không hợp lệ. Siết ở đây giảm khả năng nhận nhầm mã đồng bộ nằm trong dữ liệu (libFLAC cũng từ chối).
+        if ((hdr & 1) != 0 || srCode == 15) { capture = false; crcOn = false; throw new IOException("tiêu đề khung không hợp lệ"); }
         // số thứ tự (UTF-8 mở rộng)
         int b0 = (int) readU(8);
-        long frameNum = b0 < 0x80 ? b0 : -1;
-        if (b0 >= 0xc0) { int extra = b0 >= 0xfe ? 6 : b0 >= 0xfc ? 5 : b0 >= 0xf8 ? 4 : b0 >= 0xf0 ? 3 : b0 >= 0xe0 ? 2 : 1; frameNum = b0 & (0x3F >> extra); for (int i = 0; i < extra; i++) frameNum = (frameNum << 6) | (readU(8) & 0x3F); }
+        if ((b0 >= 0x80 && b0 < 0xc0) || b0 == 0xff) { capture = false; crcOn = false; throw new IOException("số khung UTF-8 không hợp lệ"); }
+        long frameNum = b0;
+        if (b0 >= 0xc0) {
+            int extra = b0 >= 0xfe ? 6 : b0 >= 0xfc ? 5 : b0 >= 0xf8 ? 4 : b0 >= 0xf0 ? 3 : b0 >= 0xe0 ? 2 : 1; frameNum = b0 & (0x3F >> extra);
+            for (int i = 0; i < extra; i++) { int cb = (int) readU(8); if ((cb & 0xc0) != 0x80) { capture = false; crcOn = false; throw new IOException("số khung UTF-8 không hợp lệ"); } frameNum = (frameNum << 6) | (cb & 0x3F); }
+        }
         int blocksize;
         if (bsCode == 1) blocksize = 192;
         else if (bsCode >= 2 && bsCode <= 5) blocksize = 576 << (bsCode - 2);
@@ -399,6 +405,12 @@ public final class FlacPcm implements PcmStream {
             ch[0][i] = (mid + side) >> 1; ch[1][i] = (mid - side) >> 1;
         }
 
+        if (crcBad && lost) {
+            // Đang tìm lại đồng bộ mà ứng viên này KHÔNG qua CRC16: có thể là mã đồng bộ giả nằm trong dữ liệu (hoặc khung hỏng liên tiếp). Không dùng số khung của nó làm mốc
+            // (nếu dùng, âm thanh phía sau sẽ bị lệch vị trí); không xuất gì, quay lại ngay sau mã đồng bộ này và tìm tiếp. Khung hợp lệ kế tiếp sẽ lấp khoảng trống.
+            fpos = frameStartPos + 2; ibPos = 0; ibLen = 0; nb = 0; bits = 0; crcOn = false;
+            throw new IOException("ứng viên khung không qua CRC16");
+        }
         // Khoảng trống do khung trước bị mất: lấp bằng im lặng (chỉ khi có bằng chứng mất đồng bộ — file hợp lệ không bao giờ vào nhánh này)
         long gap = 0;
         if (lost) {

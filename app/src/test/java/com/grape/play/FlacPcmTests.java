@@ -121,6 +121,32 @@ final class FlacPcmTests {
             fuzzCases++;
         }
         check(fuzzOk && fuzzCases == 400, "FP16. fuzz 400 ca (1 byte hỏng, FIXED/VERBATIM, độc lập/mid-side): không ném lỗi, độ dài luôn đủ, khung trước đó và từ khung k+2 trở đi đúng từng bit");
+        // ---- Nhận nhầm mã đồng bộ trong payload: dữ liệu mẫu CHỨA SẴN một tiêu đề khung giả hợp lệ (CRC8 đúng, số khung 3 → mẫu 12288) ----
+        long[][] adv = new long[2][20000]; for (int c = 0; c < 2; c++) System.arraycopy(s16[c], 0, adv[c], 0, 20000);
+        int plant = FL + 200;                                            // trong khung 1, kênh 0
+        byte[] fake = {(byte) 0xFF, (byte) 0xF8, 0x70, 0x18, 0x03, 0x0F, (byte) 0xFF, 0};
+        fake[7] = (byte) FlacTestEncoder.crc8(fake, 7);
+        for (int j = 0; j < 4; j++) adv[0][plant + j] = (short) (((fake[2 * j] & 0xff) << 8) | (fake[2 * j + 1] & 0xff));
+        for (int i = plant + 4; i < plant + 600; i++) adv[0][i] = 0;       // phần sau tiêu đề giả là các subframe hợp cú pháp (CONSTANT 0) → ứng viên giả "giải mã được"
+        byte[] advFlac = FlacTestEncoder.encode(adv, 44100, 16, FL, 0, 0, 0); java.util.List<Integer> advStarts = new java.util.ArrayList<>(FlacTestEncoder.frameStarts);
+        byte[] advExpect = FlacTestEncoder.wavData(adv, 16);
+        byte[] advBad = advFlac.clone(); advBad[advStarts.get(1) + 4] ^= 0x01;      // làm hỏng tiêu đề THẬT của khung 1 → bộ giải mã phải quét tìm đồng bộ, đi ngang qua tiêu đề giả
+        FlacPcm fa = new FlacPcm(mem(advBad)); byte[] gotAdv = readAll(fa);
+        boolean advOk = gotAdv.length == 44 + advExpect.length;
+        for (int i = 0; i < advExpect.length && advOk; i++) { boolean in = i >= FL * 4 && i < 2 * FL * 4; byte g = gotAdv[44 + i]; if (in ? g != 0 : g != advExpect[i]) { advOk = false; System.out.println("  tiêu đề giả: khác tại byte " + i + " (mẫu " + i / 4 + ")"); } }
+        check(advOk && fa.silencedSamples() == FL, "FP20. mã đồng bộ giả trong payload (tiêu đề giả hợp lệ CRC8, số khung 3): KHÔNG được chấp nhận làm mốc — khung 1 mất được lấp đúng 4096 mẫu, các khung sau đúng vị trí và đúng từng bit");
+        // ---- Luồng độ dài khối thay đổi: tiêu đề mang số mẫu (UTF-8 nhiều byte) ----
+        int[] lens = {4096, 2048, 3000, 1000};
+        long[][] vs = music(2, 40000, 16, 9);
+        byte[] vf = FlacTestEncoder.encodeVariable(vs, 44100, 16, lens, 1, 2); java.util.List<Integer> vst = new java.util.ArrayList<>(FlacTestEncoder.frameStarts);
+        check(exact(vs, 16, vf, "variable"), "FP21. độ dài khối thay đổi (sync 0xFFF9, số mẫu UTF-8 nhiều byte): giải mã đúng từng bit");
+        byte[] vbad = vf.clone(); vbad[vst.get(2) + 4] ^= 0x01;                    // tiêu đề khung 2 (độ dài 3000, bắt đầu ở mẫu 6144) hỏng
+        FlacPcm fv = new FlacPcm(mem(vbad)); byte[] gotV = readAll(fv), expV = FlacTestEncoder.wavData(vs, 16);
+        boolean vok = gotV.length == 44 + expV.length;
+        for (int i = 0; i < expV.length && vok; i++) { boolean in = i >= 6144 * 4 && i < (6144 + 3000) * 4; byte g = gotV[44 + i]; if (in ? g != 0 : g != expV[i]) { vok = false; System.out.println("  variable: khác tại mẫu " + i / 4); } }
+        check(vok && fv.silencedSamples() == 3000, "FP22. luồng độ dài thay đổi, khung 2 hỏng tiêu đề: khoảng mất (3000 mẫu) được tính từ SỐ MẪU của khung hợp lệ kế tiếp và lấp đúng; mọi khung khác đúng từng bit tại đúng vị trí");
+        byte[] big = FlacTestEncoder.utf8(34_000_000_000L); byte[] mid = FlacTestEncoder.utf8(50_000);
+        check(big.length == 7 && (big[0] & 0xff) == 0xFE && mid.length == 3 && (mid[0] & 0xf0) == 0xe0, "FP23. mã hoá UTF-8 số mẫu 36-bit (7 byte) và số vừa (3 byte) đúng khuôn lead/continuation");
         // Bit-perfect: phiên có khung hỏng bị thay bằng im lặng không bao giờ được coi là Verified
         BitPerfect.Input good = BitPerfectTests.cfg(24, 96000);
         check(BitPerfect.evaluate(good).status == BitPerfect.Status.VERIFIED, "FP17a. cấu hình hoàn chỉnh, không hỏng dữ liệu: VERIFIED (đường cơ sở)");

@@ -41,25 +41,38 @@ final class FlacTestEncoder {
      */
     /** Vị trí byte bắt đầu của từng khung trong file vừa mã hoá (để test chọn chỗ làm hỏng). */
     static final java.util.List<Integer> frameStarts = new java.util.ArrayList<>();
-    static byte[] encode(long[][] pcm, int rate, int bps, int frameLen, int chAsg, int kind, int order) {
+    static byte[] encode(long[][] pcm, int rate, int bps, int frameLen, int chAsg, int kind, int order) { return encodeImpl(pcm, rate, bps, new int[]{frameLen}, false, chAsg, kind, order); }
+    /** Luồng độ dài khối THAY ĐỔI: sync 0xFFF9, tiêu đề mang SỐ MẪU đầu khung (UTF-8 mở rộng); độ dài khung lần lượt theo [lens]. */
+    static byte[] encodeVariable(long[][] pcm, int rate, int bps, int[] lens, int kind, int order) { return encodeImpl(pcm, rate, bps, lens, true, 0, kind, order); }
+    /** Số nguyên → UTF-8 mở rộng của FLAC (tới 36 bit). */
+    static byte[] utf8(long v) {
+        if (v < 0x80) return new byte[]{(byte) v};
+        int n = v < 0x800 ? 2 : v < 0x10000 ? 3 : v < 0x200000 ? 4 : v < 0x4000000 ? 5 : v < 0x80000000L ? 6 : 7;
+        byte[] b = new byte[n]; long x = v;
+        for (int i = n - 1; i > 0; i--) { b[i] = (byte) (0x80 | (x & 0x3F)); x >>= 6; }
+        b[0] = (byte) (((0xFF00 >> n) & 0xFF) | x);
+        return b;
+    }
+    private static byte[] encodeImpl(long[][] pcm, int rate, int bps, int[] lens, boolean variable, int chAsg, int kind, int order) {
         frameStarts.clear();
+        int frameLen = 0, minLen = Integer.MAX_VALUE; for (int l : lens) { frameLen = Math.max(frameLen, l); minLen = Math.min(minLen, l); }
         int ch = pcm.length, total = pcm[0].length;
         ByteArrayOutputStream f = new ByteArrayOutputStream();
         f.write('f'); f.write('L'); f.write('a'); f.write('C');
         Bits si = new Bits();
         si.put(1, 1); si.put(0, 7); si.put(34, 24);
-        si.put(frameLen, 16); si.put(frameLen, 16); si.put(0, 24); si.put(0, 24);
+        si.put(minLen, 16); si.put(frameLen, 16); si.put(0, 24); si.put(0, 24);
         si.put(rate, 20); si.put(ch - 1, 3); si.put(bps - 1, 5); si.put(total, 36);
         for (int i = 0; i < 16; i++) si.put(0, 8);
         byte[] sib = si.bytes(); f.write(sib, 0, sib.length);
         int frameNo = 0;
-        for (int start = 0; start < total; start += frameLen, frameNo++) {
-            int n = Math.min(frameLen, total - start);
+        for (int start = 0, step; start < total; start += step, frameNo++) {
+            int n = Math.min(lens[frameNo % lens.length], total - start); step = n;
             Bits h = new Bits();
-            h.put(0xFFF8, 16);
+            h.put(variable ? 0xFFF9 : 0xFFF8, 16);
             h.put(7, 4); h.put(0, 4);                                  // blocksize = 16 bit (n-1) ở cuối; tần số lấy từ STREAMINFO
             h.put(chAsg == 0 ? ch - 1 : chAsg, 4); h.put(bps == 16 ? 4 : bps == 24 ? 6 : 4, 3); h.put(0, 1);
-            h.put(frameNo, 8);                                          // số khung (< 128: UTF-8 một byte)
+            for (byte ub : utf8(variable ? start : frameNo)) h.put(ub & 0xff, 8);      // số khung (cố định) hoặc số mẫu đầu khung (thay đổi), UTF-8 mở rộng
             h.put(n - 1, 16);
             byte[] hb = h.bytes();
             byte[] hdr = new byte[hb.length + 1]; System.arraycopy(hb, 0, hdr, 0, hb.length); hdr[hb.length] = (byte) crc8(hb, hb.length);
