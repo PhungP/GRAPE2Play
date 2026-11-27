@@ -138,8 +138,24 @@ object Renderers {
         val missing = casts.map { it.host }.distinct().filter { h -> ups.none { it.host == h } }
         dlog("Cast thấy ${casts.size} thiết bị (${casts.joinToString { it.name + "@" + it.host }}); UPnP thấy ${ups.size} (${ups.joinToString { it.name + "@" + it.host }}); Cast chưa có UPnP → hỏi trực tiếp: ${missing.joinToString().ifEmpty { "không" }}")
         val extra = missing.map { h -> async(Dispatchers.IO) { runCatching { probeHost(h) }.getOrNull() } }.awaitAll().filterNotNull()
-        merge(merge(ups, extra), casts)
+        // Ngược lại: thiết bị đã thấy qua UPnP mà mDNS Cast không thấy (mDNS rơi gói/Wi-Fi tiết kiệm điện) → hỏi thẳng API HTTP của Cast (cổng 8008) để lấy tên và UDN
+        val castHosts = casts.map { it.host }.toSet()
+        val upHosts = (ups + extra).map { it.host }.distinct().filter { it !in castHosts }
+        val extraCast = upHosts.map { h -> async(Dispatchers.IO) { castProbe(h) } }.awaitAll().filterNotNull()
+        merge(merge(merge(ups, extra), casts), extraCast)
     }
+
+    /** Thiết bị Google Cast trả lời HTTP tại cổng 8008 `/setup/eureka_info` (JSON có name, ssdp_udn) dù mDNS không thấy. Không phải Cast → null nhanh. */
+    private fun castProbe(host: String): Renderer? = runCatching {
+        val req = Request.Builder().url("http://$host:8008/setup/eureka_info?options=detail").build()
+        val body = Http.client.newBuilder().callTimeout(3, TimeUnit.SECONDS).build().newCall(req).execute().use { r -> if (r.isSuccessful) r.body?.string() else null } ?: return@runCatching null
+        val j = org.json.JSONObject(body)
+        val name = j.optString("name")
+        if (name.isEmpty()) return@runCatching null
+        val id = j.optString("ssdp_udn").replace("-", "")
+        dlog("Cast qua HTTP: $host → \"$name\"")
+        Renderer("cast", name, id.ifEmpty { host }, host, 8009)
+    }.getOrNull()
 
     private fun castMdns(ctx: Context): List<Renderer> {
         val wifi = ctx.getSystemService(Context.WIFI_SERVICE) as? WifiManager
