@@ -1,3 +1,33 @@
+# GRAPE2Play 3.0.6 — Ghi chú phát hành
+
+Tập trung vào **an toàn dữ liệu**, **quản lý hàng đợi/playlist** và **độ tin cậy giải mã**. Ứng dụng được thiết kế để bảo toàn và di trú dữ liệu từ phiên bản trước, dùng cùng applicationId `com.grape.play` và cùng khoá ký. Việc cài đè bằng APK release ký bằng keystore chính thức **chưa được kiểm chứng**.
+
+## Mới
+- **Hàng đợi phát được lưu lại**: mở lại app vẫn còn hàng đợi, bài đang nghe, vị trí, shuffle/repeat.
+- **Quản lý hàng đợi và playlist**: thêm/bớt/sắp xếp, menu bài hát (có trong các giao diện Alu và SciFi), lịch sử đã phát, "Mới thêm", các tab duyệt mới, tìm kiếm thư viện và sắp xếp tự nhiên (Track 2 trước Track 10).
+- **Nhận diện nhạc môi trường (AudD)**: tuỳ chọn, dùng khoá API của chính bạn; chỉ ghi âm khi bạn bấm nút, không tự gửi gì khi không thao tác.
+- Launcher có thể nhảy tới bài trong hàng đợi qua MediaSession.
+
+## An toàn dữ liệu
+- Yêu thích, playlist, nguồn NAS, hồ sơ thiết bị và sửa tag được ghi **nguyên tử** kèm bản sao dự phòng; dữ liệu hỏng được phục hồi thay vì bị xoá.
+- Quét thư viện không còn làm thu hẹp/xoá thư viện khi nguồn tạm vắng (NAS/USB), có thể dừng giữa chừng; luôn quét khi khởi động.
+- Mật khẩu NAS và khoá API (AI, AudD) được **mã hoá bằng Android Keystore**; bản rõ chỉ bị xoá sau khi bản mã hoá đã ghi và đọc lại đúng. Nếu khoá bảo mật của máy bị mất, app báo "cần nhập lại" thay vì mất dữ liệu âm thầm.
+
+## Âm thanh
+- FLAC: kiểm **CRC-16** từng khung; khung hỏng thay bằng im lặng cùng độ dài (không phát dữ liệu sai), tìm lại đồng bộ không bị đánh lừa bởi mã giả trong dữ liệu; file cụt/hỏng được báo và không bao giờ được gắn nhãn Bit-perfect.
+- Tự tạm dừng khi thiết bị đầu ra đang chọn bị rút.
+- Nhãn DSD thống nhất trên mọi đường phát. Không thay đổi đường xử lý âm thanh (không DSP mới).
+
+## Sửa lỗi
+- Nhật ký chẩn đoán hệ thống (Home/HDMI/thiết bị âm thanh) không đăng ký được trên Android 14 do thiếu cờ receiver; đã sửa.
+
+## Giới hạn đã biết
+- FLAC khối cố định mà STREAMINFO `min != max`: nếu mất khung, không xác định được vị trí mẫu chính xác (theo đặc tả); app báo hư hại thay vì đoán.
+- **Mức kiểm chứng:** các chức năng mới và các sửa lỗi trong bản này — hàng đợi/playlist, tự tạm dừng khi rút đầu ra, launcher nhảy bài qua MediaSession, nhận diện AudD, mã hoá Keystore, giải mã FLAC kiểm CRC — mới được kiểm tra bằng unit test (và emulator ở một số hạng mục), **chưa** thử trên thiết bị thật.
+- Các hạng mục phần cứng (Android TV và remote, USB DAC, HDMI, optical, Cast, UPnP, gapless, Bit-perfect, AudD với micro thật) **chưa được kiểm trên thiết bị thật**; không hạng mục nào được coi là Passed. Trạng thái "Verified" chỉ áp dụng cho thiết bị đã được đo.
+- Không hỗ trợ hạ cấp từ 3.0.6 về bản cũ (bí mật đã mã hoá).
+
+---
 # GRAPE2Play 3.0.5 — Ghi chú phát hành
 
 **Xác minh nhanh ngay trong hộp thoại trạng thái:** bấm ⓘ ở màn Đang phát, mục "XÁC MINH NHANH THIẾT BỊ NÀY" ở đầu hộp thoại có nút **① Confirm Device Identity** và **② Verify Playback Capability** (điền sẵn theo bài đang phát) cho đúng thiết bị đang phát — không cần đi tìm ở menu khác. Xác nhận danh tính vẫn là thao tác của bạn, không tự động.

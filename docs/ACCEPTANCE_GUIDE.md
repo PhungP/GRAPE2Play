@@ -3,7 +3,7 @@
 Mục đích: kiểm tra các hạng mục **chưa thể xác minh bằng test tự động hoặc emulator**. Mỗi mục ghi rõ bước làm, kết quả mong đợi và ô ghi kết quả. **Không điền PASS nếu chưa tự thực hiện trên thiết bị thật.**
 
 ## 0. Chuẩn bị
-- Cài APK debug: `adb install -r GRAPE2Play-3.0.5-debug-<commit>.apk` (cùng package `com.grape.play`; ký bằng khoá debug nên KHÔNG cài đè được lên bản release ký bằng khoá chủ dự án — xem mục 9).
+- Cài APK debug: `adb install -r GRAPE2Play-3.0.6-debug-<commit>.apk` (cùng package `com.grape.play`; ký bằng khoá debug nên KHÔNG cài đè được lên bản release ký bằng khoá chủ dự án — xem mục 9).
 - Bật nhật ký: Cài đặt → Nhật ký lỗi → Xem/gửi nhật ký; hoặc `adb logcat -s GRAPEPlay`.
 - Chuẩn bị nhạc thử: PCM 16/44.1, 24/96, 24/192 (FLAC/WAV), một file DSD (DSF), một FLAC nguyên vẹn và bản sao bị hỏng (mục 7).
 - Phân loại bằng chứng khi báo cáo: **[AUTO]** test tự động · **[EMU]** emulator · **[REAL]** thiết bị thật. Chỉ [REAL] mới được coi là nghiệm thu thiết bị.
@@ -107,7 +107,7 @@ Cần khoá API AudD hợp lệ và thiết bị có micro (đa số TV KHÔNG c
 **Điều kiện bắt buộc (không tự làm trong repo):**
 - Bản release phải ký bằng **khoá của chủ dự án** (chứng chỉ SHA-256 ghi trong checkpoint: `853ecf48…06f4`). APK debug dùng khoá debug → Android sẽ từ chối cài đè lên bản release (INSTALL_FAILED_UPDATE_INCOMPATIBLE). Kiểm tra bản build release: `apksigner verify --print-certs app-release.apk` và so SHA-256 chứng chỉ.
 - `applicationId` (`com.grape.play`) và cấu hình ký **không thay đổi** so với 3.0.5.
-- Khi phát hành phải **tăng** `versionName`/`versionCode` (hiện vẫn 3.0.5 / 108): Updater chỉ đề nghị khi tag > phiên bản đang chạy, và Android cần versionCode lớn hơn để cập nhật.
+- Khi phát hành phải **tăng** `versionName`/`versionCode` (mã nguồn hiện là 3.0.6 / 109; bản đang phát hành là 3.0.5 / 108): Updater chỉ đề nghị khi tag > phiên bản đang chạy, và Android cần versionCode lớn hơn để cập nhật.
 
 **Kiểm tra chứng chỉ bằng script (chủ dự án chạy; script CHỈ đọc APK, không dùng keystore/mật khẩu):**
 ```

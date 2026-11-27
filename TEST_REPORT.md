@@ -1,4 +1,15 @@
-# TEST REPORT — 3.0.5
+# TEST REPORT — 3.0.6
+
+## 3.0.6 — kết quả (2026-11-27)
+| Loại | Kết quả |
+|---|---|
+| Unit test lõi (`./run_core_tests.sh`) | `passed=10275 failed=0` [UNIT] |
+| Build + JUnit Gradle | `clean :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease` BUILD SUCCESSFUL (release không ký, chỉ để kiểm cấu hình) |
+| Lint | 149 lỗi đã có từ 3.0.5 (media3 `@UnstableApi`, RestrictedApi — không phải lỗi chạy); 3 lỗi thật đã sửa |
+| Mức kiểm chứng tính năng mới | Hàng đợi/playlist, tự tạm dừng khi rút đầu ra, launcher nhảy bài qua MediaSession, AudD, mã hoá Keystore, FLAC CRC16: chỉ [UNIT] (logic thuần Java) và một phần [EMU]; **không có [REAL]** |
+| **Chưa kiểm tra** | Toàn bộ phần cứng/thiết bị thật (TV, remote, USB DAC, HDMI, Cast, UPnP, gapless, AudD với micro thật, cài đè bằng khoá release) — xem docs/REAL_DEVICE_TEST_PLAN.md |
+
+---
 
 ## 3.0.5 — kết quả thực tế (2026-11-27)
 | Loại | Kết quả |
