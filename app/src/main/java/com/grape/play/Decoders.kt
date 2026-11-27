@@ -46,6 +46,8 @@ class DecodeDataSource(private val base: DataSource) : DataSource {
     private var uri: Uri? = null
     private var pos = 0L
     private var remaining = 0L
+    private var dmgPath: String? = null
+    private var dmgSeen = 0L
 
     override fun addTransferListener(transferListener: TransferListener) { base.addTransferListener(transferListener) }
 
@@ -59,6 +61,9 @@ class DecodeDataSource(private val base: DataSource) : DataSource {
             throw if (e is IOException) e else IOException("Giải mã $kind lỗi: ${e.message}", e)
         }
         stream = s
+        val path = Remote.fromUri(dataSpec.uri)
+        dmgPath = path; dmgSeen = 0L; DecodeHealth.clear(path)
+        (s as? FlacPcm)?.listener = FlacPcm.Listener { msg -> if (DecodeHealth.shouldLog(path + msg)) AppLog.w("Decoder", path.takeLast(60) + ": " + msg) }
         val size = s.size()
         pos = dataSpec.position
         if (pos > size) { s.close(); stream = null; throw IOException("Vị trí tua vượt quá độ dài file") }
@@ -74,6 +79,7 @@ class DecodeDataSource(private val base: DataSource) : DataSource {
         val n = try { stream!!.read(pos, buffer, offset, want) } catch (e: IOException) { throw e } catch (e: Exception) { throw IOException("Giải mã lỗi: ${e.message}", e) }
         if (n <= 0) return C.RESULT_END_OF_INPUT
         pos += n; remaining -= n
+        stream?.let { st -> val d = st.damagedFrames(); if (d != dmgSeen) { dmgSeen = d; dmgPath?.let { DecodeHealth.report(it, d) } } }
         return n
     }
 

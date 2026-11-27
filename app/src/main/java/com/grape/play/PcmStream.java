@@ -7,4 +7,6 @@ public interface PcmStream {
     long size();
     int read(long pos, byte[] b, int off, int len) throws IOException;
     void close();
+    /** Số khung dữ liệu bị phát hiện hỏng và được thay bằng im lặng trong luồng này (0 = dữ liệu nguyên vẹn). */
+    default long damagedFrames() { return 0; }
 }

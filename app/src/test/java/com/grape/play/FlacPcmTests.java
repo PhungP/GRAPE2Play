@@ -77,20 +77,65 @@ final class FlacPcmTests {
         }
         check(ok, "FP11. 300 lần đọc ngẫu nhiên (tua tới/lui, độ dài bất kỳ) khớp byte với đọc tuần tự");
 
-        // Khung hỏng — đặc tả hành vi thực tế
-        byte[] clean = FlacTestEncoder.encode(s16, 44100, 16, 4096, 0, 0, 0); byte[] expect = FlacTestEncoder.wavData(s16, 16);
-        byte[] bad = clean.clone(); int frame2 = clean.length / 5 * 2;        // một vị trí giữa dữ liệu (VERBATIM: không làm hỏng cú pháp)
-        bad[frame2] ^= 0x55;
-        byte[] gotBad = decodeAll(bad);
-        int diff = 0; for (int i = 0; i < Math.min(gotBad.length - 44, expect.length); i++) if (gotBad[44 + i] != expect[i]) diff++;
-        check(gotBad.length == clean.length - clean.length + 44 + expect.length && diff >= 1 && diff <= 2, "FP12. [ĐẶC TẢ] bit hỏng trong dữ liệu mẫu (cú pháp còn nguyên): CRC16 không được kiểm → giải mã vẫn ra đủ độ dài, sai " + diff + " byte tại đúng chỗ hỏng (không phát hiện, không im lặng)");
-        // Hỏng tiêu đề khung (CRC8 sai) → bỏ qua khung đó, các khung sau vẫn giải mã
-        byte[] bad2 = clean.clone(); int hdrAt = -1; for (int i = 40; i < bad2.length - 1; i++) if ((bad2[i] & 0xff) == 0xff && (bad2[i + 1] & 0xff) == 0xf8 && i > clean.length / 4) { hdrAt = i; break; }
-        bad2[hdrAt + 4] ^= 0x01;
-        byte[] gotBad2 = decodeAll(bad2);
-        check(gotBad2.length < 44 + expect.length, "FP13. [ĐẶC TẢ] tiêu đề khung hỏng (CRC8 sai): khung bị bỏ qua và KHÔNG được thay bằng im lặng — đầu ra ngắn hơn " + (44 + expect.length - gotBad2.length) + " byte so với khai báo (thời gian phía sau bị lệch)");
-        byte[] tail = Arrays.copyOfRange(gotBad2, gotBad2.length - 2000, gotBad2.length);
-        boolean tailOk = false; byte[] ex = expect; for (int i = 0; i <= ex.length - 2000 && !tailOk; i += 2) { tailOk = Arrays.equals(tail, Arrays.copyOfRange(ex, i, i + 2000)); }
-        check(tailOk, "FP14. sau khung hỏng, các khung sau vẫn giải mã đúng từng bit (bộ giải mã tự đồng bộ lại)");
+        // ---- Chính sách khi dữ liệu hỏng (xem FlacPcm): CRC16 sai → im lặng; mất khung → lấp im lặng, giữ đúng độ dài và vị trí các khung sau ----
+        final int FL = 4096;
+        byte[] clean = FlacTestEncoder.encode(s16, 44100, 16, FL, 0, 0, 0); byte[] expect = FlacTestEncoder.wavData(s16, 16);
+        java.util.List<Integer> starts = new java.util.ArrayList<>(FlacTestEncoder.frameStarts);
+        int nFrames = starts.size();
+        // (a) bit hỏng trong dữ liệu mẫu của khung 2 (cú pháp nguyên vẹn): CRC16 phải phát hiện
+        byte[] bad = clean.clone(); bad[starts.get(2) + 100] ^= 0x55;
+        final java.util.List<String> msgs = new java.util.ArrayList<>();
+        FlacPcm fp = new FlacPcm(mem(bad)); fp.listener = msgs::add;
+        byte[] gotBad = readAll(fp);
+        boolean region = true, outside = gotBad.length == 44 + expect.length;
+        for (int i = 0; i < expect.length && outside; i++) { boolean in = i >= 2 * FL * 4 && i < 3 * FL * 4; byte g = gotBad[44 + i]; if (in ? g != 0 : g != expect[i]) { outside = false; } }
+        check(outside && fp.damagedFrames() == 1 && fp.silencedSamples() == FL && msgs.size() == 1 && msgs.get(0).contains("CRC16"), "FP12. bit hỏng trong khung 2: CRC16 phát hiện → đúng khung đó thành im lặng, MỌI khung khác đúng từng bit, độ dài đủ, 1 khung hỏng được báo");
+        // (b) tiêu đề khung hỏng (CRC8 sai): khung bị mất được lấp bằng im lặng, các khung sau vẫn đúng VỊ TRÍ
+        byte[] bad2 = clean.clone(); bad2[starts.get(1) + 4] ^= 0x01;
+        FlacPcm fp2 = new FlacPcm(mem(bad2)); msgs.clear(); fp2.listener = msgs::add; byte[] gotBad2 = readAll(fp2);
+        boolean ok2 = gotBad2.length == 44 + expect.length;
+        for (int i = 0; i < expect.length && ok2; i++) { boolean in = i >= FL * 4 && i < 2 * FL * 4; byte g = gotBad2[44 + i]; if (in ? g != 0 : g != expect[i]) ok2 = false; }
+        check(ok2 && fp2.silencedSamples() == FL && fp2.damagedFrames() >= 1, "FP13. tiêu đề khung 1 hỏng (CRC8 sai): khung mất được lấp bằng im lặng, đầu ra ĐỦ độ dài khai báo, các khung sau đúng từng bit tại đúng vị trí");
+        // (c) file cụt ở khung cuối: không lỗi, phần trước đúng
+        byte[] cut = java.util.Arrays.copyOf(clean, starts.get(nFrames - 1) + 200);
+        byte[] gotCut = decodeAll(cut); boolean ok3 = gotCut.length < 44 + expect.length;
+        for (int i = 0; i < (nFrames - 1) * FL * 4 && ok3; i++) if (gotCut[44 + i] != expect[i]) ok3 = false;
+        check(ok3, "FP14. file cụt giữa khung cuối: không ném lỗi, các khung đầy đủ đúng từng bit, đầu ra ngắn hơn (file thật sự thiếu dữ liệu — không bịa im lặng)");
+        // (d) file hợp lệ: không báo hư hỏng, không im lặng
+        FlacPcm fp3 = new FlacPcm(mem(clean)); fp3.listener = m -> msgs.add("LỖI: " + m); msgs.clear(); readAll(fp3);
+        check(fp3.damagedFrames() == 0 && fp3.silencedSamples() == 0 && msgs.isEmpty(), "FP15. file hợp lệ: 0 khung hỏng, 0 mẫu im lặng, không có thông báo");
+        // (e) fuzz: làm hỏng 1 byte ở 400 vị trí ngẫu nhiên (nhiều kiểu mã hoá) — không ném lỗi/treo; khung hỏng không rò dữ liệu sai ra ngoài khung k, k+1
+        Random fz = new Random(21); boolean fuzzOk = true; int fuzzCases = 0;
+        for (int it = 0; it < 400 && fuzzOk; it++) {
+            int kind = it % 3, order = 1 + it % 3, asg = (it / 3) % 2 == 0 ? 0 : 10;
+            byte[] f = FlacTestEncoder.encode(s16, 44100, 16, FL, asg, kind == 2 ? 0 : 1, order);
+            java.util.List<Integer> st = new java.util.ArrayList<>(FlacTestEncoder.frameStarts);
+            int k = fz.nextInt(st.size() - 1);                                  // không phải khung cuối
+            int at = st.get(k) + fz.nextInt(st.get(k + 1) - st.get(k)); byte[] g = f.clone(); g[at] ^= (byte) (1 + fz.nextInt(255));
+            byte[] out; try { out = decodeAll(g); } catch (Exception e) { fuzzOk = false; System.out.println("  fuzz ném lỗi: " + e); break; }
+            byte[] base = decodeAll(f);
+            if (out.length != base.length) { fuzzOk = false; System.out.println("  fuzz độ dài " + out.length + " ≠ " + base.length + " (khung " + k + ", kiểu " + kind + ")"); break; }
+            int firstOk = (k + 2) * FL * 4;
+            for (int i = firstOk; i < base.length - 44; i++) if (out[44 + i] != base[44 + i]) { fuzzOk = false; System.out.println("  fuzz: khung sau khung hỏng bị sai tại byte " + i + " (khung " + k + ", kiểu " + kind + ")"); break; }
+            for (int i = 0; i < k * FL * 4 && fuzzOk; i++) if (out[44 + i] != base[44 + i]) { fuzzOk = false; System.out.println("  fuzz: khung TRƯỚC khung hỏng bị sai"); break; }
+            fuzzCases++;
+        }
+        check(fuzzOk && fuzzCases == 400, "FP16. fuzz 400 ca (1 byte hỏng, FIXED/VERBATIM, độc lập/mid-side): không ném lỗi, độ dài luôn đủ, khung trước đó và từ khung k+2 trở đi đúng từng bit");
+        // Bit-perfect: phiên có khung hỏng bị thay bằng im lặng không bao giờ được coi là Verified
+        BitPerfect.Input good = BitPerfectTests.cfg(24, 96000);
+        check(BitPerfect.evaluate(good).status == BitPerfect.Status.VERIFIED, "FP17a. cấu hình hoàn chỉnh, không hỏng dữ liệu: VERIFIED (đường cơ sở)");
+        BitPerfect.Input dmg = BitPerfectTests.cfg(24, 96000); dmg.decodeDamage = 1;
+        BitPerfect.Result rd = BitPerfect.evaluate(dmg);
+        check(rd.status == BitPerfect.Status.NOT_BIT_PERFECT && rd.changes.contains(BitPerfect.Code.DECODE_DAMAGE), "FP17. cùng cấu hình nhưng file có khung hỏng bị thay bằng im lặng → NOT_BIT_PERFECT (DECODE_DAMAGE)");
+        dmg.pathProof = true;
+        check(BitPerfect.evaluate(dmg).status == BitPerfect.Status.NOT_BIT_PERFECT, "FP18. kể cả khi có bằng chứng đường truyền: dữ liệu đã bị đổi thì không VERIFIED");
+        BitPerfect.Input rem = BitPerfectTests.cfg(24, 96000); rem.route = BitPerfect.Route.UPNP; rem.decodeDamage = 5;
+        check(!BitPerfect.evaluate(rem).changes.contains(BitPerfect.Code.DECODE_DAMAGE), "FP19. phát tới thiết bị ngoài gửi file gốc (không qua bộ giải mã của app): không áp dụng DECODE_DAMAGE");
+    }
+
+    static byte[] readAll(FlacPcm p) throws IOException {
+        byte[] out = new byte[(int) p.size()]; int pos = 0;
+        while (pos < out.length) { int r = p.read(pos, out, pos, Math.min(7000, out.length - pos)); if (r <= 0) break; pos += r; }
+        return Arrays.copyOf(out, pos);
     }
 }

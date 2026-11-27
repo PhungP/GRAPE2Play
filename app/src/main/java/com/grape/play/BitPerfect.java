@@ -29,7 +29,7 @@ public final class BitPerfect {
 
     public enum Code {
         // Bằng chứng dữ liệu bị đổi → NOT_BIT_PERFECT
-        DSP_ON, DEPTH_REDUCED, DSD_TO_PCM, BT_LOSSY_CODEC, RATE_CONVERSION_EVIDENCE,
+        DSP_ON, DEPTH_REDUCED, DSD_TO_PCM, BT_LOSSY_CODEC, RATE_CONVERSION_EVIDENCE, DECODE_DAMAGE,
         // Đã xác minh được (không đồng nghĩa VERIFIED)
         USER_VERIFIED_CONFIG, DSP_OFF, DSP_NOT_APPLIED_REMOTE, SENDS_ORIGINAL_FILE, APP_NO_RESAMPLE,
         // Chưa xác minh / chỉ là gợi ý
@@ -74,6 +74,8 @@ public final class BitPerfect {
          * nơi app không thể tự quan sát đường ra; KHÔNG bao giờ lấn át bằng chứng dữ liệu bị đổi.
          */
         public boolean userCfgVerified;
+        /** Số khung của file đang phát bị bộ giải mã phát hiện hỏng và thay bằng im lặng (chỉ phát cục bộ). > 0 ⇒ dữ liệu đầu ra KHÁC dữ liệu trong file. */
+        public int decodeDamage;
     }
 
     public static final class Result {
@@ -153,6 +155,7 @@ public final class BitPerfect {
             if (!in.volumeFixed && in.volumeMax > 0 && in.volumeIdx < in.volumeMax) r.unverified.add(Code.VOLUME_BELOW_MAX);
             else r.unverified.add(Code.VOLUME_NOT_VERIFIED);
         }
+        if (!rem && in.decodeDamage > 0) r.changes.add(Code.DECODE_DAMAGE);     // bộ giải mã đã thay dữ liệu hỏng bằng im lặng: đầu ra không còn là dữ liệu của file
         if (rateConv) r.changes.add(Code.RATE_CONVERSION_EVIDENCE);
 
         boolean cfgOk = false;

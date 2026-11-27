@@ -32,6 +32,7 @@ private fun s(vi: String, en: String) = if (Lang.en.value) en else vi
 private fun codeText(c: BitPerfect.Code): String = when (c) {
     BitPerfect.Code.DSP_ON -> s("DSP/EQ/Preamp/cân bằng đang bật: giá trị mẫu bị thay đổi.", "DSP/EQ/preamp/balance is on: sample values are changed.")
     BitPerfect.Code.DEPTH_REDUCED -> s("App đang cấu hình hạ độ sâu bit xuống 16-bit (chế độ tương thích): dữ liệu bị cắt bớt.", "The app is configured to reduce the bit depth to 16-bit (compatibility mode): data is truncated.")
+    BitPerfect.Code.DECODE_DAMAGE -> s("File có khung dữ liệu hỏng (CRC sai): bộ giải mã đã thay các khung đó bằng im lặng, nên âm thanh KHÔNG còn giống dữ liệu trong file.", "The file has damaged data frames (bad CRC): the decoder replaced them with silence, so the audio no longer matches the data in the file.")
     BitPerfect.Code.DSD_TO_PCM -> s("DSD được chuyển sang PCM (giải mã/lọc): không còn là dữ liệu DSD gốc.", "DSD is converted to PCM (decoding/filtering): it is no longer the original DSD data.")
     BitPerfect.Code.RATE_CONVERSION_EVIDENCE -> s("Có bằng chứng đáng tin cậy về chuyển đổi tần số lấy mẫu.", "There is reliable evidence of sample-rate conversion.")
     BitPerfect.Code.BT_LOSSY_CODEC -> s("Bluetooth dùng codec nén mất dữ liệu so với PCM nguồn.", "Bluetooth uses a lossy codec compared with the source PCM.")

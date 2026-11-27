@@ -39,7 +39,10 @@ final class FlacTestEncoder {
     /**
      * Tạo file FLAC từ [pcm][kênh][mẫu]. chAsg: 0 = độc lập, 8 = trái/side, 9 = side/phải, 10 = mid/side (chỉ stereo). frameLen: số mẫu mỗi khung. kind/order: kiểu subframe.
      */
+    /** Vị trí byte bắt đầu của từng khung trong file vừa mã hoá (để test chọn chỗ làm hỏng). */
+    static final java.util.List<Integer> frameStarts = new java.util.ArrayList<>();
     static byte[] encode(long[][] pcm, int rate, int bps, int frameLen, int chAsg, int kind, int order) {
+        frameStarts.clear();
         int ch = pcm.length, total = pcm[0].length;
         ByteArrayOutputStream f = new ByteArrayOutputStream();
         f.write('f'); f.write('L'); f.write('a'); f.write('C');
@@ -75,6 +78,7 @@ final class FlacTestEncoder {
             System.arraycopy(hdr, 0, frame, 0, hdr.length); System.arraycopy(body, 0, frame, hdr.length, body.length);
             int c16 = crc16(frame, frame.length - 2);
             frame[frame.length - 2] = (byte) (c16 >> 8); frame[frame.length - 1] = (byte) c16;
+            frameStarts.add(f.size());
             f.write(frame, 0, frame.length);
         }
         return f.toByteArray();

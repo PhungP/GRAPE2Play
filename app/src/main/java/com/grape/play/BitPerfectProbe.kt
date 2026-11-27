@@ -113,6 +113,7 @@ object BitPerfectProbe {
             return x
         }
         x.dspActive = !DspParams.isFlat()
+        x.decodeDamage = DecodeHealth.damaged(t.path).toInt()       // khung hỏng đã được thay bằng im lặng trong lúc giải mã file này
         x.floatOutputEnabled = AudioSettings.hires          // cấu hình app, KHÔNG dùng để suy định dạng
         val s = Playback.sinkFmt.value
         if (s != null) {
