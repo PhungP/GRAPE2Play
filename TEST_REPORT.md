@@ -1,3 +1,16 @@
+# TEST REPORT — 3.0.7
+
+## 3.0.7 — kết quả (2026-11-27)
+| Loại | Kết quả |
+|---|---|
+| Unit test lõi (`./run_core_tests.sh`) | `passed=10275 failed=0` [UNIT] |
+| Build + JUnit Gradle | `:app:testDebugUnitTest :app:assembleDebug` BUILD SUCCESSFUL |
+| Lint | 149 lỗi, không tăng so với 3.0.6 (media3 `@UnstableApi`, RestrictedApi) |
+| Mức kiểm chứng tính năng mới | Nhập khoá AudD bằng điện thoại và việc gỡ ảnh bìa tự động: chỉ biên dịch + test lõi; **không có [REAL]/[EMU]** |
+| **Chưa kiểm tra** | TV/điện thoại thật cho luồng quét QR → dán khoá; toàn bộ phần cứng (TV, remote, USB DAC, HDMI, Cast, UPnP, gapless); cài đè bằng khoá release trên thiết bị — xem docs/REAL_DEVICE_TEST_PLAN.md |
+
+---
+
 # TEST REPORT — 3.0.6
 
 ## 3.0.6 — kết quả (2026-11-27)

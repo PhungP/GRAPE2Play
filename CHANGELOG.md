@@ -116,7 +116,7 @@ Repo GitHub đổi từ `PhungP/grape2play` thành `PhungP/GRAPE2Play`. Cập nh
 - **Sửa:** nhật ký chẩn đoán hệ thống không đăng ký được trên Android 14 (thiếu cờ receiver).
 - **Giới hạn:** FLAC khối cố định có STREAMINFO min≠max mà mất khung thì không xác định được vị trí mẫu (báo hư hại, không đoán). Các hạng mục phần cứng chưa kiểm trên thiết bị thật (xem docs/REAL_DEVICE_TEST_PLAN.md). Không đổi applicationId/khoá ký.
 
-## Chưa phát hành (sau 3.0.6)
+## 3.0.7 — nhập khoá AudD bằng điện thoại trên TV, bỏ tự động tải ảnh bìa từ mạng (versionCode 110)
 - **Nhập khoá AudD bằng điện thoại trên TV:** nút "📱 Nhập khoá bằng điện thoại" mở máy chủ tạm trong LAN (chỉ khi bấm), hiện mã QR để mở trang lấy khoá và mã QR để dán khoá từ điện thoại; khoá lưu mã hoá như khi gõ tay, máy chủ tạm tắt ngay khi nhận khoá. Kết nối TV↔điện thoại là HTTP nội bộ (giống ghép khoá AI).
 - **Bỏ tự động tải ảnh bìa từ mạng** (Deezer/iTunes) và công tắc "Ảnh bìa trên mạng". Chỉ còn "Chọn ảnh bìa bằng AI" do người dùng bấm, có xem trước và xác nhận. Bộ nhớ đệm ảnh tải tự động cũ (`webcovers`) được dọn; ảnh người dùng đã xác nhận được giữ.
-- Mới kiểm bằng biên dịch và test lõi; chưa thử trên TV/điện thoại thật.
+- Mới kiểm bằng biên dịch và test lõi (10275 đạt); chưa thử trên TV/điện thoại thật. Không đổi applicationId/khoá ký.

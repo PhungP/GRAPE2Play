@@ -1,3 +1,18 @@
+# GRAPE2Play 3.0.7 — Ghi chú phát hành
+
+Nhập khoá AudD bằng điện thoại ngay trên TV, và ảnh bìa không còn tự tải từ mạng. Ứng dụng dùng cùng applicationId `com.grape.play` và cùng khoá ký với 3.0.6.
+
+## Mới
+- **Nhập khoá AudD bằng điện thoại (TV):** trong Cài đặt ▸ Nhận diện nhạc, bấm "📱 Nhập khoá bằng điện thoại". TV hiện hai mã QR: mã ① mở trang lấy khoá, mã ② mở trang dán khoá trên điện thoại. Dán khoá, bấm Gửi — TV lưu mã hoá và tự đóng kết nối. Trang chỉ mở khi bạn bấm nút và chỉ dùng được trong mạng nội bộ (HTTP, giống cách ghép khoá AI).
+
+## Thay đổi
+- **Bỏ tự động tải ảnh bìa từ mạng** (Deezer/iTunes) và công tắc "Ảnh bìa trên mạng". Ảnh bìa lấy từ file nhạc, thư mục hoặc ảnh bạn đã xác nhận. "Chọn ảnh bìa bằng AI" vẫn còn: chỉ chạy khi bạn bấm, AI chọn, bạn xem trước và đồng ý thì ảnh mới được lưu (chỉ trong app). Bộ nhớ đệm ảnh tải tự động cũ được dọn; ảnh bạn đã xác nhận được giữ.
+
+## Mức kiểm chứng
+- Thay đổi này mới được kiểm tra bằng build và test lõi (unit test); **chưa thử trên TV hoặc điện thoại thật**. Các hạng mục phần cứng (Android TV và remote, USB DAC, HDMI, optical, Cast, UPnP, gapless, Bit-perfect) vẫn **chưa được kiểm trên thiết bị thật**; không hạng mục nào được coi là Passed.
+- Cài đè từ 3.0.6/3.0.5 được thiết kế để giữ nguyên dữ liệu; việc cài đè bằng APK release chính thức trên thiết bị thật chưa được kiểm chứng.
+
+---
 # GRAPE2Play 3.0.6 — Ghi chú phát hành
 
 Tập trung vào **an toàn dữ liệu**, **quản lý hàng đợi/playlist** và **độ tin cậy giải mã**. Ứng dụng được thiết kế để bảo toàn và di trú dữ liệu từ phiên bản trước, dùng cùng applicationId `com.grape.play` và cùng khoá ký. Việc cài đè bằng APK release ký bằng keystore chính thức **chưa được kiểm chứng**.

@@ -1,9 +1,9 @@
 # GRAPE2Play — Sẵn sàng phát hành (chuẩn bị, CHƯA phát hành)
 
-Repo: `PhungP/GRAPE2Play` (remote `origin`). Bản đang phát hành: **v3.0.5** (versionCode 108). Mã nguồn đã nâng lên **3.0.6 / 109**.
+Repo: `PhungP/GRAPE2Play` (remote `origin`). Bản đang phát hành: **v3.0.6** (versionCode 109). Mã nguồn đã nâng lên **3.0.7 / 110**.
 
 ## Phiên bản (đã được chủ dự án phê duyệt)
-`versionName 3.0.6`, `versionCode 109`. `Updater` so tag với versionName (`v3.0.6`) và cần đúng **một** tệp `.apk` đính kèm.
+`versionName 3.0.7`, `versionCode 110`. `Updater` so tag với versionName (`v3.0.7`) và cần đúng **một** tệp `.apk` đính kèm.
 
 ## Điều kiện còn thiếu để phát hành chính thức
 1. Keystore release của chủ dự án (chứng chỉ SHA-256 mong đợi `853ecf48…06f4`) — không có trên máy này.
@@ -15,7 +15,7 @@ Repo: `PhungP/GRAPE2Play` (remote `origin`). Bản đang phát hành: **v3.0.5**
 ```bash
 cd <thư mục gốc của repo GRAPE2Play đã clone>
 git status --short                    # phải sạch
-# 1) Version 3.0.6/109, CHANGELOG, RELEASE_NOTES đã được cập nhật trong mã nguồn.
+# 1) Version 3.0.7/110, CHANGELOG, RELEASE_NOTES đã được cập nhật trong mã nguồn.
 ./run_core_tests.sh                   # kỳ vọng passed=… failed=0
 # 2) Build release có ký
 export GRAPE_KEYSTORE=/đường/dẫn/khoá.jks GRAPE_KEY_ALIAS=<alias>
@@ -23,19 +23,19 @@ read -rs GRAPE_KEYSTORE_PASSWORD; export GRAPE_KEYSTORE_PASSWORD
 ~/.gradle/wrapper/dists/gradle-8.7-bin/*/gradle-8.7/bin/gradle clean :app:testDebugUnitTest :app:assembleRelease
 unset GRAPE_KEYSTORE_PASSWORD
 APK=app/build/outputs/apk/release/app-release.apk
-# 3) Xác minh chữ ký + tương thích cài đè với bản 3.0.5 đã phát hành
-gh release download v3.0.5 -R PhungP/GRAPE2Play -p '*.apk' -D /tmp/old305
-scripts/verify_ota.sh /tmp/old305/*.apk "$APK"        # phải thoát 0
-cp "$APK" GRAPE2Play-3.0.6.apk && shasum -a 256 GRAPE2Play-3.0.6.apk
-# 4) Thử trên thiết bị: adb install -r GRAPE2Play-3.0.6.apk (đè lên 3.0.5), mở app, kiểm dữ liệu (ACCEPTANCE_GUIDE §9)
+# 3) Xác minh chữ ký + tương thích cài đè với bản 3.0.6 đã phát hành
+gh release download v3.0.6 -R PhungP/GRAPE2Play -p '*.apk' -D /tmp/old306
+scripts/verify_ota.sh /tmp/old306/*.apk "$APK"        # phải thoát 0
+cp "$APK" GRAPE2Play-3.0.7.apk && shasum -a 256 GRAPE2Play-3.0.7.apk
+# 4) Thử trên thiết bị: adb install -r GRAPE2Play-3.0.7.apk (đè lên 3.0.6), mở app, kiểm dữ liệu (ACCEPTANCE_GUIDE §9)
 # 5) Phát hành (chỉ khi mọi điều kiện đạt)
 git push origin main
-git tag -a v3.0.6 -m "GRAPE2Play 3.0.6" && git push origin v3.0.6
-# Ghi chú phát hành lấy từ mục 3.0.6 của RELEASE_NOTES.md (phần trước dòng '---' đầu tiên); không duy trì bản sao riêng
-awk '/^---$/{exit} {print}' RELEASE_NOTES.md > release-notes-3.0.6.md
-gh release create v3.0.6 GRAPE2Play-3.0.6.apk -R PhungP/GRAPE2Play --title "GRAPE2Play 3.0.6" --notes-file release-notes-3.0.6.md --latest
+git tag -a v3.0.7 -m "GRAPE2Play 3.0.7" && git push origin v3.0.7
+# Ghi chú phát hành lấy từ mục 3.0.7 của RELEASE_NOTES.md (phần trước dòng '---' đầu tiên); không duy trì bản sao riêng
+awk '/^---$/{exit} {print}' RELEASE_NOTES.md > release-notes-3.0.7.md
+gh release create v3.0.7 GRAPE2Play-3.0.7.apk -R PhungP/GRAPE2Play --title "GRAPE2Play 3.0.7" --notes-file release-notes-3.0.7.md --latest
 ```
-Không dùng `--prerelease`/`--draft`. Không commit tệp `.apk`/keystore (`.apk` đã bị `.gitignore`); xoá `release-notes-3.0.6.md` sau khi dùng.
+Không dùng `--prerelease`/`--draft`. Không commit tệp `.apk`/keystore (`.apk` đã bị `.gitignore`); xoá `release-notes-3.0.7.md` sau khi dùng.
 
 ## Kiểm tra tự động đã chạy (tại thời điểm soạn)
 Xem mục "Kết quả" trong `docs/CHECKPOINT_phase1-4_2026-11-27.md`. Release không ký: `app-release-unsigned.apk` (≈17 MB, 3 dex, không có thư viện native; `apksigner verify` báo không ký — đúng mong đợi).
