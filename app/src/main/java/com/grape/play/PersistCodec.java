@@ -154,6 +154,10 @@ public final class PersistCodec {
 
     // ---------- Bộ đọc JSON nghiêm ngặt tối giản ----------
     private static final Object BAD = new Object();
+    /** Giá trị trả về cho literal JSON null trong [parseJson]. */
+    public static final Object JSON_NULL = BAD;
+    /** JSON nghiêm ngặt → List / Map / String / Number / Boolean / [JSON_NULL]; null nếu sai cú pháp hoặc cụt. */
+    public static Object parseJson(String raw) { return parse(raw); }
     /** null nếu sai cú pháp / cụt / còn ký tự thừa. (Giá trị JSON null cũng coi là không hợp lệ cho các định dạng này.) */
     private static Object parse(String s) {
         if (s == null) return null;

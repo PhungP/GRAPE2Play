@@ -47,6 +47,7 @@ fun SoundScreen(onNav: (Screen) -> Unit, onSources: () -> Unit, onOut: () -> Uni
                 GaplessCard()
                 TvHomeCard()
                 CoverWebCard()
+                MusicIdCard()
                 AiCard()
                 LanguageCard()
                 UpdateCard()
@@ -182,6 +183,46 @@ fun CoverWebCard() {
             Opt("Tắt", !web) { Covers.setWeb(false); web = false }
         }
         T("Album/bài hát không có ảnh sẽ được tìm trên Deezer và iTunes theo tên nghệ sĩ + album (chỉ gửi tên, không gửi file nhạc). Ảnh tìm được lưu lại trong máy, không tải lại.", 15, C.Muted, lines = 4)
+    }
+}
+
+/** Nhận diện nhạc môi trường qua micro (AudD, khoá do người dùng cung cấp). Xem [MusicId]. */
+@Composable
+fun MusicIdCard() {
+    val ctx = LocalContext.current
+    remember { MusicId.init(ctx) }
+    val st by MusicId.state.collectAsState()
+    var key by remember { mutableStateOf(MusicId.apiKey) }
+    val mic = remember { MusicId.hasMic(ctx) }
+    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) MusicId.start(ctx) else MusicId.fail("Cần cấp quyền micro để nhận diện nhạc.")
+    }
+    val busy = st is MusicId.State.Recording || st is MusicId.State.Sending
+    Card {
+        T("NHẬN DIỆN NHẠC (AudD)", 13, C.Muted, spaced = true)
+        DevField("Khoá API AudD (api.audd.io) — do bạn tự cung cấp", key) { v -> key = v.trim(); MusicId.apiKey = key }
+        if (!mic) T("Thiết bị này không có micro nên không dùng được tính năng này.", 15, C.Muted, lines = 3)
+        else {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Opt(if (busy) "Đang nghe…" else "🎤 Nghe & nhận diện (10 giây)", false) {
+                    if (!busy) { if (key.isEmpty()) MusicId.fail("Hãy nhập khoá API AudD trước.") else if (MusicId.hasPermission(ctx)) MusicId.start(ctx) else launcher.launch(android.Manifest.permission.RECORD_AUDIO) }
+                }
+                if (busy) Opt("Huỷ", false) { MusicId.cancel() }
+            }
+        }
+        when (val s = st) {
+            is MusicId.State.Recording -> T("Đang thu… ${s.sec}/${MusicId.SECONDS} giây", 16, C.Gold)
+            is MusicId.State.Sending -> T("Đang gửi tới dịch vụ nhận diện…", 16, C.Gold)
+            is MusicId.State.Failed -> T(s.msg, 15, C.Muted, lines = 4)
+            is MusicId.State.Done -> if (s.r.status == MusicIdCodec.Status.MATCH) Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                T(s.r.title.ifEmpty { "(không rõ tên bài)" }, 20, bold = true, lines = 2)
+                if (s.r.artist.isNotEmpty()) T(s.r.artist, 16, C.Gold, lines = 2)
+                val extra = listOf(s.r.album, s.r.releaseDate).filter { it.isNotEmpty() }.joinToString(" · ")
+                if (extra.isNotEmpty()) T(extra, 14, C.Muted, lines = 2)
+            } else T("Không nhận ra bài này. Thử lại ở đoạn có giai điệu rõ hơn, gần nguồn âm hơn.", 15, C.Muted, lines = 3)
+            else -> {}
+        }
+        T("Bấm sẽ ghi khoảng 10 giây âm thanh từ MICRO và gửi tới dịch vụ AudD (api.audd.io) bằng khoá của bạn để nhận diện. Chỉ nghe được âm thanh môi trường qua micro — không lấy luồng đang phát bên trong app, không ảnh hưởng chất lượng phát và Bit-perfect, không sửa thẻ của file nhạc.", 13, C.Muted, lines = 7)
     }
 }
 

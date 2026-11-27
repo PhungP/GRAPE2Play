@@ -453,6 +453,7 @@ private fun MobileSettings(onOut: () -> Unit) {
             MobileEq()
             BackgroundCard()
             CoverWebCard()
+            MusicIdCard()
             AiCard()
             LanguageCard()
             UpdateCard()
