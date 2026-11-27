@@ -4,6 +4,8 @@
 
 **"Xem chi tiết trạng thái phát" cuộn lên được:** dùng khung cuộn chung; nút "← Đóng" ở đầu trang; ▲ cuộn ngược lên đọc toàn bộ nội dung.
 
+**Thiết bị Cast/UPnP và "Manufacturer Verified":** nhãn này chỉ là tài liệu của hãng nêu khả năng, không đổi trạng thái khi phát nhạc (vẫn NOT VERIFIED vì app không quan sát được bên trong thiết bị nhận). Giao diện nay giải thích rõ và form "Verify Playback Capability" tự điền sẵn theo bài đang phát để bạn tự xác minh đúng định dạng.
+
 **Dò loa:** bộ đọc mô tả thiết bị về lại như bản ≤2.9.8 (phần hãng/model đọc riêng); mọi lỗi dò loa được ghi vào Nhật ký, và dưới danh sách ở trang Đầu ra có dòng "Chi tiết" cho biết số phản hồi theo từng card mạng. Nếu loa JBL L75ms UPnP vẫn không hiện, hãy quét một lần rồi gửi dòng "Chi tiết" đó hoặc Nhật ký để tìm nguyên nhân.
 
 Không đổi: phát nhạc, Audio Engine, DSP/EQ, ký và cập nhật OTA. Chưa kiểm thử trên TV/loa thật.

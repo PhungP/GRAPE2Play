@@ -110,6 +110,7 @@ fun BitPerfectDialog() {
             T(s("Trạng thái Bit-perfect", "Bit-perfect status"), if (compact) 18 else 22, serif = true)
             T(statusText(r.status, r.level), if (compact) 17 else 22, grade.color, bold = true)
             T(why(r.status), 13, C.Muted, lines = 6)
+            if (rem && r.status != BitPerfect.Status.VERIFIED) T(s("Thiết bị ngoài (Cast/UPnP): app không quan sát được bên trong thiết bị nhận nên mặc định NOT VERIFIED — nhãn “Manufacturer Verified” trong danh mục chỉ là tài liệu của hãng, không đổi trạng thái này. Muốn thành VERIFIED: ① Confirm Device Identity, ② Verify Playback Capability cho đúng định dạng đang phát (xem “Thiết bị âm thanh của tôi”).", "External device (Cast/UPnP): the app cannot observe inside the receiver, so it defaults to NOT VERIFIED — the “Manufacturer Verified” badge in the catalog is only the manufacturer's documentation and does not change this. To get VERIFIED: ① Confirm Device Identity, ② Verify Playback Capability for the exact format being played (see “My Audio Devices”)."), 12, C.Gold, lines = 9)
             if (r.level == BitPerfect.VerLevel.USER_CONFIGURATION) T(s("Mức xác minh: do chính bạn xác minh (User Verified) cho đúng tổ hợp thiết bị + kết nối + định dạng đang phát — không phải phép đo từ nguồn tới DAC.", "Verification level: verified by you (User Verified) for exactly this device + connection + format combination — not a measurement from source to DAC."), 12, C.Gold, lines = 5)
             if (t != null) T(t.title, 14, C.Gold, bold = true, lines = 1)
 

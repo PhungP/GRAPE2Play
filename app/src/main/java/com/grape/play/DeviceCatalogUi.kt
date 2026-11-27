@@ -293,13 +293,15 @@ private fun Chips(content: @Composable () -> Unit) = FlowRow(Modifier.fillMaxWid
 
 /** Verify Playback Capability: người dùng ghi nhận kết quả thử một cấu hình phát (khác hẳn "Confirm Device Identity"). Lưu cục bộ ⇒ User Verified. */
 @Composable
-private fun VerifyPlaybackDialog(p: DeviceRegistry.Profile, onClose: () -> Unit) {
+private fun VerifyPlaybackDialog(p: DeviceRegistry.Profile, cur: BitPerfect.Input?, onClose: () -> Unit) {
+    // Điền sẵn theo bài đang phát nếu cùng kiểu kết nối (xác minh chỉ áp dụng CHÍNH XÁC cho định dạng đã chọn — chọn sai là không khớp phiên phát)
+    val live = cur != null && cur.hasTrack && cur.route == p.conn
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(150); runCatching { first.requestFocus() } }   // chờ cửa sổ hộp thoại dựng xong, nếu không tiêu điểm D-pad vẫn ở trang bên dưới
-    var dsd by remember { mutableStateOf(false) }
-    var mode by remember { mutableStateOf(DeviceCatalog.Dsd.NATIVE) }
-    var rate by remember { mutableStateOf(0) }
-    var bits by remember { mutableStateOf(0) }
+    var dsd by remember { mutableStateOf(live && cur!!.srcDsd) }
+    var mode by remember { mutableStateOf(if (live && cur!!.srcDsd && cur.dopActive) DeviceCatalog.Dsd.DOP else if (live && cur!!.srcDsd && cur.route != Route.UPNP && cur.route != Route.CAST) DeviceCatalog.Dsd.DSD_TO_PCM else DeviceCatalog.Dsd.NATIVE) }
+    var rate by remember { mutableStateOf(if (live && !cur!!.srcDsd && cur.srcRate in listOf(44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000)) cur.srcRate else 0) }
+    var bits by remember { mutableStateOf(if (live && !cur!!.srcDsd && cur.srcBits in listOf(16, 24, 32)) cur.srcBits else 0) }
     var fw by remember { mutableStateOf(p.firmware) }
     var sw by remember { mutableStateOf("") }
     var proto by remember { mutableStateOf("") }
@@ -321,6 +323,7 @@ private fun VerifyPlaybackDialog(p: DeviceRegistry.Profile, onClose: () -> Unit)
         T(p.label().ifEmpty { p.name } + " · " + connLabel(p.conn), 15, C.Gold, bold = true, lines = 2)
         T(s("Ghi lại kết quả bạn đã thử NGHIỆM THỰC TẾ cho đúng kết nối trên. Đây là xác minh của người dùng (User Verified), lưu trên máy này, không thay đổi danh mục tích hợp. Xác nhận danh tính thiết bị không thay thế bước này.",
             "Record what you actually TESTED for the connection above. This is a user verification (User Verified), stored on this device only; it does not change the built-in catalog. Confirming the device identity does not replace this step."), 12, C.Muted, lines = 6)
+        if (live) T(s("Đã điền sẵn theo bài đang phát (", "Pre-filled from the track now playing (") + (if (cur!!.srcDsd) "DSD" else "${cur.srcBits}-bit / ${khz(cur.srcRate)}") + s("). Xác minh chỉ áp dụng cho ĐÚNG định dạng này; bài khác tần số/độ sâu bit cần một lần ghi riêng.", "). The verification only applies to EXACTLY this format; a track with another rate/bit depth needs its own record."), 12, C.Gold, lines = 5)
         SectionLabel(s("ĐỊNH DẠNG ĐÃ THỬ", "TESTED FORMAT"))
         Chips { Chip("PCM", !dsd) { dsd = false }; Chip("DSD", dsd) { dsd = true } }
         if (dsd) {
@@ -379,7 +382,8 @@ fun MyAudioDevicesDialog() {
     var query by remember { mutableStateOf("") }
     val queue by Playback.queue.collectAsState(); val idx by Playback.index.collectAsState(); val info by Playback.info.collectAsState(); val remote by Playback.remote.collectAsState()
     val active = remember(ver) { runCatching { BitPerfectProbe.detected(ctx) }.getOrNull() }
-    val status = remember(queue, idx, info, remote, ver) { runCatching { BitPerfect.evaluate(BitPerfectProbe.input(queue.getOrNull(idx), info, remote)) }.getOrNull() }
+    val curIn = remember(queue, idx, info, remote, ver) { runCatching { BitPerfectProbe.input(queue.getOrNull(idx), info, remote) }.getOrNull() }
+    val status = remember(curIn) { curIn?.let { runCatching { BitPerfect.evaluate(it) }.getOrNull() } }
     val profiles = remember(ver) { DeviceProfiles.store.profiles.toList() }
 
     @Composable fun Identify(det: DeviceRegistry.Detected, x: DeviceCatalog.Discovered, udn: String) {
@@ -456,6 +460,8 @@ fun MyAudioDevicesDialog() {
                 val cfgs = dev.configsFor(p.conn)
                 if (cfgs.isEmpty()) T(s("Danh mục chưa có cấu hình cho kết nối này.", "The catalog has no configuration for this connection."), 12, C.Muted, lines = 2)
                 for (c in cfgs) ConfigSummary(c, mine.map { DeviceVerification.toEvidence(it) })
+                if (cfgs.isNotEmpty()) T(s("Lưu ý: “Manufacturer Verified” nghĩa là tài liệu của hãng nêu khả năng (độ chắc chắn Supported) — KHÔNG làm phiên phát thành VERIFIED. Để trạng thái khi phát nhạc thành VERIFIED, hãy bấm “Verify Playback Capability” bên dưới đúng với định dạng đang phát (app điền sẵn theo bài đang phát).",
+                    "Note: “Manufacturer Verified” means the manufacturer's documentation states the capability (Supported confidence) — it does NOT make a playback session VERIFIED. To get VERIFIED while playing, press “Verify Playback Capability” below for the format being played (pre-filled from the current track)."), 11, C.Gold, lines = 8)
                 Focusable({ DeviceCatalogStore.mine.value = false; DeviceCatalogStore.detail.value = dev.id; DeviceCatalogStore.open.value = true }) { T(s("Xem chi tiết và bằng chứng trong danh mục", "Open details and evidence in the catalog"), 13, C.Text, Modifier.padding(14.dp, 6.dp)) }
             } else {
                 T(s("Chưa liên kết danh mục — không có bằng chứng từ nhà sản xuất.", "Not linked to the catalog — no manufacturer evidence."), 12, C.Muted, lines = 2)
@@ -485,7 +491,7 @@ fun MyAudioDevicesDialog() {
         }
         Focusable({ DeviceCatalogStore.mine.value = false }) { T(s("Đóng", "Close"), 16, C.Gold, Modifier.padding(24.dp, 8.dp), bold = true) }
     }
-    verifying?.let { k -> profiles.firstOrNull { it.key == k }?.let { VerifyPlaybackDialog(it) { verifying = null } } }
+    verifying?.let { k -> profiles.firstOrNull { it.key == k }?.let { VerifyPlaybackDialog(it, curIn) { verifying = null } } }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
