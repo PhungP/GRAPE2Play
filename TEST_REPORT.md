@@ -1,3 +1,17 @@
+# TEST REPORT — 3.0.5
+
+## 3.0.5 — kết quả thực tế (2026-11-27)
+| Loại | Kết quả |
+|---|---|
+| Unit test lõi | `passed=9909 failed=0` |
+| Build + JUnit Gradle | BUILD SUCCESSFUL |
+| **Real-device (đọc nhật ký TV Mibox 4 qua adb, chỉ đọc)** | Bản 3.0.4 trên TV: quét unicast **9 phản hồi / 7,2 s**, **"SSDP: tìm thấy JBL L75ms tại 192.168.1.41:34605"**; người dùng xác nhận đã thấy loa JBL L75ms UPnP. (Lượt đó mDNS Cast vẫn không thấy JBL → lý do thêm dò Cast bằng HTTP ở 3.0.5) |
+| Đo từ Mac | `GET :8008/setup/eureka_info` của JBL trả JSON có `name` và `ssdp_udn` |
+| Emulator (điện thoại) | Hộp thoại trạng thái (ⓘ): mục "XÁC MINH NHANH THIẾT BỊ NÀY" ở đầu hộp thoại; bấm ① → hiện "✓ Đã xác nhận danh tính" và nút ② → bấm ② mở form Verify (các ô firmware/giao thức/phần mềm/ghi chú thu gọn). Trang Đầu ra thấy JBL UPnP + Cast |
+| **Chưa kiểm tra** | Khối xác minh nhanh với thiết bị Cast/UPnP đang phát thật (emulator không có thiết bị ngoài đang phát, nên chỉ thử nhánh đầu ra cục bộ "Loa tích hợp"); dò Cast bằng HTTP trên TV; luồng "xác minh → VERIFIED" với loa thật; remote TV thật |
+
+---
+
 # TEST REPORT — 3.0.4
 
 ## 3.0.4 — bằng chứng và kết quả (2026-11-27)

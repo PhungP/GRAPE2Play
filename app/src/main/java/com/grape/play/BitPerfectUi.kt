@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -105,14 +106,47 @@ fun BitPerfectDialog() {
     val grade = when (r.status) { BitPerfect.Status.VERIFIED -> Grade.GREEN; BitPerfect.Status.NOT_BIT_PERFECT -> Grade.RED; else -> Grade.YELLOW }
     val rem = inp.route == BitPerfect.Route.UPNP || inp.route == BitPerfect.Route.CAST
     // Frame dùng chung: cuộn được cả bằng cảm ứng lẫn D-pad (▲ cuộn lên khi không còn phần tử nhận tiêu điểm phía trên), nút đóng ở ĐẦU trang nhận tiêu điểm đầu tiên
+    val lctx = LocalContext.current
+    val actDet = remember(inp, profVer) { runCatching { BitPerfectProbe.detected(lctx) }.getOrNull() }
+    // Thiết bị của phiên phát hiện tại: thiết bị ngoài (Cast/UPnP) hoặc đầu ra Android đã xác định được
+    val qDet: DeviceRegistry.Detected? = if (remote != null) DeviceRegistry.Detected(remote!!.name, inp.route, -1, -1, true) else actDet?.takeIf { it.conn != BitPerfect.Route.ROUTE_UNKNOWN && it.name.isNotEmpty() }
+    val qX: DeviceCatalog.Discovered? = qDet?.let { d ->
+        if (remote != null) DeviceCatalog.Discovered(remote!!.maker, remote!!.model, remote!!.name, d.conn).also { it.modelDescription = remote!!.modelDesc; it.udn = remote!!.id }
+        else DeviceCatalog.Discovered().also { it.friendlyName = d.name; it.modelName = d.name; it.vid = d.vid; it.pid = d.pid; it.conn = d.conn; it.manufacturer = d.manufacturer }
+    }
+    val key: String? = qDet?.let { DeviceRegistry.keyOf(it) }
+    val prof = key?.let { DeviceProfiles.store.find(it) }
+    var verifying by remember { mutableStateOf(false) }
     Frame(onDismiss = { BitPerfectUi.open.value = false }) {
             Focusable({ BitPerfectUi.open.value = false }, requester = ok) { T(s("← Đóng", "← Close"), 15, C.Gold, Modifier.padding(16.dp, 6.dp), bold = true) }
             T(s("Trạng thái Bit-perfect", "Bit-perfect status"), if (compact) 18 else 22, serif = true)
             T(statusText(r.status, r.level), if (compact) 17 else 22, grade.color, bold = true)
             T(why(r.status), 13, C.Muted, lines = 6)
-            if (rem && r.status != BitPerfect.Status.VERIFIED) T(s("Thiết bị ngoài (Cast/UPnP): app không quan sát được bên trong thiết bị nhận nên mặc định NOT VERIFIED — nhãn “Manufacturer Verified” trong danh mục chỉ là tài liệu của hãng, không đổi trạng thái này. Muốn thành VERIFIED: ① Confirm Device Identity, ② Verify Playback Capability cho đúng định dạng đang phát (xem “Thiết bị âm thanh của tôi”).", "External device (Cast/UPnP): the app cannot observe inside the receiver, so it defaults to NOT VERIFIED — the “Manufacturer Verified” badge in the catalog is only the manufacturer's documentation and does not change this. To get VERIFIED: ① Confirm Device Identity, ② Verify Playback Capability for the exact format being played (see “My Audio Devices”)."), 12, C.Gold, lines = 9)
+            if (rem && r.status != BitPerfect.Status.VERIFIED) T(s("Thiết bị ngoài (Cast/UPnP): app không quan sát được bên trong thiết bị nhận nên mặc định NOT VERIFIED — nhãn “Manufacturer Verified” trong danh mục chỉ là tài liệu của hãng, không đổi trạng thái này. Muốn thành VERIFIED: dùng mục “XÁC MINH NHANH” ngay bên dưới: ① Confirm Device Identity, ② Verify Playback Capability cho đúng định dạng đang phát.", "External device (Cast/UPnP): the app cannot observe inside the receiver, so it defaults to NOT VERIFIED — the “Manufacturer Verified” badge in the catalog is only the manufacturer's documentation and does not change this. To get VERIFIED: use “QUICK VERIFY” right below: ① Confirm Device Identity, ② Verify Playback Capability for the exact format being played."), 12, C.Gold, lines = 9)
             if (r.level == BitPerfect.VerLevel.USER_CONFIGURATION) T(s("Mức xác minh: do chính bạn xác minh (User Verified) cho đúng tổ hợp thiết bị + kết nối + định dạng đang phát — không phải phép đo từ nguồn tới DAC.", "Verification level: verified by you (User Verified) for exactly this device + connection + format combination — not a measurement from source to DAC."), 12, C.Gold, lines = 5)
             if (t != null) T(t.title, 14, C.Gold, bold = true, lines = 1)
+            // XÁC MINH NHANH: ngay tại màn hình này, không phải đi tìm ở menu khác
+            SectionLabel(s("XÁC MINH NHANH THIẾT BỊ NÀY", "QUICK VERIFY THIS DEVICE"))
+            if (qDet == null || qX == null) T(s("Chưa xác định được thiết bị của phiên phát này (cần phát nhạc tới thiết bị ngoài hoặc đầu ra Android xác định được).", "The device of this playback session cannot be identified yet (play to an external device or an identifiable Android output)."), 12, C.Muted, lines = 4)
+            else {
+                val cm = DeviceCatalog.match(qX, DeviceCatalogStore.catalog.devices)
+                val savedHere = prof != null && prof.conn == qDet.conn
+                T(qDet.name + " · " + connLabel(qDet.conn), 14, C.Gold, bold = true, lines = 2)
+                T(if (savedHere) s("✓ Đã xác nhận danh tính: ", "✓ Identity confirmed: ") + prof!!.label().ifEmpty { prof.name } + (if (prof.catalogId.isEmpty()) s(" (chưa liên kết danh mục)", " (not linked to the catalog)") else "")
+                  else if (cm.device != null) s("Khớp danh mục: ", "Catalog match: ") + cm.device!!.label() + (if (cm.needsConfirmation()) s(" (khớp theo tên — bấm ① để xác nhận)", " (matched by name — press ① to confirm)") else s(" (khớp chắc chắn)", " (exact match)"))
+                  else if (cm.ambiguous) s("Nhiều model trùng khớp — chọn thủ công ở “Thiết bị âm thanh của tôi”.", "Several models match — choose manually in “My Audio Devices”.")
+                  else s("Chưa có trong danh mục; vẫn có thể xác nhận thiết bị này để tự xác minh.", "Not in the catalog; you can still confirm this device in order to verify it yourself."), 12, C.Text, lines = 4)
+                if (!savedHere) {
+                    if (cm.ambiguous) Focusable({ BitPerfectUi.open.value = false; DeviceCatalogStore.mine.value = true }) { T(s("① Confirm Device Identity — chọn model", "① Confirm Device Identity — choose model"), 15, C.Gold, Modifier.padding(16.dp, 8.dp), bold = true) }
+                    else Focusable({ DeviceRegistry.linkCatalog(DeviceProfiles.store, qDet, qX.udn, cm.device, System.currentTimeMillis()); DeviceProfiles.persist() }) {
+                        T(s("① Confirm Device Identity", "① Confirm Device Identity") + (cm.device?.let { " — " + it.label() } ?: s(" — đúng thiết bị này", " — this device")), 15, C.Gold, Modifier.padding(16.dp, 8.dp), bold = true, lines = 2)
+                    }
+                    T(s("② Verify Playback Capability: cần xong ① trước (xác nhận danh tính không tự động).", "② Verify Playback Capability: needs ① first (identity is never confirmed automatically)."), 12, C.Dim, lines = 3)
+                } else {
+                    Focusable({ verifying = true }) { T(s("② Verify Playback Capability — điền sẵn theo bài đang phát", "② Verify Playback Capability — pre-filled from the current track"), 15, C.Gold, Modifier.padding(16.dp, 8.dp), bold = true, lines = 2) }
+                    Focusable({ BitPerfectUi.open.value = false; DeviceCatalogStore.mine.value = true }) { T(s("Sửa danh tính / xem hồ sơ (Thiết bị âm thanh của tôi)", "Edit identity / view profile (My Audio Devices)"), 13, C.Text, Modifier.padding(16.dp, 6.dp), lines = 2) }
+                }
+            }
 
             SectionLabel(s("THÔNG TIN TÁCH RIÊNG", "SEPARATE INFORMATION"))
             @Composable fun field(label: String, value: String) { T(label, 12, C.Muted, bold = true); T(value, 14, C.Text, lines = 4) }
@@ -165,10 +199,6 @@ fun BitPerfectDialog() {
 
             // Xác minh theo TỔ HỢP: Device + Firmware + Transport + Protocol + Audio Format + Playback Configuration. Không thay đổi kết luận ở trên (chỉ dựa trên bằng chứng của phiên phát).
             SectionLabel(s("XÁC MINH CHO TỔ HỢP NÀY", "VERIFICATION FOR THIS COMBINATION"))
-            val lctx = LocalContext.current
-            val actDet = remember(inp, profVer) { runCatching { BitPerfectProbe.detected(lctx) }.getOrNull() }
-            val key = if (remote != null) DeviceRegistry.keyOf(DeviceRegistry.Detected(remote!!.name, inp.route, -1, -1, false)) else actDet?.let { DeviceRegistry.keyOf(it) }
-            val prof = key?.let { DeviceProfiles.store.find(it) }
             val combo = DeviceProfiles.comboOf(inp, prof)
             T(s("Kết quả xác minh của một thiết bị/kết nối/cấu hình KHÔNG đại diện cho phương thức hay cấu hình khác, và không thay thế bằng chứng của phiên phát này.", "A verification of one device/connection/configuration does not stand for another, and does not replace the evidence of this playback session."), 12, C.Muted, lines = 5)
             if (prof == null) T(s("Thiết bị chưa được lưu trong “Thiết bị âm thanh của tôi”: chưa áp dụng được xác minh theo thiết bị. Vào đó để Confirm Device Identity.", "The device is not saved in “My Audio Devices”: no device-specific verification can be applied. Open it to Confirm Device Identity."), 12, C.Muted, lines = 5)
@@ -201,4 +231,5 @@ fun BitPerfectDialog() {
             Focusable({ BitPerfectUi.open.value = false; DeviceProfiles.manage.value = true }) { T(s("Quản lý thiết bị Bit-perfect", "Manage Bit-perfect devices"), 15, C.Text, Modifier.padding(24.dp, 8.dp)) }
             Focusable({ BitPerfectUi.open.value = false }) { T(s("Đóng", "Close"), 16, C.Gold, Modifier.padding(24.dp, 8.dp), bold = true) }
     }
+    if (verifying) prof?.let { VerifyPlaybackDialog(it, inp) { verifying = false } }
 }

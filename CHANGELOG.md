@@ -104,6 +104,7 @@ Repo GitHub đổi từ `PhungP/grape2play` thành `PhungP/GRAPE2Play`. Cập nh
 - **Sửa:** 8 luồng gửi song song (IP đã biết gửi trước, 3 vòng cách nhau 1,2 s, chỉ một loại ST) và luồng chính nghe liên tục 7 giây; ghi thời gian quét vào nhật ký.
 - **Không "quên" thiết bị sau một lần quét hụt:** thiết bị đã thấy được giữ trong danh sách nhớ (không hiện) tối đa 8 lần quét liên tiếp không thấy và tự hồi sinh khi trả lời lại (trước đây danh sách nhớ bị ghi đè bằng kết quả mỗi lần quét nên JBL mất vĩnh viễn sau một lần hụt); kiểm tra cổng nới thời gian chờ 3 s và thử lại một lần (loa tiết kiệm điện Wi-Fi thức dậy chậm).
 
-## Sau 3.0.4 — dò Cast bằng HTTP khi mDNS hụt (chưa phát hành)
+## 3.0.5 — xác minh nhanh ngay trong hộp thoại trạng thái + dò Cast bằng HTTP (versionCode 108)
 - **Xác nhận trên TV (Mibox 4, nhật ký 08:07, app 3.0.4):** quét unicast nhận 9 phản hồi trong 7,2 s và **thấy "JBL L75ms" UPnP tại 192.168.1.41:34605**; người dùng xác nhận đã tìm thấy loa. Cùng lượt quét đó mDNS Cast chỉ thấy 2 thiết bị (không có JBL).
 - **Thêm:** thiết bị đã thấy qua UPnP mà mDNS Cast không thấy được dò thẳng bằng API HTTP của Cast (cổng 8008, `/setup/eureka_info` — JBL trả về `name` và `ssdp_udn`). Chỉ kiểm bằng biên dịch và đo trên Mac; chưa thử trên TV.
+- **Xác minh nhanh ngay tại hộp thoại trạng thái (bấm ⓘ khi đang phát):** mục "XÁC MINH NHANH THIẾT BỊ NÀY" ở đầu hộp thoại có nút **① Confirm Device Identity** (liên kết danh mục nếu khớp, vẫn xác nhận được thiết bị chưa có trong danh mục) và **② Verify Playback Capability** (mở form điền sẵn theo bài đang phát; chỉ mở sau ①, xác nhận danh tính không bao giờ tự động). Không còn phải đi tìm ở menu khác; đoạn hướng dẫn chỉ thẳng tới mục này. Trước đây hai nút chỉ có ở "Thiết bị âm thanh của tôi".

@@ -1,3 +1,12 @@
+# GRAPE2Play 3.0.5 — Ghi chú phát hành
+
+**Xác minh nhanh ngay trong hộp thoại trạng thái:** bấm ⓘ ở màn Đang phát, mục "XÁC MINH NHANH THIẾT BỊ NÀY" ở đầu hộp thoại có nút **① Confirm Device Identity** và **② Verify Playback Capability** (điền sẵn theo bài đang phát) cho đúng thiết bị đang phát — không cần đi tìm ở menu khác. Xác nhận danh tính vẫn là thao tác của bạn, không tự động.
+
+**Dò Cast bằng HTTP (mới):** thiết bị đã thấy qua UPnP mà mDNS Cast không thấy (ví dụ JBL L75ms) được hỏi thẳng qua API HTTP của Cast, nên cả UPnP lẫn Google Cast cùng hiện ổn định hơn. Bản 3.0.4 đã xác nhận trên TV Mibox: JBL L75ms UPnP được tìm thấy.
+
+Không đổi: phát nhạc, Audio Engine, DSP/EQ, ký và cập nhật OTA. Dò Cast bằng HTTP và khối xác minh nhanh chưa được thử trên TV/loa thật.
+
+---
 # GRAPE2Play 3.0.4 — Ghi chú phát hành
 
 **Sửa dò loa trên TV (JBL L75ms UPnP):** đọc nhật ký của Mibox cho thấy lượt quét unicast quá chậm trên TV (gửi mất ~9 giây, vượt cửa sổ nghe 4,5 giây) nên phản hồi của loa bị bỏ sót. Nay gửi song song và nghe đủ lâu. App cũng không còn "quên" loa sau một lần quét hụt (giữ trong danh sách nhớ tối đa 8 lần quét liên tiếp và tự hồi sinh khi loa trả lời lại).

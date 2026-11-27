@@ -293,7 +293,7 @@ private fun Chips(content: @Composable () -> Unit) = FlowRow(Modifier.fillMaxWid
 
 /** Verify Playback Capability: người dùng ghi nhận kết quả thử một cấu hình phát (khác hẳn "Confirm Device Identity"). Lưu cục bộ ⇒ User Verified. */
 @Composable
-private fun VerifyPlaybackDialog(p: DeviceRegistry.Profile, cur: BitPerfect.Input?, onClose: () -> Unit) {
+internal fun VerifyPlaybackDialog(p: DeviceRegistry.Profile, cur: BitPerfect.Input?, onClose: () -> Unit) {
     // Điền sẵn theo bài đang phát nếu cùng kiểu kết nối (xác minh chỉ áp dụng CHÍNH XÁC cho định dạng đã chọn — chọn sai là không khớp phiên phát)
     val live = cur != null && cur.hasTrack && cur.route == p.conn
     val first = remember { FocusRequester() }
