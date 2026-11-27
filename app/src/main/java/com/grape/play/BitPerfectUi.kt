@@ -21,6 +21,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.LocalContext
 
 object BitPerfectUi { val open = mutableStateOf(false) }
@@ -100,15 +101,12 @@ fun BitPerfectDialog() {
     val r = BitPerfect.evaluate(inp)
     val compact = LocalCompact.current
     val ok = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { ok.requestFocus() } }
+    LaunchedEffect(Unit) { delay(150); runCatching { ok.requestFocus() } }
     val grade = when (r.status) { BitPerfect.Status.VERIFIED -> Grade.GREEN; BitPerfect.Status.NOT_BIT_PERFECT -> Grade.RED; else -> Grade.YELLOW }
     val rem = inp.route == BitPerfect.Route.UPNP || inp.route == BitPerfect.Route.CAST
-    Dialog(onDismissRequest = { BitPerfectUi.open.value = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            (if (compact) Modifier.dlgW(560) else Modifier.dlgFrac(0.5f)).clip(RoundedCornerShape(14.dp)).background(C.Panel)
-                .border(1.dp, C.Line, RoundedCornerShape(14.dp)).dlgPad(24, 16).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
+    // Frame dùng chung: cuộn được cả bằng cảm ứng lẫn D-pad (▲ cuộn lên khi không còn phần tử nhận tiêu điểm phía trên), nút đóng ở ĐẦU trang nhận tiêu điểm đầu tiên
+    Frame(onDismiss = { BitPerfectUi.open.value = false }) {
+            Focusable({ BitPerfectUi.open.value = false }, requester = ok) { T(s("← Đóng", "← Close"), 15, C.Gold, Modifier.padding(16.dp, 6.dp), bold = true) }
             T(s("Trạng thái Bit-perfect", "Bit-perfect status"), if (compact) 18 else 22, serif = true)
             T(statusText(r.status, r.level), if (compact) 17 else 22, grade.color, bold = true)
             T(why(r.status), 13, C.Muted, lines = 6)
@@ -200,7 +198,6 @@ fun BitPerfectDialog() {
             Focusable({ BitPerfectUi.open.value = false; DeviceCatalogStore.open.value = true }) { T(s("Bit-perfect Verified Devices (danh mục thiết bị)", "Bit-perfect Verified Devices (catalog)"), 15, C.Text, Modifier.padding(24.dp, 8.dp)) }
             Focusable({ BitPerfectUi.open.value = false; DeviceCatalogStore.mine.value = true }) { T(s("Thiết bị âm thanh của tôi", "My Audio Devices"), 15, C.Text, Modifier.padding(24.dp, 8.dp)) }
             Focusable({ BitPerfectUi.open.value = false; DeviceProfiles.manage.value = true }) { T(s("Quản lý thiết bị Bit-perfect", "Manage Bit-perfect devices"), 15, C.Text, Modifier.padding(24.dp, 8.dp)) }
-            Focusable({ BitPerfectUi.open.value = false }, requester = ok) { T(s("Đóng", "Close"), 16, C.Gold, Modifier.padding(24.dp, 8.dp), bold = true) }
-        }
+            Focusable({ BitPerfectUi.open.value = false }) { T(s("Đóng", "Close"), 16, C.Gold, Modifier.padding(24.dp, 8.dp), bold = true) }
     }
 }

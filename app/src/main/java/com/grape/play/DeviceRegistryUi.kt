@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.key
@@ -60,16 +61,32 @@ fun devLevelText(l: DevLevel): String = when (l) {
     DevLevel.REGISTRY_E2E -> "Verified – End-to-end"
 }
 
+/**
+ * Ô nhập: MẶC ĐỊNH ĐÓNG (chỉ là một dòng nhãn + giá trị, nhận tiêu điểm như nút) để không chặn luồng tiêu điểm D-pad khi người dùng không định nhập;
+ * bấm vào mới mở ô soạn thảo (và hiện bàn phím). [startOpen] = true cho các form nhập liệu chủ đích.
+ */
 @Composable
-internal fun DevField(label: String, value: String, onChange: (String) -> Unit) {
-    var f by remember { mutableStateOf(false) }
-    T(label, 12, C.Muted, bold = true)
-    Box(Modifier.fillMaxWidth().border(if (f) 2.dp else 1.dp, if (f) C.Gold else C.Dim, RoundedCornerShape(10.dp)).background(C.Inset, RoundedCornerShape(10.dp)).padding(horizontal = 14.dp, vertical = 10.dp)) {
-        BasicTextField(
-            value, onChange, singleLine = true,
-            textStyle = TextStyle(color = C.Text, fontSize = 17.sp), cursorBrush = SolidColor(C.Gold),
-            modifier = Modifier.fillMaxWidth().onFocusChanged { f = it.isFocused },
-        )
+internal fun DevField(label: String, value: String, startOpen: Boolean = false, onChange: (String) -> Unit) {
+    var open by remember { mutableStateOf(startOpen) }
+    val req = remember { FocusRequester() }
+    if (!open) {
+        Focusable({ open = true }, Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                T(label, 12, C.Muted, bold = true, lines = 2)
+                T(if (value.isEmpty()) s("(trống) — bấm để nhập", "(empty) — press to type") else value, 15, if (value.isEmpty()) C.Dim else C.Text, lines = 2)
+            }
+        }
+    } else {
+        var f by remember { mutableStateOf(false) }
+        T(label, 12, C.Muted, bold = true)
+        Box(Modifier.fillMaxWidth().border(if (f) 2.dp else 1.dp, if (f) C.Gold else C.Dim, RoundedCornerShape(10.dp)).background(C.Inset, RoundedCornerShape(10.dp)).padding(horizontal = 14.dp, vertical = 10.dp)) {
+            BasicTextField(
+                value, onChange, singleLine = true,
+                textStyle = TextStyle(color = C.Text, fontSize = 17.sp), cursorBrush = SolidColor(C.Gold),
+                modifier = Modifier.fillMaxWidth().focusRequester(req).onFocusChanged { f = it.isFocused },
+            )
+        }
+        if (!startOpen) LaunchedEffect(Unit) { delay(120); runCatching { req.requestFocus() } }   // người dùng vừa chủ động mở ô → đưa con trỏ vào đó
     }
 }
 
@@ -121,9 +138,9 @@ fun DeviceConfirmDialog() {
             var notes by remember(p) { mutableStateOf("") }
             T(s("Khai báo thiết bị", "Declare device"), 20, serif = true)
             T(s("Thiết bị phát hiện: ", "Detected device: ") + det.name + " · " + connLabel(det.conn), 14, C.Muted, lines = 3)
-            DevField(s("Hãng", "Manufacturer"), maker) { maker = it }
-            DevField(s("Model", "Model"), model) { model = it }
-            DevField(s("Ghi chú kỹ thuật (tuỳ chọn)", "Technical notes (optional)"), notes) { notes = it }
+            DevField(s("Hãng", "Manufacturer"), maker, startOpen = true) { maker = it }
+            DevField(s("Model", "Model"), model, startOpen = true) { model = it }
+            DevField(s("Ghi chú kỹ thuật (tuỳ chọn)", "Technical notes (optional)"), notes, startOpen = true) { notes = it }
             T(s("Thông tin bạn khai báo chỉ lưu trong hồ sơ cá nhân; KHÔNG tự đưa vào danh mục Verified và KHÔNG làm thiết bị được coi là Bit-perfect.",
                 "What you declare is stored in your personal profile only; it is NOT added to the Verified registry and does NOT make the device count as Bit-perfect."), 12, C.Muted, lines = 5)
             Focusable({ DeviceProfiles.declare(det, maker, model, notes) }, requester = first) { T(s("Lưu hồ sơ", "Save profile"), 16, C.Gold, Modifier.padding(24.dp, 8.dp), bold = true) }
@@ -179,7 +196,7 @@ fun DeviceManagerDialog() {
             } else T(devLevelText(DevLevel.USER_DECLARED), 12, C.Muted, lines = 3)
             if (p.notes.isNotEmpty()) T(s("Ghi chú: ", "Notes: ") + p.notes, 12, C.Muted, lines = 4)
             if (editing == p.key) {
-                DevField(s("Hãng", "Manufacturer"), maker) { maker = it }
+                DevField(s("Hãng", "Manufacturer"), maker, startOpen = true) { maker = it }
                 DevField("Model", model) { model = it }
                 DevField(s("Ghi chú", "Notes"), notes) { notes = it }
                 Focusable({ DeviceProfiles.edit(p.key, maker, model, notes); editing = null }) { T(s("Lưu", "Save"), 15, C.Gold, Modifier.padding(16.dp, 6.dp), bold = true) }

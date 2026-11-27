@@ -1,3 +1,17 @@
+# TEST REPORT — 3.0.3
+
+## 3.0.3 — kết quả thực tế (2026-11-27)
+| Loại | Kết quả |
+|---|---|
+| Unit test lõi (`./run_core_tests.sh`) | `passed=9909 failed=0` |
+| Build + JUnit Gradle | BUILD SUCCESSFUL |
+| Đo thật trên LAN (Python, máy Mac) | JBL L75ms: multicast M-SEARCH **0/24** lần được trả lời (MediaRenderer:1 MX2, MX3, rootdevice); unicast **8/8**. Thiết bị khác (192.168.1.8) vẫn trả lời multicast ⇒ multicast trên mạng chạy, riêng JBL không trả lời. Mô tả XML của JBL đơn giản (1 device, 4 service, không có `modelDescription`), regex đọc đúng hãng "Harman Luxury Audio", model "JBL L75ms" |
+| Emulator | (1) Ô tìm kiếm danh mục mặc định thu gọn ("trống — bấm để nhập"). (2) "Xem chi tiết trạng thái phát": ▼ ×13 xuống cuối (nút Đóng có viền), ▲ về đầu: "← Đóng" có viền và toàn bộ phần đầu đọc được. (3) Trang Đầu ra hiện dòng "Chi tiết: multicast … · unicast …" (emulator có 2 card ảo 10.0.2.x: multicast 6+6 phản hồi, unicast 0 — mạng ảo NAT). Thấy JBL UPnP + Cast |
+| Real-device | **KHÔNG thực hiện**. Chưa xác định được vì sao TV của người dùng không thấy JBL UPnP: cần dòng "Chi tiết"/Nhật ký từ TV |
+| Chưa kiểm tra | Form Verify với ô thu gọn (cùng thành phần `DevField`, chỉ kiểm bằng ô tìm kiếm); remote TV thật |
+
+---
+
 # TEST REPORT — 3.0.2
 
 ## 3.0.2 — kết quả thực tế (2026-11-27)

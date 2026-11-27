@@ -66,6 +66,7 @@ object Renderers {
     suspend fun discover(ctx: Context): List<Renderer> = coroutineScope {
         val app = ctx.applicationContext
         val known = loadKnown(app)
+        scanSummary.clear()
         var found = pass(app)
         var passes = 1
         val knownHosts = known.map { it.host }.toSet()
@@ -76,7 +77,7 @@ object Renderers {
         val all = merge(found, back)
         saveKnown(app, all)
         report = "Quét $passes lượt · UPnP ${all.count { it.kind == "upnp" }} · Google Cast ${all.count { it.kind == "cast" }}" +
-            (if (back.isNotEmpty()) " (${back.size} thiết bị nhớ từ lần trước, vẫn trả lời)" else "") + " · SSDP $lastReplies phản hồi"
+            (if (back.isNotEmpty()) " (${back.size} thiết bị nhớ từ lần trước, vẫn trả lời)" else "") + " · SSDP $lastReplies phản hồi" + (if (scanSummary.isEmpty()) "" else "\nChi tiết: " + scanSummary.joinToString(" · ") + " (số phản hồi SSDP theo từng cách quét)")
         all.sortedBy { it.name.lowercase() }
     }
 
@@ -87,9 +88,27 @@ object Renderers {
      */
     private fun revive(k: Renderer): Renderer? {
         if (k.kind == "cast") return if (reachable(k.host, 8009)) k else null
-        if (k.loc.isNotEmpty()) runCatching { describe(k.loc) }.getOrNull()?.let { return it }
+        if (k.loc.isNotEmpty()) tryDescribe(k.loc, "nhớ lại ${k.name}")?.let { return it }
         if (reachable(k.host, k.port)) return k
         return runCatching { probeHost(k.host) }.getOrNull()
+    }
+
+    /** Tóm tắt từng card mạng của lần quét gần nhất (hiện dưới danh sách thiết bị để biết quét ra sao). */
+    private val scanSummary = java.util.concurrent.ConcurrentLinkedQueue<String>()
+    private fun dlog(msg: String) { runCatching { AppLog.i("QuetLoa", msg) } }
+    private fun dwarn(msg: String, t: Throwable? = null) { runCatching { AppLog.w("QuetLoa", msg, t) } }
+
+    /** Tải device description; ghi lại lý do nếu lỗi (trước đây lỗi bị nuốt im lặng nên không biết vì sao loa không hiện). */
+    private fun tryDescribe(loc: String, who: String): Renderer? {
+        for (attempt in 1..2) {
+            try {
+                val r = describe(loc)
+                if (r == null) { dlog("$who: $loc — mô tả không có AVTransport (không phải loa nhận nhạc)"); return null }
+                dlog("$who: tìm thấy \"${r.name}\" (${r.maker} ${r.model}) tại ${r.host}:${r.port}")
+                return r
+            } catch (e: Exception) { if (attempt == 2) dwarn("$who: tải mô tả $loc lỗi: ${e.javaClass.simpleName} ${e.message}") }
+        }
+        return null
     }
 
     @Volatile private var lastReplies = 0
@@ -111,6 +130,7 @@ object Renderers {
         lastReplies = replies
         // Loa vừa có Google Cast vừa có UPnP (JBL L75ms…): nếu SSDP đa hướng không thấy, hỏi thẳng địa chỉ IP mà Cast đã báo.
         val missing = casts.map { it.host }.distinct().filter { h -> ups.none { it.host == h } }
+        dlog("Cast thấy ${casts.size} thiết bị (${casts.joinToString { it.name + "@" + it.host }}); UPnP thấy ${ups.size} (${ups.joinToString { it.name + "@" + it.host }}); Cast chưa có UPnP → hỏi trực tiếp: ${missing.joinToString().ifEmpty { "không" }}")
         val extra = missing.map { h -> async(Dispatchers.IO) { runCatching { probeHost(h) }.getOrNull() } }.awaitAll().filterNotNull()
         merge(merge(ups, extra), casts)
     }
@@ -165,6 +185,10 @@ object Renderers {
 
     /** Gửi M-SEARCH ra một card mạng (null = để hệ thống chọn) rồi nghe phản hồi ~4,5 giây; gửi lặp 3 lần vì UDP có thể rơi gói. */
     private fun searchOn(addr: InetAddress?, locs: MutableSet<String>, replies: AtomicInteger) {
+        val mine = AtomicInteger(0)
+        try { searchOn0(addr, locs, replies, mine) } finally { dlog("multicast ${addr?.hostAddress ?: "mặc định"}: ${mine.get()} phản hồi"); scanSummary.add("multicast ${addr?.hostAddress ?: "?"}: ${mine.get()}") }
+    }
+    private fun searchOn0(addr: InetAddress?, locs: MutableSet<String>, replies: AtomicInteger, mine: AtomicInteger) {
         val sock: DatagramSocket = if (addr == null) DatagramSocket() else MulticastSocket(InetSocketAddress(addr, 0)).also {
             runCatching { it.networkInterface = NetworkInterface.getByInetAddress(addr) }
             it.timeToLive = 4
@@ -182,7 +206,7 @@ object Renderers {
                 }
                 try {
                     val p = DatagramPacket(buf, buf.size); it.receive(p)
-                    replies.incrementAndGet()
+                    replies.incrementAndGet(); mine.incrementAndGet()
                     locationOf(String(p.data, 0, p.length))?.let { l -> locs += l }
                 } catch (e: SocketTimeoutException) { }
             }
@@ -194,6 +218,10 @@ object Renderers {
      * Chỉ ~250 gói UDP nhỏ × vài vòng; thiết bị không phải UPnP bỏ qua hoặc trả ICMP, vô hại.
      */
     private fun sweepOn(addr: InetAddress, locs: MutableSet<String>, replies: AtomicInteger) {
+        val mine = AtomicInteger(0)
+        try { sweepOn0(addr, locs, replies, mine) } finally { dlog("quét unicast ${addr.hostAddress}: ${mine.get()} phản hồi"); scanSummary.add("unicast ${addr.hostAddress}: ${mine.get()}") }
+    }
+    private fun sweepOn0(addr: InetAddress, locs: MutableSet<String>, replies: AtomicInteger, mine: AtomicInteger) {
         val ni = NetworkInterface.getByInetAddress(addr) ?: return
         val ia = ni.interfaceAddresses.firstOrNull { it.address == addr } ?: return
         val prefix = ia.networkPrefixLength.toInt().coerceIn(24, 30)           // dải rộng hơn /24 chỉ quét /24 chứa máy này
@@ -217,7 +245,7 @@ object Renderers {
                 }
                 try {
                     val p = DatagramPacket(buf, buf.size); sock.receive(p)
-                    replies.incrementAndGet()
+                    replies.incrementAndGet(); mine.incrementAndGet()
                     locationOf(String(p.data, 0, p.length))?.let { l -> locs += l }
                 } catch (e: SocketTimeoutException) { }
             }
@@ -231,15 +259,17 @@ object Renderers {
         val wifi = ctx.getSystemService(Context.WIFI_SERVICE) as? WifiManager
         val lock = runCatching { wifi?.createMulticastLock("grapeplay-r")?.also { it.setReferenceCounted(false); it.acquire() } }.getOrNull()
         val addrs = localAddrs()
+        dlog("Card mạng IPv4: " + (addrs.joinToString { a -> val ni = runCatching { NetworkInterface.getByInetAddress(a) }.getOrNull(); "${ni?.name ?: "?"} ${a.hostAddress}/" + (ni?.interfaceAddresses?.firstOrNull { it.address == a }?.networkPrefixLength ?: -1) }.ifEmpty { "KHÔNG CÓ" }))
         try {
             val targets: List<InetAddress?> = addrs.ifEmpty { listOf(null) }
-            val multicast = targets.map { a -> async(Dispatchers.IO) { runCatching { searchOn(a, locs, replies) } } }
+            val multicast = targets.map { a -> async(Dispatchers.IO) { runCatching { searchOn(a, locs, replies) }.onFailure { dwarn("multicast ${a?.hostAddress} lỗi", it) } } }
             // Nhiều loa (JBL L75ms…) KHÔNG trả lời M-SEARCH multicast (AP/router lọc multicast, loa chỉ nghe unicast) nhưng trả lời ngay gói gửi thẳng tới IP:
             // quét unicast cả dải mạng con của từng card mạng song song với multicast.
-            val sweep = addrs.map { a -> async(Dispatchers.IO) { runCatching { sweepOn(a, locs, replies) } } }
+            val sweep = addrs.map { a -> async(Dispatchers.IO) { runCatching { sweepOn(a, locs, replies) }.onFailure { dwarn("quét unicast ${a.hostAddress} lỗi", it) } } }
             multicast.awaitAll(); sweep.awaitAll()
         } finally { runCatching { lock?.release() } }
-        val found = locs.toList().map { l -> async(Dispatchers.IO) { runCatching { describe(l) }.getOrNull() ?: runCatching { describe(l) }.getOrNull() } }.awaitAll().filterNotNull().distinctBy { it.id }
+        dlog("SSDP: ${replies.get()} phản hồi, ${locs.size} địa chỉ mô tả khác nhau")
+        val found = locs.toList().map { l -> async(Dispatchers.IO) { tryDescribe(l, "SSDP") } }.awaitAll().filterNotNull().distinctBy { it.id }
         Triple(found, replies.get(), addrs.size)
     }
 
@@ -263,23 +293,21 @@ object Renderers {
                 } catch (e: SocketTimeoutException) { }
             }
         }
-        return locs.firstNotNullOfOrNull { l -> runCatching { describe(l) }.getOrNull() ?: runCatching { describe(l) }.getOrNull() }
+        dlog("hỏi trực tiếp $host: ${locs.size} địa chỉ mô tả")
+        return locs.firstNotNullOfOrNull { l -> tryDescribe(l, "unicast $host") }
     }
 
     private fun describe(loc: String): Renderer? {
         val http = Http.client.newBuilder().callTimeout(6, TimeUnit.SECONDS).build()
         val xml = http.newCall(Request.Builder().url(loc).build()).execute().use { it.body!!.string() }
         val p = Xml.newPullParser(); p.setInput(StringReader(xml))
-        var name = ""; var udn = ""; var base = ""; var st = ""; var inSvc = false; var av = ""; var rc = ""; var mk = ""; var md = ""; var mdesc = ""
+        var name = ""; var udn = ""; var base = ""; var st = ""; var inSvc = false; var av = ""; var rc = ""
         var ev = p.eventType
         while (ev != XmlPullParser.END_DOCUMENT) {
             if (ev == XmlPullParser.START_TAG) {
                 when (p.name) {
                     "friendlyName" -> { val v = p.nextText(); if (name.isEmpty()) name = v }
                     "UDN" -> { val v = p.nextText(); if (udn.isEmpty()) udn = v }
-                    "manufacturer" -> { val v = p.nextText(); if (mk.isEmpty()) mk = v.trim() }
-                    "modelName" -> { val v = p.nextText(); if (md.isEmpty()) md = v.trim() }
-                    "modelDescription" -> { val v = p.nextText(); if (mdesc.isEmpty()) mdesc = v.trim() }
                     "URLBase" -> base = p.nextText()
                     "service" -> { inSvc = true; st = "" }
                     "serviceType" -> { val v = p.nextText(); if (inSvc) st = v }
@@ -293,6 +321,10 @@ object Renderers {
             ev = p.next()
         }
         if (av.isEmpty()) return null
+        // Metadata nhận diện (hãng/model/mô tả) đọc ĐỘC LẬP bằng regex: khâu đọc chính ở trên giữ nguyên như bản ≤2.9.8, nên một thẻ lạ/không phải văn bản thuần
+        // không thể làm hỏng việc phát hiện loa (bản 2.9.9–3.0.2 đọc các thẻ này bằng nextText() trong bộ đọc chính).
+        fun tag(n: String) = runCatching { Regex("<$n[^>]*>(.*?)</$n>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(xml)?.groupValues?.get(1)?.replace(Regex("<!\\[CDATA\\[|\\]\\]>"), "")?.trim().orEmpty() }.getOrDefault("")
+        val mk = tag("manufacturer"); val md = tag("modelName"); val mdesc = tag("modelDescription")
         val root = URL(if (base.isNotEmpty()) base else loc)
         val u = URL(loc)
         return Renderer("upnp", name.ifEmpty { "Thiết bị UPnP" }, udn.ifEmpty { loc }, u.host, u.port,

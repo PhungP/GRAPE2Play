@@ -1,3 +1,14 @@
+# GRAPE2Play 3.0.3 — Ghi chú phát hành
+
+**Ô nhập mặc định đóng:** ô tìm kiếm của danh mục, các ô firmware/giao thức/phần mềm/ghi chú và ô tìm model chỉ mở khi bạn bấm vào — không còn chặn con trỏ khi bạn không định gõ.
+
+**"Xem chi tiết trạng thái phát" cuộn lên được:** dùng khung cuộn chung; nút "← Đóng" ở đầu trang; ▲ cuộn ngược lên đọc toàn bộ nội dung.
+
+**Dò loa:** bộ đọc mô tả thiết bị về lại như bản ≤2.9.8 (phần hãng/model đọc riêng); mọi lỗi dò loa được ghi vào Nhật ký, và dưới danh sách ở trang Đầu ra có dòng "Chi tiết" cho biết số phản hồi theo từng card mạng. Nếu loa JBL L75ms UPnP vẫn không hiện, hãy quét một lần rồi gửi dòng "Chi tiết" đó hoặc Nhật ký để tìm nguyên nhân.
+
+Không đổi: phát nhạc, Audio Engine, DSP/EQ, ký và cập nhật OTA. Chưa kiểm thử trên TV/loa thật.
+
+---
 # GRAPE2Play 3.0.2 — Ghi chú phát hành
 
 **Sửa lỗi con trỏ D-pad (TV):** mở "Bit-perfect Verified Devices" / "Thiết bị âm thanh của tôi" không còn làm con trỏ nhảy sang menu khác — nguyên nhân gốc là khung hộp thoại điều khiển tiêu điểm của cửa sổ chính thay vì của chính hộp thoại.
