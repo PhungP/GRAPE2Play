@@ -46,7 +46,6 @@ fun SoundScreen(onNav: (Screen) -> Unit, onSources: () -> Unit, onOut: () -> Uni
                 BackgroundCard()
                 GaplessCard()
                 TvHomeCard()
-                CoverWebCard()
                 MusicIdCard()
                 AiCard()
                 LanguageCard()
@@ -173,17 +172,44 @@ fun BackgroundCard() {
     }
 }
 
+/**
+ * Nhập khoá AudD bằng điện thoại (chỉ TV — gõ chữ trên TV không tiện): TV mở máy chủ tạm trong LAN (chỉ khi bạn bấm nút này, kèm mã ngẫu nhiên trong địa chỉ),
+ * bạn quét mã QR ②, dán khoá vào trang trên điện thoại. Khoá được lưu mã hoá như khi gõ tay; máy chủ tạm tắt ngay khi nhận được khoá hoặc khi rời màn hình này.
+ * Lưu ý: kết nối TV↔điện thoại là HTTP trong mạng nội bộ (cùng cách ghép khoá AI), nên chỉ dùng trên Wi-Fi nhà bạn.
+ */
 @Composable
-fun CoverWebCard() {
-    var web by remember { mutableStateOf(Covers.webEnabled) }
-    Card {
-        T("ẢNH BÌA TRÊN MẠNG", 13, C.Muted, spaced = true)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Opt("Bật", web) { Covers.setWeb(true); web = true }
-            Opt("Tắt", !web) { Covers.setWeb(false); web = false }
-        }
-        T("Album/bài hát không có ảnh sẽ được tìm trên Deezer và iTunes theo tên nghệ sĩ + album (chỉ gửi tên, không gửi file nhạc). Ảnh tìm được lưu lại trong máy, không tải lại.", 15, C.Muted, lines = 4)
+private fun AuddPhoneKey(onKey: (String) -> Unit) {
+    var url by remember { mutableStateOf<String?>(null) }
+    var msg by remember { mutableStateOf("") }
+    val main = remember { android.os.Handler(android.os.Looper.getMainLooper()) }
+    val prov = remember { Prov("audd", "AudD", "https://dashboard.audd.io/", "khoá 32 ký tự", "", emptyList()) }
+    lateinit var link: AiPhoneLink
+    link = remember {
+        AiPhoneLink(prov, { k ->
+            main.post { MusicId.apiKey = k; onKey(MusicId.apiKey); msg = "✓ Đã nhận khoá từ điện thoại và lưu (mã hoá)."; link.stop(); url = null }
+        }, null, hasKey = { MusicId.apiKey.isNotEmpty() }, minKeyLen = 16, pageTitle = "AudD")
     }
+    DisposableEffect(Unit) { onDispose { link.stop() } }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (url == null) Opt("📱 Nhập khoá bằng điện thoại", false) { msg = ""; if (link.start()) url = link.url else msg = "Không lấy được địa chỉ mạng (TV chưa kết nối Wi-Fi/LAN?). Hãy dán khoá trực tiếp bằng bàn phím rời." }
+        else Opt("Đóng", false) { link.stop(); url = null }
+    }
+    val u = url
+    if (u != null) Row(horizontalArrangement = Arrangement.spacedBy(22.dp), verticalAlignment = Alignment.Top) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            T("① Lấy khoá", 15, C.Gold, bold = true); QrCode(prov.keyUrl, 130.dp); T("dashboard.audd.io", 12, C.Muted)
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            T("② Gửi khoá về TV", 15, C.Gold, bold = true); QrCode(u, 130.dp); T("Trang của TV", 12, C.Muted)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            T("Dùng điện thoại cùng Wi-Fi:", 15, C.Gold, bold = true)
+            T("① Quét mã ①, đăng nhập và sao chép khoá API.", 14, lines = 3)
+            T("② Quét mã ②, dán khoá, bấm Gửi — TV tự lưu.", 14, lines = 3)
+            T("Liên kết chỉ có hiệu lực khi hộp này đang mở.", 12, C.Muted, lines = 2)
+        }
+    }
+    if (msg.isNotEmpty()) T(msg, 14, C.Gold, lines = 3)
 }
 
 /** Nhận diện nhạc môi trường qua micro (AudD, khoá do người dùng cung cấp). Xem [MusicId]. */
@@ -201,6 +227,7 @@ fun MusicIdCard() {
     Card {
         T("NHẬN DIỆN NHẠC (AudD)", 13, C.Muted, spaced = true)
         DevField("Khoá API AudD (api.audd.io) — do bạn tự cung cấp", key) { v -> key = v.trim(); MusicId.apiKey = key }
+        if (Device.tv) AuddPhoneKey(onKey = { k -> key = k })
         if (MusicId.keyUnreadable()) T("⚠ Khoá đã lưu không giải mã được (khoá bảo mật của máy đã mất). Hãy nhập lại khoá — dữ liệu cũ vẫn được giữ nguyên.", 14, C.Gold, lines = 3)
         if (!mic) T("Thiết bị này không có micro nên không dùng được tính năng này.", 15, C.Muted, lines = 3)
         else {

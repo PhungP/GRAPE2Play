@@ -41,7 +41,12 @@ import java.net.URLDecoder
  * Cầu nối với điện thoại: TV mở một máy chủ HTTP tạm trong mạng LAN (chỉ khi hộp thoại đang mở, kèm mã ngẫu nhiên trong địa chỉ).
  * Người dùng quét mã QR bằng điện thoại để dán khóa API hoặc gõ/nói câu hỏi — không cần gõ chữ trên TV.
  */
-class AiPhoneLink(private val prov: Prov?, private val onKey: ((String) -> Unit)?, private val onAsk: ((String) -> Unit)?) {
+class AiPhoneLink(
+    private val prov: Prov?, private val onKey: ((String) -> Unit)?, private val onAsk: ((String) -> Unit)?,
+    /** Khóa đã có chưa (mặc định: khóa AI của [prov]); nhận diện nhạc AudD truyền hàm riêng. */
+    private val hasKey: () -> Boolean = { prov != null && Ai.has(prov.id) },
+    private val minKeyLen: Int = 20, private val pageTitle: String = "AI",
+) {
     private val token = java.util.UUID.randomUUID().toString().replace("-", "").take(8)
     private var server: PairServer? = null
     var url: String? = null; private set
@@ -62,20 +67,20 @@ class AiPhoneLink(private val prov: Prov?, private val onKey: ((String) -> Unit)
         val kv = it.split('=', limit = 2)
         URLDecoder.decode(kv[0], "UTF-8") to URLDecoder.decode(kv.getOrElse(1) { "" }, "UTF-8")
     }
-    private fun page(msg: String, inner: String) = "<!doctype html><html><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>GRAPE2Play AI</title></head>" +
-        "<body style='font-family:sans-serif;padding:18px;max-width:640px;margin:auto;line-height:1.5'><h2>GRAPE2Play · AI</h2>" +
+    private fun page(msg: String, inner: String) = "<!doctype html><html><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>GRAPE2Play ${esc(pageTitle)}</title></head>" +
+        "<body style='font-family:sans-serif;padding:18px;max-width:640px;margin:auto;line-height:1.5'><h2>GRAPE2Play · ${esc(pageTitle)}</h2>" +
         (if (msg.isNotEmpty()) "<p style='background:#e6f4ea;padding:10px;border-radius:8px'><b>${esc(msg)}</b></p>" else "") + inner + "</body></html>"
 
     private fun handle(method: String, path: String, body: String): Pair<Int, String> {
         val q = path.substringAfter('?', "")
         val t = q.split('&').firstOrNull { it.startsWith("t=") }?.substring(2)
-        if (t != token) return 403 to page("", "<p>Liên kết đã hết hạn. Hãy mở lại hộp thoại AI trên TV và quét lại mã QR. / Link expired — scan the QR on the TV again.</p>")
+        if (t != token) return 403 to page("", "<p>Liên kết đã hết hạn. Hãy mở lại màn hình nhập khóa trên TV và quét lại mã QR. / Link expired — scan the QR on the TV again.</p>")
         val route = path.substringBefore('?')
         val tq = "?t=$token"
         if (method == "POST" && route == "/key") {
             val f = form(body)
             val k = if (prov?.twoPart == true) f["a"].orEmpty().trim() + ":" + f["k"].orEmpty().trim() else f["k"].orEmpty().trim()
-            if (k.length < 20) return 200 to page("", "<p style='color:#b00020'><b>Khóa quá ngắn — hãy dán đúng toàn bộ khóa.</b></p><p><a href='/$tq'>← Quay lại</a></p>")
+            if (k.length < minKeyLen) return 200 to page("", "<p style='color:#b00020'><b>Khóa quá ngắn — hãy dán đúng toàn bộ khóa.</b></p><p><a href='/$tq'>← Quay lại</a></p>")
             onKey?.invoke(k); return 200 to page("Đã gửi khóa tới TV ✓ (xem kết quả kiểm tra trên TV)", "<p><a href='/$tq'>← Quay lại</a></p>")
         }
         if (method == "POST" && route == "/ask") {
@@ -86,7 +91,7 @@ class AiPhoneLink(private val prov: Prov?, private val onKey: ((String) -> Unit)
         val sb = StringBuilder()
         if (onAsk != null) sb.append("<h3>Hỏi / tạo playlist</h3><p style='color:#555'>Gõ hoặc bấm micro trên bàn phím điện thoại để nói. Ví dụ: <i>nhạc Trịnh nghe lúc mưa khoảng 1 giờ</i>, <i>các album DSD hay nghe nhất</i>.</p>" +
             "<form method=post action='/ask$tq'><textarea name=q rows=3 style='width:100%;font-size:18px' placeholder='Bạn muốn nghe gì?'></textarea><p><button style='font-size:18px;padding:10px 24px'>Gửi tới TV</button></p></form>")
-        if (onKey != null && prov != null) sb.append("<h3>Khóa API ${esc(prov.name)}</h3><p style='color:#555'>Trạng thái: <b>${if (Ai.has(prov.id)) "đã có khóa" else "chưa có khóa"}</b>. Lấy khóa miễn phí tại " +
+        if (onKey != null && prov != null) sb.append("<h3>Khóa API ${esc(prov.name)}</h3><p style='color:#555'>Trạng thái: <b>${if (hasKey()) "đã có khóa" else "chưa có khóa"}</b>. Lấy khóa miễn phí tại " +
             "<a target=_blank rel=noopener href='${prov.keyUrl}'>${esc(prov.keyUrl.removePrefix("https://"))}</a> rồi dán vào ô dưới.</p>" +
             "<form method=post action='/key$tq'>" + (if (prov.twoPart) "<p>Account ID (dán từ trang Cloudflare):<br><input name=a autocomplete=off style='width:100%;font-size:16px;padding:6px' placeholder='32 ký tự'></p><p>API token (quyền Workers AI):<br>" else "") +
             "<input name=k autocomplete=off style='width:100%;font-size:16px;padding:6px' placeholder='${esc(if (prov.twoPart) "API token" else prov.keyHint)}'>" + (if (prov.twoPart) "</p>" else "<p>") + "<button style='font-size:18px;padding:10px 24px'>Lưu khóa vào TV</button></p></form>")
@@ -335,7 +340,7 @@ private fun AiInput(q: String, onQ: (String) -> Unit, hint: String, showSubmit: 
         LaunchedEffect(wantMic) { if (wantMic) { Overlay.aiListen.value = false; startMic() } }
     }
     DisposableEffect(Unit) { onDispose { Voice.stop() } }
-    val link = remember { AiPhoneLink(null, null) { s -> ui.post { got(s) } } }
+    val link = remember { AiPhoneLink(null, null, onAsk = { s -> ui.post { got(s) } }) }
     DisposableEffect(Unit) { onDispose { link.stop() } }
     if (!Device.tv) OutlinedTextField(q, onQ, singleLine = true, textStyle = TextStyle(color = C.Text, fontSize = 18.sp), modifier = Modifier.fillMaxWidth(), placeholder = { T(hint, 16, C.Muted) })
     else if (q.isNotBlank()) T("“$q”", 18, C.Gold, lines = 3)

@@ -186,14 +186,12 @@ object Lang {
         "ĐƯỜNG TÍN HIỆU" to "SIGNAL PATH", "THÔNG TIN" to "INFO", "TIẾP THEO" to "UP NEXT", "▴ ĐỔI KHUNG TRANH" to "▴ CHANGE FRAME",
         "HÀNG ĐỢI · ◂ ▸ TUA ±10 GIÂY · ▾ CHỌN BÀI" to "QUEUE · ◂ ▸ SEEK ±10 S · ▾ PICK TRACK",
         "Chưa có bài nào đang phát" to "Nothing is playing",
-        // chạy ngầm / ảnh bìa mạng
+        // chạy ngầm
         "✓ Đang bật chạy ngầm" to "✓ Background running is on", "Chưa bật chạy ngầm" to "Background running is off",
         "Giữ app chạy nền bằng dịch vụ phát nhạc (có biểu tượng thông báo) để TV không ngắt nhạc khi bạn thoát ra màn hình chính hoặc dùng app khác." to "Keeps the app alive with a music service (shows a notification icon) so the TV does not cut the music when you go home or use another app.",
         "Đã bật dịch vụ chạy nền. TV này không có màn hình cấp quyền tiết kiệm pin để mở — không sao, không bắt buộc." to "Background service is on. This TV has no battery-optimization screen to open — that is fine, it is not required.",
         "Đã bật dịch vụ chạy nền." to "Background service is on.", "Đã tắt chạy ngầm." to "Background running is off.",
         "✓ Đã miễn tối ưu pin cho app" to "✓ Battery optimization is exempted for the app", "Miễn tối ưu pin: chưa cấp (không bắt buộc trên TV)" to "Battery optimization exemption: not granted (optional on TV)",
-        "ẢNH BÌA TRÊN MẠNG" to "ONLINE COVER ART",
-        "Album/bài hát không có ảnh sẽ được tìm trên Deezer và iTunes theo tên nghệ sĩ + album (chỉ gửi tên, không gửi file nhạc). Ảnh tìm được lưu lại trong máy, không tải lại." to "Albums/tracks without artwork are looked up on Deezer and iTunes by artist + album name (only names are sent, never your music files). Found images are saved on the device.",
         // yêu thích
         "Yêu thích" to "Favorites", "Chưa có bài hát yêu thích" to "No favorite tracks yet",
         "Giữ nút OK trên một bài hát (hoặc bấm ♥ ở màn Đang phát) để thêm vào danh sách yêu thích." to "Hold OK on a track (or press ♥ on the Now Playing screen) to add it to your favorites.",

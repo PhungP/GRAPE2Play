@@ -93,7 +93,7 @@ object StreamServer {
         return "http://$ip:$port/t/$id.${if (asDop) "wav" else t.ext.ifEmpty { "bin" }}"
     }
 
-    /** URL ảnh bìa để TV/loa hiển thị: ảnh http có sẵn dùng luôn, còn lại TV tự phục vụ ảnh (nhúng trong file, cover.jpg, tìm trên mạng). */
+    /** URL ảnh bìa để TV/loa hiển thị: ảnh http có sẵn dùng luôn, còn lại TV tự phục vụ ảnh (nhúng trong file, cover.jpg, ảnh người dùng đã xác nhận). */
     fun artUrl(t: Track): String? {
         if (t.art.startsWith("http")) return t.art
         return runCatching {

@@ -455,7 +455,6 @@ private fun MobileSettings(onOut: () -> Unit) {
             DsdCard()
             MobileEq()
             BackgroundCard()
-            CoverWebCard()
             MusicIdCard()
             AiCard()
             LanguageCard()

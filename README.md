@@ -99,7 +99,7 @@ Cài đặt ▸ Bố cục màn Đang phát: Mặc định · Tối giản (Puri
 ## Bản 0.6.2
 - **Chạy ngầm**: nút Bật/Tắt ở Cài đặt ▸ Chạy ngầm có hiệu lực ngay (giữ dịch vụ nền luôn chạy, trạng thái sáng "✓ Đang bật chạy ngầm"); xin thêm quyền thông báo / miễn tối ưu pin nếu TV có màn hình đó, nếu không thì báo rõ.
 - Huy hiệu **Limited Edition** giữ nguyên tiếng Anh ở cả tiếng Việt và English; menu "Âm thanh" đổi thành **Cài đặt**.
-- **Ảnh bìa trên mạng**: album/bài không có ảnh tự tìm trên Deezer (dự phòng iTunes) theo nghệ sĩ + album, lưu trong filesDir/webcovers; tắt được ở Cài đặt ▸ Ảnh bìa trên mạng.
+- **Ảnh bìa**: lấy từ DLNA, ảnh nhúng trong file hoặc cover/folder/front.jpg|png cùng thư mục. Từ bản sau 3.0.6, app **không còn tự động tải ảnh bìa từ mạng**; chỉ khi bạn bấm "Chọn ảnh bìa bằng AI" mới tìm, AI chọn và bạn xem trước, đồng ý thì ảnh mới được lưu (chỉ trong app).
 
 ## Bản 0.6.3
 - Nút **Thoát** ở góc dưới bên trái thanh điều hướng (có hộp thoại xác nhận): dừng nhạc, tắt dịch vụ nền / chạy ngầm, đóng app.
