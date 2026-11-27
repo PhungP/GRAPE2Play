@@ -43,10 +43,24 @@ object MusicId {
     private lateinit var sp: SharedPreferences
 
     fun init(ctx: Context) { if (!::sp.isInitialized) sp = ctx.applicationContext.getSharedPreferences("musicid", Context.MODE_PRIVATE) }
-    /** Khoá AudD của người dùng. Lưu cục bộ (không đưa vào log, không gửi đi đâu ngoài api.audd.io). */
+    /**
+     * Khoá AudD của người dùng, lưu MÃ HOÁ bằng Android Keystore ([SecretBox]); khoá cũ dạng plaintext được mã hoá lại ngay khi đọc.
+     * Không bao giờ ghi log, chỉ gửi qua HTTPS tới api.audd.io. Nếu không giải mã được (khoá Keystore bị mất) thì coi như chưa có khoá và KHÔNG xoá dữ liệu đã lưu.
+     */
     var apiKey: String
-        get() = if (::sp.isInitialized) sp.getString("audd", "").orEmpty() else ""
-        set(v) { if (::sp.isInitialized) sp.edit().putString("audd", v.trim()).apply() }
+        get() {
+            if (!::sp.isInitialized) return ""
+            val stored = sp.getString("audd", "").orEmpty()
+            if (stored.isEmpty()) return ""
+            val plain = SecretBox.decrypt(stored) ?: return ""
+            if (!SecretBox.isEncrypted(stored)) SecretBox.encrypt(plain)?.let { sp.edit().putString("audd", it).apply() }   // di trú khoá cũ
+            return plain
+        }
+        set(v) {
+            if (!::sp.isInitialized) return
+            val t = v.trim()
+            sp.edit().putString("audd", if (t.isEmpty()) "" else (SecretBox.encrypt(t) ?: t)).apply()      // Keystore lỗi: giữ bản rõ, không làm mất khoá
+        }
 
     fun hasMic(ctx: Context) = ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE)
     fun hasPermission(ctx: Context) = ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED

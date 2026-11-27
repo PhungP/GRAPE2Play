@@ -70,15 +70,23 @@ public final class MusicIdCodec {
     }
     private static String str(Map<?, ?> m, String k) { Object v = m.get(k); return v instanceof String ? ((String) v).trim() : ""; }
 
-    /** Thông báo cho người dùng (tiếng Việt) theo mã lỗi; luôn kèm lời của dịch vụ nếu có. Mã theo tài liệu AudD (900 token sai, 901/902 hết hạn mức). */
+    /**
+     * Thông báo cho người dùng (tiếng Việt) theo mã lỗi trong tài liệu AudD (docs.audd.io, "Common errors"): 900 token sai/không hoạt động, 901 không có token và hết hạn mức,
+     * 700 không nhận được file, 500 file không hợp lệ, 400 file quá lớn (tối đa 10 MB), 300 lỗi nhận dạng (thường do âm thanh quá ngắn). Luôn kèm lời của dịch vụ (cắt ngắn) nếu có.
+     */
     public static String describeError(Result r) {
         String base;
         switch (r.errorCode) {
-            case 900: base = "Khoá API AudD không hợp lệ — kiểm tra lại khoá."; break;
-            case 901: case 902: base = "Đã hết hạn mức nhận diện của khoá AudD."; break;
+            case 900: base = "Khoá API AudD không hợp lệ hoặc tài khoản chưa kích hoạt (cần gói dùng thử hoặc đang đăng ký) — kiểm tra tại dashboard.audd.io."; break;
+            case 901: base = "Chưa gửi được khoá, hoặc đã hết hạn mức — kiểm tra khoá và gói dịch vụ AudD."; break;
+            case 700: base = "Dịch vụ không nhận được tệp âm thanh."; break;
+            case 500: base = "Dịch vụ báo tệp âm thanh không hợp lệ."; break;
+            case 400: base = "Tệp âm thanh quá lớn (tối đa 10 MB)."; break;
+            case 300: base = "Không nhận dạng được: âm thanh quá ngắn hoặc dịch vụ gặp lỗi xử lý."; break;
             default: base = "Dịch vụ nhận diện báo lỗi" + (r.errorCode >= 0 ? " (mã " + r.errorCode + ")" : "") + ".";
         }
-        return r.errorMessage.isEmpty() || base.contains(r.errorMessage) ? base : base + " " + r.errorMessage;
+        String m = r.errorMessage.length() > 160 ? r.errorMessage.substring(0, 160) + "…" : r.errorMessage;
+        return m.isEmpty() ? base : base + " (" + m + ")";
     }
 
     /** Thử lại có giới hạn: chỉ lỗi mạng hoặc 502/503/504, tối đa [MAX_ATTEMPTS] lần gửi. Không thử lại 4xx/429 (khoá sai, hết hạn mức). */

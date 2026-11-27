@@ -28,10 +28,20 @@ final class MusicIdTests {
         check(r.status == MusicIdCodec.Status.MATCH && r.title.equals("Việt Nam \"Quê\" hương") && r.artist.isEmpty(), "MI10. Unicode, dấu nháy, nghệ sĩ trống nhưng có tên bài → MATCH");
         r = MusicIdCodec.parseAudd("{\"status\":\"error\",\"error\":{\"error_code\":900,\"error_message\":\"Wrong API token\"}}");
         check(r.status == MusicIdCodec.Status.ERROR && r.errorCode == 900 && MusicIdCodec.describeError(r).contains("Khoá API") && MusicIdCodec.describeError(r).contains("Wrong API token"), "MI11. lỗi 900: thông báo khoá sai kèm lời dịch vụ");
-        r = MusicIdCodec.parseAudd("{\"status\":\"error\",\"error\":{\"error_code\":901,\"error_message\":\"limit\"}}");
-        check(MusicIdCodec.describeError(r).contains("hạn mức") && MusicIdCodec.describeError(MusicIdCodec.parseAudd("{\"status\":\"error\",\"error\":{\"error_code\":902}}")).contains("hạn mức"), "MI12. lỗi 901/902: thông báo hết hạn mức");
-        r = MusicIdCodec.parseAudd("{\"status\":\"error\",\"error\":{\"error_code\":300,\"error_message\":\"x\"}}");
-        check(MusicIdCodec.describeError(r).contains("300") && MusicIdCodec.parseAudd("{\"status\":\"error\"}").errorCode == -1, "MI13. mã lạ: nêu mã; thiếu đối tượng error → mã -1");
+        check(MusicIdCodec.describeError(MusicIdCodec.parseAudd("{\"status\":\"error\",\"error\":{\"error_code\":901}}")).contains("hạn mức"), "MI12. lỗi 901: chưa gửi khoá / hết hạn mức");
+        String[][] codes = {{"700", "không nhận được"}, {"500", "không hợp lệ"}, {"400", "10 MB"}, {"300", "quá ngắn"}, {"902", "mã 902"}, {"999", "mã 999"}};
+        boolean okc = true;
+        for (String[] c : codes) { String d = MusicIdCodec.describeError(MusicIdCodec.parseAudd("{\"status\":\"error\",\"error\":{\"error_code\":" + c[0] + "}}")); if (!d.contains(c[1])) { okc = false; System.out.println("  " + c[0] + " → " + d); } }
+        check(okc && MusicIdCodec.parseAudd("{\"status\":\"error\"}").errorCode == -1, "MI13. mã 700/500/400/300 có thông báo riêng theo tài liệu; mã chưa biết nêu mã; thiếu đối tượng error → -1");
+        StringBuilder longMsg = new StringBuilder(); for (int i = 0; i < 400; i++) longMsg.append('x');
+        check(MusicIdCodec.describeError(MusicIdCodec.parseAudd("{\"status\":\"error\",\"error\":{\"error_code\":1,\"error_message\":\"" + longMsg + "\"}}")).length() < 300, "MI13b. lời dịch vụ quá dài bị cắt ngắn");
+        // Phản hồi THẬT của api.audd.io (lấy ngày 2026-11-27 bằng ví dụ công khai trong docs.audd.io, token 'test'), nguyên văn
+        r = MusicIdCodec.parseAudd("{\"status\":\"success\",\"result\":{\"artist\":\"Tears For Fears\",\"title\":\"Everybody Wants To Rule The World\",\"album\":\"Songs From The Big Chair\",\"release_date\":\"2014-11-10\",\"label\":\"UMC (Universal Music Catalogue)\",\"timecode\":\"00:57\",\"song_link\":\"https://lis.tn/NbkVb\"}}");
+        check(r.status == MusicIdCodec.Status.MATCH && r.artist.equals("Tears For Fears") && r.title.equals("Everybody Wants To Rule The World") && r.album.equals("Songs From The Big Chair") && r.releaseDate.equals("2014-11-10") && r.label.startsWith("UMC") && r.timecode.equals("00:57") && r.songLink.equals("https://lis.tn/NbkVb"), "MI-REAL1. phản hồi thật (có kết quả) đọc đúng mọi trường");
+        check(MusicIdCodec.parseAudd("{\"status\":\"success\",\"result\":null}").status == MusicIdCodec.Status.NO_MATCH, "MI-REAL2. phản hồi thật khi không nhận ra bài → NO_MATCH");
+        r = MusicIdCodec.parseAudd("{\"status\":\"error\",\"error\":{\"error_code\":900,\"error_message\":\"Recognition failed: authorization failed: the provided api_token is incorrect, invalid, or inactive. Please check the status of your account on dashboard.audd.io: it needs to have either a trial or an active subscription.\"},\"request_params\":{\"api_token\":\"n***3\",\"url\":\"https://audd.tech/example.mp3\"},\"request_api_method\":\"recognize\",\"request_http_method\":\"GET\",\"see api documentation\":\"https://docs.audd.io\",\"contact us\":\"api@audd.io\"}");
+        check(r.status == MusicIdCodec.Status.ERROR && r.errorCode == 900 && MusicIdCodec.describeError(r).contains("Khoá API"), "MI-REAL3. phản hồi thật khi token sai (900, có thêm các trường phụ) → ERROR đúng mã");
+        check(MusicIdCodec.parseAudd("{\"status\":\"success\",\"result\":[]}").status == MusicIdCodec.Status.NO_MATCH, "MI-DOC1. theo tài liệu: result có thể là mảng rỗng khi không khớp → NO_MATCH");
         String[] bad = {null, "", "rác", "[]", "{\"status\":1}", "{\"status\":\"pending\"}", "{\"status\":\"success\",\"result\":", "{\"result\":{\"title\":\"x\"}}", "<html>502</html>"};
         boolean ok = true; for (String b : bad) { MusicIdCodec.Result x = MusicIdCodec.parseAudd(b); if (x.status != MusicIdCodec.Status.ERROR) { ok = false; System.out.println("  không phải ERROR: " + b); } }
         check(ok, "MI14. rỗng/rác/cụt/sai kiểu/thiếu status/HTML → ERROR, không ném ngoại lệ, không giả MATCH");
