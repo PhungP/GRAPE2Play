@@ -18,6 +18,22 @@ Bổ sung cho `CHECKPOINT_3.0.5_2026-11-27.md` (vẫn đúng với các ràng bu
 
 ## Chưa làm / giới hạn
 - Giao diện TV (D-pad) cho menu/playlist/lịch sử: biên dịch và logic đã test, chưa kiểm bằng remote thật; emulator chỉ chạy bố cục điện thoại.
-- Các biến thể giao diện chủ đề (Alu/SciFi) giữ danh sách hàng đợi cũ (chỉ nhảy bài), chưa có menu quản lý.
 - AudD: chưa gọi với khoá hợp lệ và âm thanh thật; emulator không có micro thật.
-- Chưa sửa: CRC16 FLAC, khung hỏng; quét tự động lúc khởi động có thể bị bỏ qua khi `LibraryProvider` nạp cache trước (nguyên nhân khả dĩ, chưa xác nhận); khoá AI/nguồn NAS còn plaintext (SecretBox mới áp dụng cho khoá AudD).
+- (Các mục này đã được xử lý ở phần "Đợt tiếp theo" bên dưới.)
+
+## Đợt tiếp theo (cùng ngày) — đã làm
+- **Quét khởi động** (`StartupScan`, `Library.startupScanAsync`): nguyên nhân gốc = `MainActivity` chỉ quét khi thư viện rỗng; khi `LibraryProvider` nạp cache trước thì quét bị bỏ qua. Nay luôn kiểm tra đúng một lần/tiến trình, chạy trên scope IO của Library (không chặn UI, không gắn vòng đời Activity), nạp cache có mutex, quét dở được thử lại. Đã tái hiện và kiểm chứng trên emulator (Provider nạp cache → thêm file → mở Activity → file được phát hiện).
+- **FLAC**: CRC16 được kiểm theo chính sách libFLAC (khung sai → im lặng đúng độ dài, báo + đếm); khung mất đồng bộ được neo bằng số khung/số mẫu của khung hợp lệ kế tiếp và lấp im lặng (đầu ra giữ đúng độ dài); sau CRC sai vị trí đọc không được tin (quay lại sau mã đồng bộ). File hợp lệ vẫn đúng từng bit (16/24-bit, 44,1–192 kHz, mọi ghép kênh stereo). Fuzz 400 ca. Hư hỏng → `DECODE_DAMAGE` → NOT_BIT_PERFECT (không bao giờ Verified); log có giới hạn tần suất.
+- **Bí mật lúc lưu**: khoá AI, mật khẩu nguồn (SMB/WebDAV/cloud) và khoá AudD mã hoá bằng Keystore (`SecretBox`, "enc1:", kiểm giải mã lại, di trú lười, xoá `.bak` plaintext). Hạ cấp về bản cũ sẽ không đọc được giá trị đã mã hoá.
+- **Xác minh thiết bị**: nhãn DSD của phiên (`DeviceVerification.sessionDsdMode`) là nguồn duy nhất cho so khớp và form xác minh (trước đó Cast+DSD bị lệch nhãn nên không bao giờ khớp EXACT).
+- **Giao diện**: menu quản lý hàng đợi/playlist có ở mọi bố cục, kể cả hàng đợi TV của chủ đề Alu và SciFi.
+- **Hiệu năng (emulator, 8000 file)**: quét đầu 19,4 s, quét lại không đổi 4,0 s, PSS 173 MB, tìm kiếm tức thì ("0777" → 11 kết quả đúng), không ANR.
+- **AudD** đã đối chiếu docs.audd.io + phản hồi thật.
+
+## Cần kiểm tra trên thiết bị thật (chưa làm được)
+- **TV/remote (D-pad)**: menu hành động (giữ OK / phím Menu), playlist, lịch sử, hàng đợi ở chủ đề mặc định, Alu, SciFi.
+- **USB DAC / HDMI / S/PDIF**: tạm dừng khi rút thiết bị đã chọn; kết nối lại; trạng thái Bit-perfect thật; gapless; dither 24→16 (phụ thuộc Media3).
+- **UPnP / Cast thật**: gửi DSD gốc, DoP, FLAC/WAV/ALAC; kết quả tự xác minh.
+- **AudD**: một lần nhận diện thật với khoá hợp lệ và micro thật; quyền micro trên TV.
+- **FLAC hỏng thật** (khác file tổng hợp): xác nhận chính sách im lặng/lấp khoảng trống là hợp lý khi nghe.
+- Cập nhật cài đè lên bản đang có dữ liệu thật (di trú khoá/mật khẩu, hàng đợi, playlist).
