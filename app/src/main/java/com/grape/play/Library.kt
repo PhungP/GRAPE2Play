@@ -443,7 +443,8 @@ object Library {
         return out
     }
 
-    private fun sorted(v: List<Track>) = v.sortedWith(compareBy({ if (it.no > 0) it.no else Int.MAX_VALUE }, { it.path.lowercase() }))
+    /** Đĩa → số bài → tên tự nhiên (xem [TrackOrder]): "2" trước "10", đĩa 2 không xen lẫn đĩa 1. */
+    private fun sorted(v: List<Track>) = v.sortedWith { x, y -> TrackOrder.compare(x.disc, x.no, x.path, y.disc, y.no, y.path) }
 
     fun groups(tab: Tab, all: List<Track>): List<Group> = when (tab) {
         Tab.ALBUM -> all.groupBy { it.album }.map { (k, v) ->

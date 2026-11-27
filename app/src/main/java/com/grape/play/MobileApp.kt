@@ -261,12 +261,7 @@ private fun MobileLibrary(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen)
                 all.isEmpty() -> T(if (scanning) "Đang quét nhạc…" else "Không tìm thấy nhạc. Bấm làm mới để quét lại, hoặc thêm nguồn NAS bằng dấu +.", 18, C.Muted, lines = 4)
                 tab == Tab.FOLDER -> FolderBrowser(all, onNav)
                 sel != null -> MDetail(sel!!, cur, onNav)
-                tab == Tab.SONG -> {
-                    val songs = remember(all) { all.sortedBy { it.title.lowercase() } }
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        itemsIndexed(songs) { i, t -> TrackRow(i, t, t.path == cur?.path) { Playback.play(songs, i); onNav(Screen.NOW) } }
-                    }
-                }
+                tab == Tab.SONG -> SongList(all, cur, 2.dp, onNav)
                 else -> LazyVerticalGrid(GridCells.Adaptive(150.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(groups, key = { it.key }) { g -> AlbumTile(g) { sel = g } }
                 }

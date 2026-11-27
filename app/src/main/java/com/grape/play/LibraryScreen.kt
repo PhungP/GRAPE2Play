@@ -89,12 +89,7 @@ fun LibraryScreen(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen) -> Unit
                     all.isEmpty() -> T(if (scanning) "Đang quét nhạc…" else "Không tìm thấy nhạc. Cắm USB rồi bấm “Quét lại”, hoặc thêm nguồn NAS.", 24, C.Muted)
                     tab == Tab.FOLDER -> FolderBrowser(all, onNav)
                     sel != null -> Detail(sel!!, onNav)
-                    tab == Tab.SONG -> {
-                        val songs = remember(all) { all.sortedBy { it.title.lowercase() } }
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            itemsIndexed(songs) { i, t -> TrackRow(i, t, t.path == cur?.path) { Playback.play(songs, i); onNav(Screen.NOW) } }
-                        }
-                    }
+                    tab == Tab.SONG -> SongList(all, cur, 4.dp, onNav)
                     else -> LazyVerticalGrid(GridCells.Fixed(6), horizontalArrangement = Arrangement.spacedBy(18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                         items(groups, key = { it.key }) { g -> AlbumTile(g) { sel = g } }
                     }
