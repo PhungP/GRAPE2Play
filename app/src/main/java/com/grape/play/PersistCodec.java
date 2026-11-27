@@ -59,6 +59,67 @@ public final class PersistCodec {
     }
     public static boolean isPlaylists(String raw) { return decodePlaylists(raw) != null; }
 
+    // ---------- Bản ghi {chuỗi: chuỗi} (danh sách nguồn nhạc) ----------
+    /** Mảng đối tượng, mọi giá trị là chuỗi; mỗi bản ghi PHẢI có đủ các khoá [required]. Sai kiểu/thiếu khoá/cụt → null (không bỏ lẳng lặng từng mục). */
+    public static List<Map<String, String>> decodeRecords(String raw, String... required) {
+        Object o = parse(raw);
+        if (!(o instanceof List)) return null;
+        List<Map<String, String>> out = new ArrayList<>();
+        for (Object e : (List<?>) o) {
+            if (!(e instanceof Map)) return null;
+            Map<String, String> m = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> kv : ((Map<?, ?>) e).entrySet()) {
+                if (!(kv.getKey() instanceof String) || !(kv.getValue() instanceof String)) return null;
+                m.put((String) kv.getKey(), (String) kv.getValue());
+            }
+            for (String k : required) if (!m.containsKey(k)) return null;
+            out.add(m);
+        }
+        return out;
+    }
+    public static String encodeRecords(List<Map<String, String>> l) {
+        StringBuilder b = new StringBuilder(256).append('[');
+        for (int i = 0; i < l.size(); i++) {
+            if (i > 0) b.append(',');
+            b.append('{'); boolean first = true;
+            for (Map.Entry<String, String> kv : l.get(i).entrySet()) { if (!first) b.append(','); first = false; str(b, kv.getKey()); b.append(':'); str(b, kv.getValue()); }
+            b.append('}');
+        }
+        return b.append(']').toString();
+    }
+    private static final String[] SOURCE_REQUIRED = {"id", "t", "n"};
+    public static List<Map<String, String>> decodeSources(String raw) { return decodeRecords(raw, SOURCE_REQUIRED); }
+    public static boolean isSources(String raw) { return decodeSources(raw) != null; }
+
+    // ---------- Sửa tag nghệ sĩ/album: {"a":{từ:đến},"b":{từ:đến}} ----------
+    /** Trả bản đồ {"a": nghệ sĩ, "b": album}; null nếu sai cú pháp/kiểu. Thiếu "a"/"b" = rỗng. */
+    public static Map<String, Map<String, String>> decodeTagFix(String raw) {
+        Object o = parse(raw);
+        if (!(o instanceof Map)) return null;
+        Map<String, Map<String, String>> out = new LinkedHashMap<>();
+        out.put("a", new LinkedHashMap<String, String>()); out.put("b", new LinkedHashMap<String, String>());
+        for (Map.Entry<?, ?> top : ((Map<?, ?>) o).entrySet()) {
+            if (!(top.getKey() instanceof String)) return null;
+            String k = (String) top.getKey();
+            if (!k.equals("a") && !k.equals("b")) continue;          // khoá lạ (phiên bản mới hơn): bỏ qua
+            if (!(top.getValue() instanceof Map)) return null;
+            for (Map.Entry<?, ?> kv : ((Map<?, ?>) top.getValue()).entrySet()) {
+                if (!(kv.getKey() instanceof String) || !(kv.getValue() instanceof String)) return null;
+                out.get(k).put((String) kv.getKey(), (String) kv.getValue());
+            }
+        }
+        return out;
+    }
+    public static boolean isTagFix(String raw) { return decodeTagFix(raw) != null; }
+    public static String encodeTagFix(Map<String, String> artist, Map<String, String> album) {
+        StringBuilder b = new StringBuilder(128).append("{\"a\":{");
+        boolean first = true;
+        for (Map.Entry<String, String> kv : artist.entrySet()) { if (!first) b.append(','); first = false; str(b, kv.getKey()); b.append(':'); str(b, kv.getValue()); }
+        b.append("},\"b\":{"); first = true;
+        for (Map.Entry<String, String> kv : album.entrySet()) { if (!first) b.append(','); first = false; str(b, kv.getKey()); b.append(':'); str(b, kv.getValue()); }
+        return b.append("}}").toString();
+    }
+
     /** "Phát gần đây": bài mới lên đầu, bỏ trùng, tối đa [max]. */
     public static List<String> pushRecent(List<String> cur, String path, int max) {
         List<String> out = new ArrayList<>(Math.min(max, cur.size() + 1));

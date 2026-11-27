@@ -40,16 +40,13 @@ object UserPlaylists {
 object TagFix {
     val artist = HashMap<String, String>()
     val album = HashMap<String, String>()
-    private lateinit var sp: SharedPreferences
+    private lateinit var safe: SafePrefStore
 
-    fun init(ctx: Context) {
-        if (::sp.isInitialized) return
-        sp = ctx.applicationContext.getSharedPreferences("tagfix", Context.MODE_PRIVATE)
-        runCatching {
-            val o = JSONObject(sp.getString("v", "{}") ?: "{}")
-            o.optJSONObject("a")?.let { a -> a.keys().forEach { artist[it] = a.getString(it) } }
-            o.optJSONObject("b")?.let { b -> b.keys().forEach { album[it] = b.getString(it) } }
-        }
+    /** Sửa tag do người dùng nhập: dữ liệu hỏng không bao giờ bị biến thành rỗng rồi ghi đè: xem [SafeJsonStore]. */
+    @Synchronized fun init(ctx: Context) {
+        if (::safe.isInitialized) return
+        safe = SafePrefStore(ctx.applicationContext, "tagfix", PersistCodec::isTagFix, "TagFix")
+        safe.load().value?.let { PersistCodec.decodeTagFix(it) }?.let { m -> artist.putAll(m.getValue("a")); album.putAll(m.getValue("b")) }
     }
 
     val count: Int get() = artist.size + album.size
@@ -68,11 +65,8 @@ object TagFix {
     }
     @Synchronized fun clear() { artist.clear(); album.clear(); save() }
     @Synchronized fun save() {
-        if (!::sp.isInitialized) return
-        val o = JSONObject()
-        o.put("a", JSONObject().also { j -> artist.forEach { (k, v) -> j.put(k, v) } })
-        o.put("b", JSONObject().also { j -> album.forEach { (k, v) -> j.put(k, v) } })
-        sp.edit().putString("v", o.toString()).apply()
+        if (!::safe.isInitialized) return
+        safe.writeAsync(PersistCodec.encodeTagFix(artist, album))
     }
 }
 

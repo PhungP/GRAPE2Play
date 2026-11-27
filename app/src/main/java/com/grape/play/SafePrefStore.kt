@@ -11,14 +11,16 @@ import java.util.concurrent.TimeUnit
  * Ghi thất bại (commit=false, ổ đầy…) → dữ liệu vẫn nằm trong RAM của người gọi và được THỬ LẠI tối đa [LatestWriter.MAX_ATTEMPTS] lần, cách nhau vài giây;
  * kho bị khoá (dữ liệu hỏng) thì không thử lại.
  */
-class SafePrefStore(ctx: Context, prefName: String, validator: SafeJsonStore.Validator, private val tag: String) {
+class SafePrefStore(ctx: Context, prefName: String, validator: SafeJsonStore.Validator, private val tag: String, private val mainKey: String = SafeJsonStore.KEY) {
     private val sp = ctx.applicationContext.getSharedPreferences(prefName, Context.MODE_PRIVATE)
     private val writer = LatestWriter()
     private val store = SafeJsonStore(object : SafeJsonStore.Backend {
-        override fun get(key: String): String? = sp.getString(key, null)
+        /** Khoá chính của kho này (mặc định "v"); bản sao lưu/bản hỏng là "<khoá>.bak"/"<khoá>.corrupt". */
+        private fun k(key: String) = when (key) { SafeJsonStore.KEY -> mainKey; SafeJsonStore.BAK -> "$mainKey.bak"; SafeJsonStore.CORRUPT_KEY -> "$mainKey.corrupt"; else -> key }
+        override fun get(key: String): String? = sp.getString(k(key), null)
         override fun putAll(kv: MutableMap<String, String>): Boolean {
             val ed = sp.edit()
-            for ((k, v) in kv) ed.putString(k, v)
+            for ((key, v) in kv) ed.putString(k(key), v)
             return ed.commit()
         }
     }, validator, { m -> AppLog.w("Data", m) }, tag)

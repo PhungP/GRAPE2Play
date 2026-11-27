@@ -306,7 +306,10 @@ object Playback {
         runCatching {
             (appCtx.getSystemService(Context.AUDIO_SERVICE) as AudioManager).registerAudioDeviceCallback(object : AudioDeviceCallback() {
                 override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) { reapplyDevice() }
-                override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) { reapplyDevice() }
+                override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
+                    pauseIfSelectedOutputLost(removedDevices)
+                    reapplyDevice()
+                }
             }, Handler(Looper.getMainLooper()))
         }
         Keepalive.init(appCtx)
@@ -354,6 +357,20 @@ object Playback {
         AudioSettings.current(appCtx)?.let { runCatching { p.setPreferredAudioDevice(it) } }
         outName.value = AudioSettings.currentName(appCtx)
         return p
+    }
+
+    /**
+     * Thiết bị đầu ra NGƯỜI DÙNG ĐÃ CHỌN (USB DAC, HDMI…) bị rút khi đang phát cục bộ: tạm dừng thay vì để âm thanh tự chuyển sang loa/đầu ra mặc định
+     * (có thể rất lớn hoặc không đúng ý). Chỉ tạm dừng — không đổi đường âm thanh, không đổi định dạng. Gọi TRƯỚC khi áp lại thiết bị ưu tiên.
+     * Không làm gì khi: người dùng để mặc định, đang phát tới thiết bị ngoài, đang tạm dừng, hoặc thiết bị bị rút không phải thiết bị đã chọn.
+     */
+    private fun pauseIfSelectedOutputLost(removed: Array<out AudioDeviceInfo>?) {
+        if (!::exo.isInitialized || rc != null || removed.isNullOrEmpty() || !exo.isPlaying) return
+        val key = AudioSettings.deviceKey
+        if (key.isEmpty() || AudioSettings.match(key, removed.toList()) == null) return
+        exo.pause()
+        AppLog.w("Player", "Thiết bị đầu ra đã chọn (${AudioSettings.currentName(appCtx)}) bị rút khi đang phát — đã tạm dừng, không tự chuyển sang đầu ra khác")
+        error.value = "Thiết bị đầu ra đã chọn bị rút — đã tạm dừng. Cắm lại thiết bị hoặc chọn đầu ra khác rồi bấm phát."
     }
 
     private fun reapplyDevice() {

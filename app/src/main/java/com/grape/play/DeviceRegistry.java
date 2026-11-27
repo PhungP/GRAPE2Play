@@ -235,6 +235,31 @@ public final class DeviceRegistry {
         for (DeviceVerification.UserVerification v : st.verifications) b.append(DeviceVerification.serialize(v)).append('\n');
         return b.toString();
     }
+    /**
+     * Kiểm tra NGHIÊM NGẶT dữ liệu đã lưu: có tiêu đề đúng và mọi dòng thuộc loại đã biết (P/R/D/V) đều đọc được. Dòng thuộc loại lạ (phiên bản mới hơn) được chấp nhận.
+     * Khác [parse] (bỏ qua dòng hỏng): dùng để phát hiện dữ liệu hỏng/cụt thay vì lẳng lặng làm mất bản ghi (hồ sơ, kết quả người dùng tự xác minh).
+     */
+    public static boolean isValid(String text) {
+        if (text == null || !text.startsWith("GRAPE-DEVICES\t")) return false;
+        String[] lines = text.split("\n", -1);
+        for (int i = 1; i < lines.length; i++) {
+            String line = lines[i];
+            if (line.isEmpty()) continue;
+            String[] f = line.split("\t", -1);
+            try {
+                switch (f[0]) {
+                    case "P":
+                        if (f.length < 13) return false;
+                        Route.valueOf(f[7]); Integer.parseInt(f[8]); Integer.parseInt(f[9]); Long.parseLong(f[11]);
+                        break;
+                    case "R": case "D": if (f.length < 2 || f[1].isEmpty()) return false; break;
+                    case "V": if (DeviceVerification.parse(line) == null) return false; break;
+                    default: break;
+                }
+            } catch (RuntimeException e) { return false; }
+        }
+        return true;
+    }
     /** Trả về Store (không bao giờ null); dòng hỏng bị bỏ qua. */
     public static Store parse(String text) {
         Store st = new Store();

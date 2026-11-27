@@ -1,7 +1,6 @@
 package com.grape.play
 
 import android.content.Context
-import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
@@ -18,16 +17,18 @@ object DeviceProfiles {
     val version = MutableStateFlow(0)
     val manage = MutableStateFlow(false)
     var store = DeviceRegistry.Store(); private set
-    private lateinit var sp: SharedPreferences
+    private lateinit var safe: SafePrefStore
     private var lastKey = ""
 
-    fun init(ctx: Context) {
-        if (::sp.isInitialized) return
-        sp = ctx.applicationContext.getSharedPreferences("devices", Context.MODE_PRIVATE)
-        store = runCatching { DeviceRegistry.parse(sp.getString("store", "") ?: "") }.getOrDefault(DeviceRegistry.Store())
+    /** Dữ liệu hồ sơ/kết quả người dùng tự xác minh hỏng không bao giờ bị biến thành kho rỗng rồi ghi đè: xem [SafeJsonStore]. */
+    @Synchronized fun init(ctx: Context) {
+        if (::safe.isInitialized) return
+        safe = SafePrefStore(ctx.applicationContext, "devices", DeviceRegistry::isValid, "Devices", "store")
+        val v = safe.load().value
+        store = if (v == null) DeviceRegistry.Store() else DeviceRegistry.parse(v)
     }
-    private fun save() {
-        if (::sp.isInitialized) sp.edit().putString("store", DeviceRegistry.serialize(store)).apply()
+    @Synchronized private fun save() {
+        if (::safe.isInitialized) safe.writeAsync(DeviceRegistry.serialize(store))
         version.value = version.value + 1
     }
 
@@ -48,7 +49,7 @@ object DeviceProfiles {
      * Không hỏi lại thiết bị đã lưu / đã từ chối / đã bỏ qua; không hỏi khi đang có hộp thoại khác chờ.
      */
     fun check(ctx: Context) {
-        if (!::sp.isInitialized) init(ctx)
+        if (!::safe.isInitialized) init(ctx)
         if (pending.value != null) return
         val det = runCatching { BitPerfectProbe.detected(ctx) }.getOrNull() ?: return
         val m = DeviceRegistry.match(det, regs)
@@ -82,7 +83,9 @@ object DeviceProfiles {
         val remote = x.route == BitPerfect.Route.UPNP || x.route == BitPerfect.Route.CAST
         return DeviceVerification.Combo().also {
             it.catalogId = prof?.catalogId.orEmpty(); it.firmware = prof?.firmware.orEmpty(); it.conn = x.route; it.dsd = x.srcDsd
-            it.dsdMode = if (!x.srcDsd) DeviceCatalog.Dsd.UNDOCUMENTED else if (x.dopActive) DeviceCatalog.Dsd.DOP else if (remote) DeviceCatalog.Dsd.NATIVE else DeviceCatalog.Dsd.DSD_TO_PCM
+            // Cast: app chỉ gửi file gốc, không có căn cứ rằng bộ nhận phát DSD gốc (Cast không công bố hỗ trợ DSD) → KHÔNG ghi nhãn NATIVE; UPnP gửi file DSD gốc mới là "native" (vẫn cần người dùng tự xác minh)
+            it.dsdMode = if (!x.srcDsd) DeviceCatalog.Dsd.UNDOCUMENTED else if (x.dopActive) DeviceCatalog.Dsd.DOP
+                else if (x.route == BitPerfect.Route.CAST) DeviceCatalog.Dsd.UNDOCUMENTED else if (remote) DeviceCatalog.Dsd.NATIVE else DeviceCatalog.Dsd.DSD_TO_PCM
             it.rate = x.srcRate; it.bits = x.srcBits
             it.dspOff = !x.dspActive; it.volumeFixed = x.volumeFixed || remote; it.resamplingOff = remote || (x.hasSink && x.sinkRate == x.srcRate)
         }
