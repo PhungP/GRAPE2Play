@@ -37,3 +37,21 @@ Bổ sung cho `CHECKPOINT_3.0.5_2026-11-27.md` (vẫn đúng với các ràng bu
 - **AudD**: một lần nhận diện thật với khoá hợp lệ và micro thật; quyền micro trên TV.
 - **FLAC hỏng thật** (khác file tổng hợp): xác nhận chính sách im lặng/lấp khoảng trống là hợp lý khi nghe.
 - Cập nhật cài đè lên bản đang có dữ liệu thật (di trú khoá/mật khẩu, hàng đợi, playlist).
+
+## Đợt kiểm tra chất lượng / chuẩn bị nghiệm thu (cùng ngày)
+- **FlacPcm đối chiếu đặc tả/libFLAC**: phát hiện và sửa điểm yếu thật — mã đồng bộ giả trong payload (tiêu đề giả hợp lệ CRC8) từng được chấp nhận làm mốc và làm lệch âm thanh phía sau (tái hiện bằng test đối kháng). Nay ứng viên tìm được khi resync chỉ được chấp nhận nếu CRC16 cả khung đúng; tiêu đề được kiểm chặt (bit dành riêng, mã tần số 15, UTF-8 số khung). Có test luồng độ dài khối thay đổi (sync 0xFFF9, số mẫu UTF-8 nhiều byte). Giới hạn đã biết: luồng cố định mà STREAMINFO min≠max/không rõ thì không neo được theo số khung (khung mất làm đầu ra ngắn hơn như trước).
+- **Di trú Keystore**: trình tự ghi → đọc lại → giải mã đối chiếu → mới xoá `.bak` plaintext; dọn `.bak` còn sót nếu lần trước dừng dở; bản mã không giải mã được (mất khoá) được GIỮ NGUYÊN qua các lần lưu và báo trên giao diện/nhật ký (nguồn NAS, khoá AI, khoá AudD). `allowBackup=false`. Đã kiểm trên emulator với Keystore thật: di trú thường, dừng dở, mất khoá.
+- **Git (18 commit local)**: không có file nhị phân/dữ liệu thử/khoá/mật khẩu/email cá nhân/đường dẫn máy; tác giả dùng email noreply của GitHub; giá trị giả trong test chỉ là chuỗi giả.
+- **Cài đè**: cấu hình ký, `applicationId`, `versionCode/Name` (108 / 3.0.5) và manifest (kể cả quyền) KHÔNG đổi so với commit phát hành `f1bf769`. Đã cài đè bản mới lên build của mã nguồn 3.0.5 (cùng khoá debug) trên emulator: dữ liệu do app cũ ghi (yêu thích, gần đây) và dữ liệu cũ gieo vào (playlist, sửa tag, nguồn, khoá AI, hồ sơ thiết bị) đều giữ nguyên và hiển thị đúng; khoá/mật khẩu được mã hoá. CHƯA kiểm bằng khoá release thật (cần keystore của chủ dự án). Trước khi phát hành phải tăng version.
+- **Hướng dẫn nghiệm thu thực tế**: `docs/ACCEPTANCE_GUIDE.md`.
+
+## Trạng thái bằng chứng (không tuyên bố PASS cho thiết bị thật)
+| Hạng mục | [AUTO] | [EMU] | [REAL] |
+|---|---|---|---|
+| FLAC giải mã/chính sách hư hỏng/anchoring | có (10k+ test, fuzz) | phát file tổng hợp | chưa |
+| Quét khởi động, kho dữ liệu an toàn, quét thư viện | có | có | chưa |
+| Mã hoá khoá/mật khẩu, di trú, mất khoá | logic có | có (Keystore thật) | chưa |
+| Hàng đợi/playlist/lịch sử/tìm kiếm | logic có | có (phone) | chưa (TV/D-pad) |
+| AudD | phân tích phản hồi + chính sách | đường thu (im lặng) | chưa (khoá + micro thật) |
+| Bit-perfect, gapless, USB DAC, HDMI, UPnP, Cast | logic có | không áp dụng | chưa |
+| Cài đè OTA | cấu hình không đổi | có (khoá debug) | chưa (khoá release) |
