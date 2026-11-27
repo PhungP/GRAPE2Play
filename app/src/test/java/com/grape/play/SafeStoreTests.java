@@ -21,7 +21,7 @@ final class SafeStoreTests {
             puts++;
             if (throwPut) throw new IllegalStateException("đầy bộ nhớ giả lập");
             if (failPut) return false;
-            if (!dropPut) m.putAll(kv);     // dropPut: báo thành công nhưng không ghi (đọc lại phải phát hiện)
+            if (!dropPut) for (Map.Entry<String, String> e : kv.entrySet()) { if (e.getValue() == null) m.remove(e.getKey()); else m.put(e.getKey(), e.getValue()); }     // dropPut: báo thành công nhưng không ghi; giá trị null = xoá khoá
             return true;
         }
     }
@@ -208,5 +208,14 @@ final class SafeStoreTests {
         check("[\"C\"]".equals(e.m.get("v")) && "[\"B\"]".equals(e.m.get("v.bak")) && "[\"A\"".equals(e.m.get("v.corrupt")), "LW12. hỏng→phục hồi→ghi B→ghi C: chính=C, backup=B (hợp lệ), bản hỏng còn trong v.corrupt");
         SafeJsonStore es2 = st(e);
         check("[\"C\"]".equals(es2.load().value) && es2.status() == SafeJsonStore.Status.OK, "LW13. khởi động lại sau chuỗi trên: đọc C, trạng thái OK");
+        // Di trú bí mật: bản plaintext cũ không được nằm lại trong .bak
+        Mem sc = new Mem(); sc.m.put("v", "[\"matkhau-plaintext\"]"); sc.m.put("v.bak", "[\"ban-cu-hon\"]");
+        SafeJsonStore ss = st(sc); ss.load();
+        check(ss.write("[\"enc1:xxxx\"]", true) && "[\"enc1:xxxx\"]".equals(sc.m.get("v")) && sc.m.get("v.bak") == null, "SC-A1. ghi có xoá sao lưu: bản chính mới được ghi, bản plaintext cũ KHÔNG chuyển sang .bak và .bak cũ bị xoá");
+        check(ss.write("[\"enc1:yyyy\"]") && "[\"enc1:xxxx\"]".equals(sc.m.get("v.bak")), "SC-A2. các lần ghi sau trở lại bình thường: .bak = bản (đã mã hoá) trước đó");
+        Mem sc2 = new Mem(); sc2.m.put("v", "[\"a\"]"); SafeJsonStore s2 = st(sc2); s2.load();
+        check(s2.write("[\"a\"]", true) && sc2.puts == 1 && sc2.m.get("v.bak") == null, "SC-A3. cùng nội dung nhưng yêu cầu xoá sao lưu: vẫn thực hiện (một lần ghi)");
+        Mem sc3 = new Mem(); sc3.m.put("v", "[\"a\""); SafeJsonStore s3 = st(sc3); s3.load();
+        check(!s3.write("[\"b\"]", true) && "[\"a\"".equals(sc3.m.get("v")), "SC-A4. kho bị khoá (dữ liệu hỏng): ghi có xoá sao lưu cũng bị từ chối, bản thô giữ nguyên");
     }
 }

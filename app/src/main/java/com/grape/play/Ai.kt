@@ -87,10 +87,24 @@ object Ai {
 
     private fun refresh() { hasKey.value = AiProvs.ALL.any { keyOf(it.id).isNotEmpty() }; rev.value++ }
 
-    fun keyOf(id: String): String = if (::sp.isInitialized) sp.getString(if (id == "gemini") "key" else "key_$id", "") ?: "" else ""
+    private fun keyName(id: String) = if (id == "gemini") "key" else "key_$id"
+    private val keyCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    /** Khoá dịch vụ AI, lưu MÃ HOÁ bằng Keystore ([SecretBox]); khoá cũ dạng plaintext được mã hoá lại ngay khi đọc. Giải mã được lưu tạm trong RAM (không ghi đĩa). */
+    fun keyOf(id: String): String {
+        if (!::sp.isInitialized) return ""
+        keyCache[id]?.let { return it }
+        val stored = sp.getString(keyName(id), "").orEmpty()
+        if (stored.isEmpty()) return ""
+        val plain = SecretBox.decrypt(stored) ?: return ""                  // khoá Keystore mất: coi như chưa có khoá, KHÔNG xoá dữ liệu đã lưu
+        if (!SecretBox.isEncrypted(stored)) SecretBox.encrypt(plain)?.let { sp.edit().putString(keyName(id), it).apply() }   // di trú
+        keyCache[id] = plain
+        return plain
+    }
     fun has(id: String) = keyOf(id).isNotEmpty()
     fun setKey(id: String, v: String) {
-        if (::sp.isInitialized) sp.edit().putString(if (id == "gemini") "key" else "key_$id", v.trim()).apply()
+        val t = v.trim()
+        keyCache.remove(id)
+        if (::sp.isInitialized) sp.edit().putString(keyName(id), if (t.isEmpty()) "" else (SecretBox.encrypt(t) ?: t)).apply()   // Keystore lỗi: giữ bản rõ, không làm mất khoá
         refresh()
     }
 

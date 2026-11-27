@@ -29,10 +29,11 @@ object SecretBox {
 
     fun isEncrypted(stored: String) = stored.startsWith(PREFIX)
 
-    /** null nếu không mã hoá được (Keystore lỗi). */
+    /** null nếu không mã hoá được HOẶC giải mã lại không ra đúng bản rõ (Keystore lỗi/bất thường): khi đó người gọi giữ nguyên bản rõ, không làm mất bí mật. */
     fun encrypt(plain: String): String? = runCatching {
         val c = Cipher.getInstance("AES/GCM/NoPadding"); c.init(Cipher.ENCRYPT_MODE, key())
-        PREFIX + Base64.encodeToString(c.iv + c.doFinal(plain.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP)
+        val out = PREFIX + Base64.encodeToString(c.iv + c.doFinal(plain.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP)
+        out.takeIf { decrypt(it) == plain }
     }.getOrNull()
 
     /** Bản rõ; chuỗi không có tiền tố được coi là bản cũ chưa mã hoá. null nếu có tiền tố nhưng không giải mã được (khoá Keystore mất/hỏng). */

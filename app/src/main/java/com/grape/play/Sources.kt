@@ -19,7 +19,11 @@ object SourceStore {
     @Synchronized fun init(ctx: Context) {
         if (::safe.isInitialized) return
         safe = SafePrefStore(ctx.applicationContext, "sources", PersistCodec::isSources, "Sources")
-        list.value = safe.load().value?.let { PersistCodec.decodeSources(it) }?.map { fromRecord(it) } ?: emptyList()
+        val recs = safe.load().value?.let { PersistCodec.decodeSources(it) } ?: emptyList()
+        list.value = recs.map { fromRecord(it) }
+        // Di trú: mật khẩu cũ dạng plaintext được mã hoá (Keystore) và bản sao lưu plaintext bị xoá. Chỉ khi mã hoá + giải mã lại thành công; nếu không giữ nguyên.
+        if (recs.any { !it["p"].isNullOrEmpty() && !SecretBox.isEncrypted(it["p"]!!) } && list.value.all { it.pass.isEmpty() || SecretBox.encrypt(it.pass) != null })
+            safe.writeScrubbed(PersistCodec.encodeRecords(list.value.map { toRecord(it) }))
     }
     fun get(id: String) = list.value.firstOrNull { it.id == id }
     fun name(id: String) = get(id)?.name ?: "NAS"
@@ -32,6 +36,6 @@ object SourceStore {
         if (!::safe.isInitialized) return
         safe.writeAsync(PersistCodec.encodeRecords(list.value.map { toRecord(it) }))
     }
-    private fun toRecord(it: Source): Map<String, String> = linkedMapOf("id" to it.id, "t" to it.type, "n" to it.name, "h" to it.host, "s" to it.share, "r" to it.root, "u" to it.url, "us" to it.user, "p" to it.pass)
-    private fun fromRecord(o: Map<String, String>) = Source(o.getValue("id"), o.getValue("t"), o.getValue("n"), o["h"].orEmpty(), o["s"].orEmpty(), o["r"].orEmpty(), o["u"].orEmpty(), o["us"].orEmpty(), o["p"].orEmpty())
+    private fun toRecord(it: Source): Map<String, String> = linkedMapOf("id" to it.id, "t" to it.type, "n" to it.name, "h" to it.host, "s" to it.share, "r" to it.root, "u" to it.url, "us" to it.user, "p" to (if (it.pass.isEmpty()) "" else SecretBox.encrypt(it.pass) ?: it.pass))
+    private fun fromRecord(o: Map<String, String>) = Source(o.getValue("id"), o.getValue("t"), o.getValue("n"), o["h"].orEmpty(), o["s"].orEmpty(), o["r"].orEmpty(), o["u"].orEmpty(), o["us"].orEmpty(), o["p"]?.let { p -> if (p.isEmpty()) "" else SecretBox.decrypt(p) ?: "" }.orEmpty())
 }

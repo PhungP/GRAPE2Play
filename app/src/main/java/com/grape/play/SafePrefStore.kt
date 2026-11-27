@@ -20,7 +20,7 @@ class SafePrefStore(ctx: Context, prefName: String, validator: SafeJsonStore.Val
         override fun get(key: String): String? = sp.getString(k(key), null)
         override fun putAll(kv: MutableMap<String, String>): Boolean {
             val ed = sp.edit()
-            for ((key, v) in kv) ed.putString(k(key), v)
+            for ((key, v) in kv) if (v == null) ed.remove(k(key)) else ed.putString(k(key), v)
             return ed.commit()
         }
     }, validator, { m -> AppLog.w("Data", m) }, tag)
@@ -30,6 +30,11 @@ class SafePrefStore(ctx: Context, prefName: String, validator: SafeJsonStore.Val
     private val sink = object : LatestWriter.Sink {
         override fun write(raw: String) = store.write(raw)
         override fun canRetry() = store.isWritable
+    }
+
+    /** Ghi một lần, KHÔNG gộp, và xoá bản sao lưu cũ (dùng khi di trú bí mật plaintext → mã hoá). Chạy trên luồng ghi chung, không chặn UI. */
+    fun writeScrubbed(raw: String) {
+        exec.execute { try { store.write(raw, true) } catch (e: Throwable) { AppLog.w("Data", "$tag: lỗi khi ghi (xoá bản sao lưu plaintext)", e) } }
     }
 
     fun writeAsync(raw: String) {

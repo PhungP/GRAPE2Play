@@ -18,7 +18,7 @@ public final class SafeJsonStore {
     public interface Backend {
         /** null = chưa có. Có thể ném RuntimeException nếu không đọc được. */
         String get(String key);
-        /** Ghi nguyên lô (tất cả hoặc không). true nếu thành công. */
+        /** Ghi nguyên lô (tất cả hoặc không); giá trị null = XOÁ khoá đó. true nếu thành công. */
         boolean putAll(Map<String, String> kv);
     }
     public interface Validator { boolean isValid(String raw); }
@@ -68,14 +68,20 @@ public final class SafeJsonStore {
     public synchronized String lastError() { return lastError; }
 
     /** true = đã ghi và xác nhận (hoặc không có gì thay đổi). false = bị từ chối/thất bại; dữ liệu đã lưu không bị thay đổi. */
-    public synchronized boolean write(String raw) {
+    public synchronized boolean write(String raw) { return write(raw, false); }
+
+    /**
+     * Như [write]; nếu [scrubBackup] thì XOÁ bản sao lưu cũ thay vì chuyển bản chính cũ sang .bak — dùng khi bản cũ chứa bí mật dạng plaintext vừa được mã hoá
+     * (nếu không, bản plaintext vẫn nằm lại trong .bak). Bản chính mới đã được xác nhận hợp lệ nên không mất khả năng phục hồi.
+     */
+    public synchronized boolean write(String raw, boolean scrubBackup) {
         if (!loaded) load();
         if (!isWritable()) { lastError = "kho đang khoá ghi (" + status + ")"; if (!refusalLogged) { refusalLogged = true; log("từ chối ghi: " + lastError + " (các lần sau không ghi log lặp lại)"); } return false; }
         if (raw == null || !validator.isValid(raw)) { lastError = "dữ liệu mới không hợp lệ"; log("từ chối ghi: " + lastError); return false; }
-        if (mainValid && raw.equals(mainRaw)) return true;
+        if (mainValid && raw.equals(mainRaw) && !scrubBackup) return true;
         Map<String, String> batch = new LinkedHashMap<>();
         batch.put(KEY, raw);
-        if (mainValid) batch.put(BAK, mainRaw);
+        if (mainValid) batch.put(BAK, scrubBackup ? null : mainRaw);
         else if (mainRaw != null) batch.put(CORRUPT_KEY, mainRaw);
         try {
             if (!backend.putAll(batch)) { lastError = "ghi thất bại"; log(lastError + " — dữ liệu cũ giữ nguyên"); return false; }
