@@ -26,16 +26,23 @@ object Library {
     private val lists = HashMap<String, List<Track>>()
     private val active = AtomicInteger(0)
     private val localBusy = AtomicBoolean(false)
-    private val cancelFlag = AtomicBoolean(false)
+    /** Điều phối quét: một lần quét/nguồn, hủy theo thế hệ, khoá xác nhận kết quả/xoá nguồn (xem [ScanGuard]). */
+    private val guard = ScanGuard()
     /** Dừng lần quét NAS/DLNA/đám mây đang chạy (giữ lại những gì đã tìm được). */
-    fun cancelScan() { cancelFlag.set(true) }
+    fun cancelScan() { guard.cancelAll() }
 
     private fun begin() { active.incrementAndGet(); scanning.value = true }
     private fun end() { if (active.decrementAndGet() <= 0) scanning.value = false }
-    @Synchronized private fun publish(id: String, l: List<Track>) { lists[id] = l; tracks.value = TagFix.apply(lists.values.flatten()) }
-    @Synchronized private fun drop(id: String) { lists.remove(id); tracks.value = TagFix.apply(lists.values.flatten()) }
+    /** Gộp các nguồn thành một danh sách (một lần cấp phát đúng kích thước) rồi áp sửa tag. Gọi trong khoá. */
+    private fun rebuild() {
+        var n = 0; for (v in lists.values) n += v.size
+        val all = ArrayList<Track>(n); for (v in lists.values) all.addAll(v)
+        tracks.value = TagFix.apply(all)
+    }
+    @Synchronized private fun publish(id: String, l: List<Track>) { if (lists[id] === l) return; lists[id] = l; rebuild() }
+    @Synchronized private fun drop(id: String) { lists.remove(id); rebuild() }
     /** Áp lại các sửa tên nghệ sĩ/album (hoặc hoàn tác) lên toàn thư viện. */
-    @Synchronized fun reapply() { tracks.value = TagFix.apply(lists.values.flatten()) }
+    @Synchronized fun reapply() { rebuild() }
     @Synchronized private fun cached(id: String): List<Track> = lists[id].orEmpty()
     private fun cacheFile(ctx: Context, id: String) = File(ctx.filesDir, if (id == "local") "library_v4.json" else "src_$id.json")
     private fun bakFile(f: File) = File(f.path + ".bak")
@@ -65,11 +72,6 @@ object Library {
         }
     }
 
-    /** Gộp bản ghi cũ mà lần quét này không thấy (do bị dừng / thư mục lỗi / nguồn offline) — không làm mất bản ghi. */
-    private fun mergeKeep(fresh: List<Track>, old: Collection<Track>): List<Track> {
-        val have = fresh.mapTo(HashSet()) { it.path }
-        return fresh + old.filter { it.path !in have }
-    }
 
     /**
      * File bị di chuyển/đổi tên: bài cũ biến mất và đúng một bài mới xuất hiện với cùng kích thước, thời lượng, tên, nghệ sĩ, album
@@ -134,34 +136,57 @@ object Library {
 
     suspend fun rescanLocal(ctx: Context) = withContext(Dispatchers.IO) {
         if (!localBusy.compareAndSet(false, true)) { localPending.set(true); return@withContext } // yêu cầu quét lại được xếp hàng
+        val job = coroutineContext[Job]
+        val ep = guard.epoch()      // hủy theo thế hệ: yêu cầu hủy sau thời điểm này dừng cả vòng quét lại đang xếp hàng
+        val active = { job?.isActive != false && !guard.cancelledSince(ep) }
         try {
-            do { localPending.set(false); scanLocalOnce(ctx) } while (localPending.get())
+            do { localPending.set(false); scanLocalOnce(ctx, active) } while (localPending.get() && active())
         } finally { localBusy.set(false) }
     }
 
-    private fun scanLocalOnce(ctx: Context) {
+    private fun storageGranted(ctx: Context): Boolean {
+        val p = if (android.os.Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_AUDIO else android.Manifest.permission.READ_EXTERNAL_STORAGE
+        return ctx.checkSelfPermission(p) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    /** Dừng quét cục bộ giữa chừng (nhánh walk/đọc thẻ) — chỉ để thoát vòng lặp, không phải lỗi. */
+    private class ScanCancelled : RuntimeException()
+
+    /** Thông tin quét của MỘT ổ: để đánh giá độ tin cậy riêng từng ổ ([ScanPolicy.judgeRoot]). */
+    private class RootScan(val root: File, val readable: Boolean) { var errors = 0; var found = 0 }
+
+    private fun scanLocalOnce(ctx: Context, active: () -> Boolean) {
         begin()
+        val rep = ScanResult.Report("local", System.currentTimeMillis())
+        val oldList = cached("local")
         try {
             status.value = "Đang quét bộ nhớ TV & USB…"
-            val old = cached("local").associateBy { it.path }
+            val old = oldList.associateBy { it.path }
+            val view = IncrementalView(oldList, { it.path }, 1000L, System.currentTimeMillis())
             val out = ArrayList<Track>()
             val report = ArrayList<String>()
             val rs = roots(ctx)
             val seen = HashSet<String>()
-            val carry = ArrayList<Track>() // bản ghi của ổ hiện không đọc được
+            val infos = ArrayList<RootScan>()
             var reread = 0; var failedRead = 0
-            for (root in rs) {
+            scan@ for (root in rs) {
+                if (!active()) { rep.cancelled = true; break }
                 val readable = root.listFiles() != null
-                if (!readable) carry += old.values.filter { it.path.startsWith(root.path + "/") }
+                val info = RootScan(root, readable); infos += info
+                if (!readable) { info.errors++; rep.unreadable(root.path + "/") }
                 val files = if (!readable) emptyList() else root.walkTopDown()
                     .onEnter { d -> !d.name.startsWith(".") && d.name != "Android" && d.name != "LOST.DIR" }
+                    .onFail { f, _ -> info.errors++; rep.unreadable(f.path + "/") }       // thư mục con không đọc được: KHÔNG coi bài trong đó là đã xoá
+                    .takeWhile { active() }
                     .filter { it.isFile && isAudioName(it.name) }.toList()
+                info.found = files.size
                 report += "${rootLabel(root)}: " + if (!readable) "không đọc được" else "${files.size}"
                 for (f in files) {
+                    if (!active()) { rep.cancelled = true; break@scan }
                     if (!seen.add(f.path)) continue
                     val size = f.length(); val mt = f.lastModified()
                     val o = old[f.path]
-                    out += when {
+                    val t = when {
                         o != null && o.ver >= META_VER && o.mtime == mt && o.size == size -> o  // không đổi và đã có thẻ đầy đủ: giữ nguyên
                         else -> {
                             reread++
@@ -172,89 +197,169 @@ object Library {
                             else n.copy(size = size, mtime = mt)
                         }
                     }
-                    if (out.size % 40 == 0) publish("local", out.toList())
+                    out += t
+                    // Bản xem tăng dần = danh sách cũ + bản đã thấy: không bao giờ thu hẹp; chỉ publish khi có thay đổi thật và tối đa ~1 lần/giây
+                    view.offer(t)
+                    val now = System.currentTimeMillis()
+                    if (view.due(now)) publish("local", view.snapshot(now))
                 }
             }
-            // Bản ghi thuộc ổ đang không có mặt (USB rút ra) hoặc không đọc được: giữ lại, không xóa
-            val offline = old.values.filter { t -> rs.none { t.path.startsWith(it.path + "/") } }
-            val unique = (out + carry + offline).distinctBy { it.path }
-            publish("local", unique)
-            writeCache(ctx, "local", unique)
-            runCatching { relink(old.values, unique) }.onFailure { AppLog.i("Library", "relink lỗi: ${it.message}") }
-            if (offline.isNotEmpty() || carry.isNotEmpty()) report += "giữ ${offline.size + carry.size} bài của ổ đang vắng"
+            if (!active()) rep.cancelled = true
+            val res = rep.result(out.size, oldList.size, System.currentTimeMillis())
+            // Đánh giá TỪNG ổ: ổ không đọc được / có lỗi / rỗng bất thường mà trước đó có bài → giữ bài cũ của ổ đó; ổ khác vẫn áp dụng thay đổi bình thường.
+            // Bài thuộc ổ đang không có mặt (USB rút ra) không thuộc ổ nào trong danh sách → luôn giữ.
+            val prefixes = infos.map { it.root.path + "/" }
+            val oldCounts = IntArray(infos.size)
+            for (t in oldList) { val i = ScanMerge.rootIndex(t.path, prefixes); if (i >= 0) oldCounts[i]++ }
+            val granted = storageGranted(ctx)
+            val states = infos.mapIndexed { i, ri ->
+                val mounted = granted && runCatching { Environment.getExternalStorageState(ri.root) == Environment.MEDIA_MOUNTED }.getOrDefault(false)
+                val other = ri.readable && runCatching { ri.root.list()?.isNotEmpty() == true }.getOrDefault(false)
+                ScanPolicy.judgeRoot(ri.root.path, ri.readable, ri.errors, mounted, other, ri.found, oldCounts[i])
+            }
+            val rec = ScanMerge.reconcileRoots(oldList, out, { it.path }, res, states) { t -> val f = File(t.path); !f.exists() && f.parentFile?.list() != null }    // chỉ xoá khi file thật sự không còn và thư mục cha đọc được
+            publish("local", rec.items)
+            if (rec.persist) writeCache(ctx, "local", rec.items)
+            if (res.outcome == ScanResult.Outcome.COMPLETE || res.outcome == ScanResult.Outcome.PARTIAL)
+                runCatching { relink(old.values, rec.items) }.onFailure { AppLog.i("Library", "relink lỗi: ${it.message}") }
+            val kept = rec.items.size - out.size
+            if (kept > 0) report += "giữ $kept bài chưa xác nhận được"
             if (reread > 0 || failedRead > 0) AppLog.i("Library", "quét local: đọc lại $reread file, $failedRead file đọc lỗi (giữ thẻ cũ)")
-            status.value = "Đã quét: " + report.joinToString(" · ")
+            AppLog.i("Library", "quét local: ${res.outcome} · ${out.size} bài (cache ${res.previous}) · ${res.durationMs} ms · ${res.failures} lỗi/vùng không đọc được" + (if (rec.note.isNotEmpty()) " · ${rec.note}" else ""))
+            status.value = (if (res.outcome == ScanResult.Outcome.COMPLETE) "Đã quét: " else "Quét ${when (res.outcome) { ScanResult.Outcome.CANCELLED -> "đã dừng"; else -> "chưa đầy đủ" }}: ") + report.joinToString(" · ") + (if (rec.note.isNotEmpty()) " · ${rec.note}" else "")
         } catch (e: Exception) {
-            status.value = "Lỗi quét bộ nhớ: ${e.message ?: e.javaClass.simpleName}"
+            publish("local", oldList)       // khôi phục bản hợp lệ trước đó (bản xem tăng dần chỉ thêm, nhưng giữ đúng nguyên trạng)
+            AppLog.i("Library", "quét local lỗi: ${e.message ?: e.javaClass.simpleName} — giữ nguyên dữ liệu cũ")
+            status.value = "Lỗi quét bộ nhớ: ${e.message ?: e.javaClass.simpleName} — giữ nguyên dữ liệu cũ"
         } finally { end() }
     }
 
+    /** Nguồn còn trong danh sách nguồn không (nguồn có thể bị xoá trong lúc đang quét). */
+    private fun sourceExists(id: String) = SourceStore.get(id) != null
+
+    /** Publish (+ ghi cache nếu [persist]) CHỈ khi nguồn còn tồn tại; kiểm tra và ghi nằm cùng khoá với [removeSource]. Trả false nếu nguồn đã bị xoá. */
+    private fun commitSource(ctx: Context, id: String, items: List<Track>, persist: Boolean): Boolean =
+        guard.commitIfPresent(id, { sourceExists(id) }) { publish(id, items); if (persist) writeCache(ctx, id, items) }
+
+    /** Mỗi nguồn chỉ một lần quét tại một thời điểm: yêu cầu quét thứ hai khi lần đầu còn chạy bị BỎ QUA (không chạy song song, không đụng tới trạng thái hủy của lần đầu). */
     suspend fun scanSource(ctx: Context, s: Source) = withContext(Dispatchers.IO) {
+        if (!guard.tryAcquire(s.id)) {
+            AppLog.i("Library", "quét ${s.name}: nguồn này đang được quét — bỏ qua yêu cầu quét thêm")
+            return@withContext
+        }
+        try { scanSourceExclusive(ctx, s) } finally { guard.release(s.id) }
+    }
+
+    private suspend fun scanSourceExclusive(ctx: Context, s: Source) {
         begin()
-        cancelFlag.set(false)
+        val ep = guard.epoch()
+        /** Dừng khi người dùng bấm "Dừng quét" SAU lúc lần quét này bắt đầu, hoặc khi nguồn đã bị xoá. */
+        fun stopped() = guard.cancelledSince(ep) || !sourceExists(s.id)
+        val oldList = cached(s.id)
+        val rep = ScanResult.Report(s.id, System.currentTimeMillis())
         try {
             status.value = "Đang quét ${s.name}…"
-            val old = cached(s.id).associateBy { it.path }
+            val old = oldList.associateBy { it.path }
+            val view = IncrementalView(oldList, { it.path }, 1000L, System.currentTimeMillis())
+            fun tick() { val n = System.currentTimeMillis(); if (view.due(n)) commitSource(ctx, s.id, view.snapshot(n), false) }
             var note = ""
             val result: List<Track> = if (s.type == "dlna") {
                 val acc = ArrayList<Track>()
-                note = Upnp.crawl(s, { cancelFlag.get() }, { f, t, w -> status.value = "Đang quét ${s.name}: $t bài · $f thư mục · $w" }) {
-                    acc += it; if (acc.size % 20 == 0) publish(s.id, acc.toList())
+                note = Upnp.crawl(s, { stopped() }, { f, t, w -> status.value = "Đang quét ${s.name}: $t bài · $f thư mục · $w" }, rep) {
+                    acc += it; view.offer(it); tick()
                 }
                 acc
             } else if (Cloud.isCloud(s.type)) {
                 val files = ArrayList<CloudFile>()
-                val failed = Cloud.walk(s, { cancelFlag.get() }, { f, n -> status.value = "Đang liệt kê ${s.name}: $n file nhạc · $f thư mục" }) { files += it }
+                val failed = Cloud.walk(s, { stopped() }, { f, n -> status.value = "Đang liệt kê ${s.name}: $n file nhạc · $f thư mục" }, rep) { files += it }
                 val acc = Collections.synchronizedList(ArrayList<Track>())
                 val sem = Semaphore(4); val done = AtomicInteger(0)
                 coroutineScope {
                     files.map { cf ->
                         async {
                             sem.withPermit {
-                                if (!cancelFlag.get()) {
-                                    acc.add(old[cf.path]?.takeIf { it.ver >= META_VER } ?: readCloudMeta(cf, s.id).let { n -> old[cf.path]?.takeIf { n.durationMs == 0L && it.durationMs > 0 } ?: n })
+                                if (!stopped()) {
+                                    val t = old[cf.path]?.takeIf { it.ver >= META_VER } ?: readCloudMeta(cf, s.id).let { n -> old[cf.path]?.takeIf { n.durationMs == 0L && it.durationMs > 0 } ?: n }
+                                    acc.add(t); view.offer(t)
                                     val d = done.incrementAndGet()
-                                    if (d % 20 == 0) { status.value = "Đọc thẻ nhạc ${s.name}: $d/${files.size}"; publish(s.id, synchronized(acc) { acc.toList() }) }
+                                    if (d % 20 == 0) status.value = "Đọc thẻ nhạc ${s.name}: $d/${files.size}"
+                                    tick()
                                 }
                             }
                         }
                     }.awaitAll()
                 }
-                if (cancelFlag.get()) note = "đã dừng"
+                if (stopped()) note = "đã dừng"
                 if (failed > 0) note += (if (note.isEmpty()) "" else " · ") + "$failed thư mục lỗi"
                 synchronized(acc) { acc.toList() }
             } else {
                 val paths = ArrayList<String>()
-                if (s.type == "smb") Remote.walkSmb(s) { paths += "smb://${s.id}/$it" } else Remote.walkDav(s) { paths += "dav://${s.id}/$it" }
+                try {
+                    // Hủy được ngay cả trong lúc liệt kê thư mục (lỗi đọc thư mục vẫn là ngoại lệ → quét THẤT BẠI, giữ nguyên dữ liệu cũ)
+                    if (s.type == "smb") Remote.walkSmb(s) { if (stopped()) throw ScanCancelled(); paths += "smb://${s.id}/$it" }
+                    else Remote.walkDav(s) { if (stopped()) throw ScanCancelled(); paths += "dav://${s.id}/$it" }
+                } catch (e: ScanCancelled) { rep.cancelled = true }
                 val acc = Collections.synchronizedList(ArrayList<Track>())
                 val sem = Semaphore(4)
                 coroutineScope {
                     paths.map { p ->
                         async {
                             sem.withPermit {
-                                acc.add(old[p]?.takeIf { it.ver >= META_VER } ?: readMeta(p, s.id).let { n -> old[p]?.takeIf { n.durationMs == 0L && it.durationMs > 0 } ?: n })
-                                if (acc.size % 40 == 0) publish(s.id, synchronized(acc) { acc.toList() })
+                                if (!stopped()) {
+                                    val t = old[p]?.takeIf { it.ver >= META_VER } ?: readMeta(p, s.id).let { n -> old[p]?.takeIf { n.durationMs == 0L && it.durationMs > 0 } ?: n }
+                                    acc.add(t); view.offer(t); tick()
+                                }
                             }
                         }
                     }.awaitAll()
                 }
                 synchronized(acc) { acc.toList() }
             }
-            // Quét bị dừng / có thư mục lỗi / nguồn trả về rỗng: giữ lại bản ghi cũ thay vì ghi đè bằng kết quả thiếu
-            val partial = cancelFlag.get() || note.contains("thư mục lỗi")
-            val result2 = if (result.isEmpty() && old.isNotEmpty()) { note += (if (note.isEmpty()) "" else " · ") + "không đọc được, giữ dữ liệu cũ"; old.values.toList() }
-                else if (partial) mergeKeep(result, old.values) else result
-            publish(s.id, result2)
-            writeCache(ctx, s.id, result2)
-            status.value = "Đã quét ${s.name}: ${result2.size} bài" + (if (note.isNotEmpty()) " · $note" else "")
+            if (stopped()) rep.cancelled = true
+            // Kết quả RỖNG của nguồn từ xa không bao giờ được tin (thư mục chia sẻ rỗng khi ổ bị tháo, DLNA đang lập chỉ mục, token hết quyền…): giữ nguyên cache cũ
+            rep.emptyVerified = ScanPolicy.remoteEmptyVerified(s.type)
+            val res = rep.result(result.size, oldList.size, System.currentTimeMillis())
+            val rec = ScanMerge.reconcile(oldList, result, { it.path }, res, null, null)
+            // Nguồn bị xoá trong lúc quét: không publish, không tạo lại cache, và gỡ mọi bản ghi đã lỡ publish
+            val committed = commitSource(ctx, s.id, rec.items, rec.persist)
+            if (!committed) { dropIfRemoved(s.id); AppLog.i("Library", "quét ${s.name}: nguồn đã bị xoá trong lúc quét — bỏ kết quả") }
+            AppLog.i("Library", "quét ${s.name}: ${res.outcome} · ${result.size} bài (cache ${res.previous}) · ${res.durationMs} ms · ${res.failures} lỗi" +
+                (if (res.timedOut) " · quá thời gian" else "") + (if (res.limitReached) " · đạt giới hạn" else "") + (if (rec.note.isNotEmpty()) " · ${rec.note}" else ""))
+            if (rec.note.isNotEmpty() && note.isNotEmpty() && !rec.note.contains(note)) note += " · ${rec.note}" else if (rec.note.isNotEmpty() && note.isEmpty()) note = rec.note
+            status.value = "Đã quét ${s.name}: ${rec.items.size} bài" + (if (note.isNotEmpty()) " · $note" else "")
         } catch (e: Exception) {
-            status.value = "Lỗi quét ${s.name}: ${e.message ?: e.javaClass.simpleName}"
+            if (!commitSource(ctx, s.id, oldList, false)) dropIfRemoved(s.id)      // khôi phục bản hợp lệ trước đó; cache không bị đụng tới
+            AppLog.i("Library", "quét ${s.name} lỗi: ${e.message ?: e.javaClass.simpleName} — giữ nguyên dữ liệu cũ")
+            status.value = "Lỗi quét ${s.name}: ${e.message ?: e.javaClass.simpleName} — giữ nguyên dữ liệu cũ"
+            if (e is CancellationException) throw e
         } finally { end() }
     }
 
+    /** Gỡ bản ghi của nguồn đã bị xoá khỏi thư viện trong RAM (an toàn nếu đã gỡ; chỉ khi nguồn thật sự không còn). */
+    private fun dropIfRemoved(id: String) = guard.withLock(id) { if (!sourceExists(id)) drop(id) }
+
     fun scanSourceAsync(ctx: Context, s: Source) { scope.launch { scanSource(ctx.applicationContext, s) } }
     fun rescanAllAsync(ctx: Context) { scope.launch { rescanLocal(ctx.applicationContext); SourceStore.list.value.forEach { scanSource(ctx.applicationContext, it) } } }
-    fun removeSource(ctx: Context, id: String) { SourceStore.remove(id); drop(id); cacheFile(ctx, id).let { it.delete(); bakFile(it).delete() }; Smb.reset(id) }
+    /** Chạy giao dịch xoá nguồn trên luồng nền của Library (Dispatchers.IO), không bao giờ trên luồng gọi. */
+    private val removeExec = java.util.concurrent.Executor { r -> scope.launch { r.run() } }
+
+    /**
+     * Xoá nguồn: trả về NGAY (an toàn gọi từ luồng UI). Toàn bộ giao dịch (gỡ khỏi kho nguồn, gỡ khỏi thư viện, xoá cache) chạy nền trong khoá của nguồn,
+     * cùng khoá với [commitSource]: kết quả quét đang chờ publish sẽ thấy nguồn đã bị xoá và không thể đưa nó trở lại hay tạo lại cache,
+     * còn kết quả vừa được xác nhận ngay trước đó bị giao dịch này dọn. Yêu cầu xoá lặp lại khi chưa xong bị bỏ qua.
+     */
+    fun removeSource(ctx: Context, id: String) {
+        val appCtx = ctx.applicationContext
+        val name = SourceStore.name(id)
+        status.value = "Đang xoá nguồn $name…"
+        guard.requestRemove(id, removeExec, {
+            SourceStore.remove(id); drop(id); cacheFile(appCtx, id).let { it.delete(); bakFile(it).delete() }
+        }) { err ->
+            runCatching { Smb.reset(id) }
+            if (err == null) status.value = "Đã xoá nguồn $name"
+            else { AppLog.w("Library", "xoá nguồn $name lỗi: ${err.message}", err); status.value = "Lỗi khi xoá nguồn $name: ${err.message ?: err.javaClass.simpleName}" }
+        }
+    }
 
     /** FLAC: đọc thẻ + thông số thẳng từ header (Android 8 / MediaMetadataRetriever hay thiếu thẻ và thời lượng). */
     private fun flacMeta(path: String, src: String, name: String, album: String): Track? = try {

@@ -149,7 +149,7 @@ object Upnp {
      * (tránh quét trùng các view Album/Artist/Genre), chống lặp, một thư mục lỗi không làm hỏng cả lần quét, có giới hạn thời gian và dừng được.
      * Trả về ghi chú (rỗng nếu êm).
      */
-    fun crawl(s: Source, cancelled: () -> Boolean, progress: (folders: Int, tracks: Int, where: String) -> Unit, sink: (Track) -> Unit): String {
+    fun crawl(s: Source, cancelled: () -> Boolean, progress: (folders: Int, tracks: Int, where: String) -> Unit, rep: ScanResult.Report?, sink: (Track) -> Unit): String {
         val seenIds = HashSet<String>(); val seenUrls = HashSet<String>()
         var folders = 0; var tracks = 0; var errors = 0; var lastErr = ""
         val deadline = System.currentTimeMillis() + 12 * 60_000L
@@ -165,15 +165,15 @@ object Upnp {
         start.reversed().forEach { stack.addLast(Triple(it.id, it.title, 1)) }
 
         while (stack.isNotEmpty()) {
-            if (cancelled()) return "đã dừng"
-            if (System.currentTimeMillis() > deadline) return "dừng vì quá thời gian (đã lấy $tracks bài)"
-            if (folders >= 5000 || tracks >= 30000) return "dừng vì đạt giới hạn ($folders thư mục, $tracks bài)"
+            if (cancelled()) { rep?.cancelled = true; return "đã dừng" }
+            if (System.currentTimeMillis() > deadline) { rep?.timedOut = true; return "dừng vì quá thời gian (đã lấy $tracks bài)" }
+            if (folders >= 5000 || tracks >= 30000) { rep?.limitReached = true; return "dừng vì đạt giới hạn ($folders thư mục, $tracks bài)" }
             val (id, dir, depth) = stack.removeLast()
             if (!seenIds.add(id) || depth > 12) continue
             folders++
             progress(folders, tracks, dir.substringAfterLast('/'))
             val kids = try { children(s, id, dir) } catch (e: Exception) {
-                errors++; lastErr = e.message ?: e.javaClass.simpleName
+                errors++; rep?.error(); lastErr = e.message ?: e.javaClass.simpleName
                 if (errors >= 15 && tracks == 0) throw IOException("Máy chủ liên tục báo lỗi: $lastErr")
                 continue
             }

@@ -130,15 +130,16 @@ object Cloud {
     fun extOf(name: String) = extFor(name, "")
 
     /** Quét toàn bộ cây thư mục (không đệ quy). Lỗi ở thư mục gốc được ném ra; lỗi ở thư mục con thì bỏ qua thư mục đó. */
-    fun walk(s: Source, cancelled: () -> Boolean, progress: (folders: Int, files: Int) -> Unit, sink: (CloudFile) -> Unit): Int {
+    fun walk(s: Source, cancelled: () -> Boolean, progress: (folders: Int, files: Int) -> Unit, rep: ScanResult.Report?, sink: (CloudFile) -> Unit): Int {
         val prefix = if (s.type == "gdrive") "gd" else "od"
         val stack = ArrayDeque<Pair<String, String>>()
         stack.addLast(s.root to "")
         var folders = 0; var files = 0; var failed = 0
         while (stack.isNotEmpty()) {
-            if (cancelled() || folders > 8000) break
+            if (cancelled()) { rep?.cancelled = true; break }
+            if (folders > 8000) { rep?.limitReached = true; break }
             val (id, dir) = stack.removeLast()
-            val items = try { list(s, id) } catch (e: Exception) { if (folders == 0) throw e; failed++; continue }
+            val items = try { list(s, id) } catch (e: Exception) { if (folders == 0) throw e; failed++; rep?.error(); continue }
             folders++
             for (x in items) {
                 if (x.folder) stack.addLast(x.id to (if (dir.isEmpty()) x.name else "$dir/${x.name}"))
