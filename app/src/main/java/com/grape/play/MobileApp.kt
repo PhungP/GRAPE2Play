@@ -244,7 +244,7 @@ private fun MobileLibrary(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen)
             }
         }
         T(if (status.isNotEmpty()) "${all.size} bài · $status" else "${all.size} bài", 13, C.Muted, lines = 2)
-        if (all.isNotEmpty() && tab != Tab.HABIT) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (all.isNotEmpty() && !tab.custom) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MButton("⤮ Trộn & phát", Modifier.weight(1f)) { Playback.playMixed(all); onNav(Screen.NOW) }
             MButton("🎲 Ngẫu nhiên", Modifier.weight(1f)) { Playback.playShuffled(all); onNav(Screen.NOW) }
         }
@@ -258,6 +258,9 @@ private fun MobileLibrary(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen)
                 }
                 tab == Tab.FAV -> MFavorites(allTracks, cur, onNav)
                 tab == Tab.HABIT -> HabitView(allTracks, onNav)
+                tab == Tab.PLAYLIST -> PlaylistsView(allTracks, cur, 2.dp, onNav)
+                tab == Tab.HISTORY -> HistoryView(allTracks, cur, 2.dp, onNav)
+                tab == Tab.RECENT -> RecentView(allTracks, cur, 2.dp, onNav)
                 all.isEmpty() -> T(if (scanning) "Đang quét nhạc…" else "Không tìm thấy nhạc. Bấm làm mới để quét lại, hoặc thêm nguồn NAS bằng dấu +.", 18, C.Muted, lines = 4)
                 tab == Tab.FOLDER -> FolderBrowser(all, onNav)
                 sel != null -> MDetail(sel!!, cur, onNav)
@@ -430,7 +433,7 @@ fun QueueDialog(onClose: () -> Unit) {
                 }
             }
             LazyColumn(Modifier.weight(1f, fill = false), state = st, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                itemsIndexed(queue) { i, t -> TrackRow(i, t, i == idx, compact = true) { Playback.jump(i); onClose() } }
+                itemsIndexed(queue) { i, t -> TrackRow(i, t, i == idx, compact = true, menu = TrackMenu.Ctx.Queue(i)) { Playback.jump(i); onClose() } }
             }
         }
     }

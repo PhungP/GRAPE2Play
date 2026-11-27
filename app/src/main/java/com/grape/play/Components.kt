@@ -146,6 +146,7 @@ fun FieldPair(a: @Composable (Modifier) -> Unit, b: @Composable (Modifier) -> Un
 }
 
 /** Ô điều khiển được bằng remote: có viền vàng khi được chọn. `onLong`: giữ nút OK (hoặc bấm Menu) để chạy hành động phụ. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun Focusable(onClick: () -> Unit, modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(8.dp),
               selected: Boolean = false, ring: Color = C.Gold, requester: FocusRequester? = null,
@@ -173,7 +174,8 @@ fun Focusable(onClick: () -> Unit, modifier: Modifier = Modifier, shape: Shape =
             .clip(sh)
             .background(if (f || selected) selColor else Color.Transparent)
             .then(if (f) Modifier.border(3.dp, ring, sh) else Modifier)
-            .clickable { if (longDone[0]) longDone[0] = false else onClick() },
+            // Nhấn giữ bằng cảm ứng (điện thoại) = cùng hành động phụ như giữ OK / phím Menu trên remote
+            .combinedClickable(onClick = { if (longDone[0]) longDone[0] = false else onClick() }, onLongClick = onLong),
     ) { content(f) }
 }
 
@@ -225,8 +227,8 @@ fun Waveform(seed: Int, progress: Float, modifier: Modifier = Modifier, played: 
 }
 
 @Composable
-fun TrackRow(i: Int, t: Track, current: Boolean, compact: Boolean = false, onClick: () -> Unit) =
-    Focusable(onClick, Modifier.fillMaxWidth(), selected = current, onLong = { Favorites.toggle(t) }) { f ->
+fun TrackRow(i: Int, t: Track, current: Boolean, compact: Boolean = false, menu: TrackMenu.Ctx = TrackMenu.Ctx.Library, onClick: () -> Unit) =
+    Focusable(onClick, Modifier.fillMaxWidth(), selected = current, onLong = { TrackMenu.open(t, menu) }) { f ->
         val hs = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
         val hov by hs.collectIsHoveredAsState()
         Row(Modifier.hoverable(hs).padding(if (compact) 5.dp else 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp)) {

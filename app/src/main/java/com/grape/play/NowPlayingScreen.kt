@@ -419,7 +419,7 @@ private fun QueuePanel(queue: List<Track>, idx: Int, alu: Boolean) {
         Spacer(Modifier.height(10.dp))
         if (queue.isEmpty()) T("Danh sách đang trống", 18, C.Muted)
         LazyColumn(state = st, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            itemsIndexed(queue) { i, t -> TrackRow(i, t, i == idx, compact = true) { Playback.jump(i) } }
+            itemsIndexed(queue) { i, t -> TrackRow(i, t, i == idx, compact = true, menu = TrackMenu.Ctx.Queue(i)) { Playback.jump(i) } }
         }
     }
 }

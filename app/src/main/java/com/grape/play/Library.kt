@@ -87,7 +87,7 @@ object Library {
         val map = HashMap<String, String>()
         for ((k, gl) in g) { val al = a[k] ?: continue; if (gl.size == 1 && al.size == 1) map[gl[0].path] = al[0].path }
         if (map.isEmpty()) return
-        Favorites.remap(map); Recents.remap(map); UsageStats.remap(map)
+        Favorites.remap(map); Recents.remap(map); UsageStats.remap(map); UserPlaylists.remap(map); PlayHistory.remap(map)
         AppLog.i("Library", "đã nối lại ${map.size} bài bị di chuyển/đổi tên")
     }
 
@@ -457,6 +457,8 @@ object Library {
             val t = if (v[0].dir.isNotEmpty()) v[0].dir.substringAfterLast('/') else k.substringAfterLast('/')
             Group(k, t, "${v.size} bài · ${v[0].sourceName}", sorted(v))
         }
-        Tab.SONG, Tab.FAV, Tab.HABIT -> emptyList()
+        Tab.ALBUMARTIST -> all.groupBy { it.albumArtist.ifEmpty { it.artist } }.map { (k, v) -> Group(k, k, "${v.map { it.album }.distinct().size} album · ${v.size} bài", sorted(v)) }.sortedBy { it.title.lowercase() }
+        Tab.YEAR -> all.groupBy { it.year }.map { (y, v) -> Group(y.toString(), if (y > 0) y.toString() else "Không rõ năm", "${v.map { it.album }.distinct().size} album · ${v.size} bài", sorted(v)) }.sortedByDescending { it.key.toInt().let { y -> if (y > 0) y else -1 } }
+        Tab.SONG, Tab.FAV, Tab.HABIT, Tab.RECENT, Tab.HISTORY, Tab.PLAYLIST -> emptyList()
     }.sortedBy { it.title.lowercase() }
 }

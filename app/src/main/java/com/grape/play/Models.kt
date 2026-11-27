@@ -24,7 +24,12 @@ data class Track(
 
 data class AudioInfo(val sampleRate: Int, val bits: Int, val channels: Int, val bitrateKbps: Int)
 data class Group(val key: String, val title: String, val subtitle: String, val tracks: List<Track>)
-enum class Tab(val label: String) { FOLDER("Thư mục"), ALBUM("Album"), ARTIST("Nghệ sĩ"), GENRE("Thể loại"), SONG("Bài hát"), FAV("Yêu thích"), HABIT("Thói quen") }
+enum class Tab(val label: String) {
+    FOLDER("Thư mục"), ALBUM("Album"), ARTIST("Nghệ sĩ"), ALBUMARTIST("Nghệ sĩ album"), YEAR("Năm"), GENRE("Thể loại"), SONG("Bài hát"),
+    RECENT("Mới thêm"), HISTORY("Lịch sử"), PLAYLIST("Playlist"), FAV("Yêu thích"), HABIT("Thói quen");
+    /** Tab hiển thị danh sách/khung riêng (không phải lưới nhóm album) — không dùng nút "Trộn & phát tất cả". */
+    val custom: Boolean get() = this == FAV || this == HABIT || this == PLAYLIST || this == HISTORY || this == RECENT
+}
 /** Thiết bị đang chạy: TV hay điện thoại/máy tính bảng (đặt ở MainActivity). */
 object Device { @Volatile var tv = true }
 enum class Screen { NOW, LIB, SOUND, SOURCES, OUTPUT }

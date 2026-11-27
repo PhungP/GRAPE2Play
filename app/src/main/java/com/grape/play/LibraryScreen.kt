@@ -63,13 +63,14 @@ fun LibraryScreen(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen) -> Unit
             }
             // ---- tab + thống kê
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Tab.values().forEach { tb ->
-                    Focusable({ tab = tb; sel = null }, selected = tb == tab) { T(tb.label, 25, if (tb == tab) C.Gold else C.Muted, Modifier.padding(16.dp, 8.dp), serif = true, bold = tb == tab) }
+                LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    items(Tab.values().toList()) { tb ->
+                        Focusable({ tab = tb; sel = null }, selected = tb == tab) { T(tb.label, 22, if (tb == tab) C.Gold else C.Muted, Modifier.padding(14.dp, 8.dp), serif = true, bold = tb == tab) }
+                    }
+                    if (srcSource?.type == "dlna") item { Focusable({ live = !live }, selected = live) { T(if (live) "Xem thư viện đã quét" else "📂 Duyệt thiết bị", 16, C.Gold, Modifier.padding(12.dp, 7.dp)) } }
+                    item { Focusable({ Overlay.aiStart = "menu"; Overlay.ai.value = true }) { T("✨ AI", 15, C.Gold, Modifier.padding(12.dp, 7.dp), bold = true) } }
                 }
-                if (srcSource?.type == "dlna") Focusable({ live = !live }, selected = live) { T(if (live) "Xem thư viện đã quét" else "📂 Duyệt thiết bị", 16, C.Gold, Modifier.padding(12.dp, 7.dp)) }
-                Focusable({ Overlay.aiStart = "menu"; Overlay.ai.value = true }) { T("✨ AI", 15, C.Gold, Modifier.padding(12.dp, 7.dp), bold = true) }
-                Spacer(Modifier.weight(1f))
-                if (all.isNotEmpty() && tab != Tab.HABIT) {
+                if (all.isNotEmpty() && !tab.custom) {
                     Focusable({ Playback.playMixed(all); onNav(Screen.NOW) }) { T("⤮ Trộn & phát", 15, C.Gold, Modifier.padding(12.dp, 6.dp)) }
                     if (!scanning) Focusable({ Library.rescanAllAsync(ctx) }) { T("⟳ Quét lại", 15, C.Gold, Modifier.padding(12.dp, 6.dp)) }
                     Focusable({ Playback.playShuffled(all); onNav(Screen.NOW) }) { T("🎲 Ngẫu nhiên", 15, C.Gold, Modifier.padding(12.dp, 6.dp)) }
@@ -86,6 +87,9 @@ fun LibraryScreen(hasPerm: Boolean, askPerm: () -> Unit, onNav: (Screen) -> Unit
                     }
                     tab == Tab.FAV -> FavoritesView(allTracks, cur, onNav)
                     tab == Tab.HABIT -> HabitView(allTracks, onNav)
+                    tab == Tab.PLAYLIST -> PlaylistsView(allTracks, cur, 4.dp, onNav)
+                    tab == Tab.HISTORY -> HistoryView(allTracks, cur, 4.dp, onNav)
+                    tab == Tab.RECENT -> RecentView(allTracks, cur, 4.dp, onNav)
                     all.isEmpty() -> T(if (scanning) "Đang quét nhạc…" else "Không tìm thấy nhạc. Cắm USB rồi bấm “Quét lại”, hoặc thêm nguồn NAS.", 24, C.Muted)
                     tab == Tab.FOLDER -> FolderBrowser(all, onNav)
                     sel != null -> Detail(sel!!, onNav)

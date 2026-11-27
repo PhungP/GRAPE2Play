@@ -298,7 +298,7 @@ object Playback {
         Themes.init(appCtx)
         Covers.init(appCtx)
         Favorites.init(appCtx)
-        Recents.init(appCtx); UsageStats.init(appCtx); Ai.init(appCtx); UserPlaylists.init(appCtx); TagFix.init(appCtx); AiDj.init(appCtx); AiSaver.init(appCtx); LibNav.init(appCtx); SourceOrder.init(appCtx)
+        Recents.init(appCtx); PlayHistory.init(appCtx); UsageStats.init(appCtx); Ai.init(appCtx); UserPlaylists.init(appCtx); TagFix.init(appCtx); AiDj.init(appCtx); AiSaver.init(appCtx); LibNav.init(appCtx); SourceOrder.init(appCtx)
         TvHome.init(appCtx)
         BackgroundAccess.init(appCtx)
         exo = build()
@@ -412,7 +412,7 @@ object Playback {
     /** Bài [t] bắt đầu được nghe: ghi vào "phát gần đây", làm mới hàng trên trang chủ TV và đọc thông số kỹ thuật của file ở luồng nền. */
     private fun startProbe(t: Track) {
         info.value = null
-        Recents.add(t.path); UsageStats.played(t.path); TvHome.schedule(appCtx, 30_000)
+        Recents.add(t.path); UsageStats.played(t.path); PlayHistory.add(t.path); TvHome.schedule(appCtx, 30_000)
         probeJob?.cancel()
         probeJob = ioScope.launch { info.value = Probe.probe(t) }
     }
@@ -486,6 +486,72 @@ object Playback {
         updateNext()
         AppLog.i("Player", "Trộn danh sách phát ${q.size} bài")
     }
+    // ---------- Quản lý hàng đợi (logic chỉ số: QueueOps, có test). Chỉ sửa danh sách phát; không đổi đường âm thanh. Gọi trên luồng chính. ----------
+    /** Xoá các bài ở [indices]. Bài đang phát bị xoá → chuyển sang bài kế tiếp (giữ nguyên trạng thái đang phát/tạm dừng); xoá hết → dừng. */
+    fun removeFromQueue(indices: IntArray) {
+        val q = queue.value
+        if (q.isEmpty() || indices.isEmpty() || exo.mediaItemCount != q.size) return
+        val cur = index.value.coerceIn(0, q.lastIndex)
+        val r = QueueOps.remove(q.size, cur, indices)
+        if (r.kept.size == q.size) return
+        val keep = r.kept.toHashSet()
+        runCatching { for (i in q.indices.reversed()) if (i !in keep) exo.removeMediaItem(i) }.onFailure { AppLog.w("Player", "xoá khỏi hàng đợi lỗi: ${it.message}"); return }
+        val nq = r.kept.map { q[it] }
+        queue.value = nq
+        shuffleIdx = IntArray(0)
+        if (nq.isEmpty()) {
+            exo.stop(); index.value = 0; position.value = 0; duration.value = 0; playing.value = false; info.value = null
+            if (rc != null) { runCatching { rc?.pause() }; }
+            AppLog.i("Player", "Đã xoá hết hàng đợi")
+            return
+        }
+        val k = r.newCurrent.coerceIn(0, nq.lastIndex)
+        if (r.currentRemoved) {
+            if (rc != null) { index.value = k; loadRemote(k); return }
+            exo.seekTo(k, 0L); ensureReady()
+            sync()
+        } else index.value = k
+        updateNext()
+        AppLog.i("Player", "Đã xoá ${q.size - nq.size} bài khỏi hàng đợi")
+    }
+
+    /** Chuyển bài ở [from] đến vị trí [to] (chỉ số sau khi chuyển). Bài đang phát vẫn phát liên tục. */
+    fun moveInQueue(from: Int, to: Int) {
+        val q = queue.value
+        if (exo.mediaItemCount != q.size) return
+        val cur = index.value.coerceIn(0, maxOf(q.lastIndex, 0))
+        val m = QueueOps.move(q.size, cur, from, to) ?: return
+        runCatching { exo.moveMediaItem(from, to) }.onFailure { AppLog.w("Player", "di chuyển trong hàng đợi lỗi: ${it.message}"); return }
+        queue.value = m.perm.map { q[it] }
+        index.value = m.newCurrent
+        if (exo.shuffleModeEnabled) pinShuffle(m.newCurrent) else shuffleIdx = IntArray(0)
+        updateNext()
+    }
+
+    /** Đưa bài đã có trong hàng đợi (ở [i]) lên ngay sau bài đang phát. */
+    fun moveToNext(i: Int) {
+        val q = queue.value
+        val to = QueueOps.moveNextTarget(q.size, index.value, i)
+        if (to >= 0) moveInQueue(i, to)
+    }
+
+    /** "Phát tiếp theo": chèn [tracks] ngay sau bài đang phát (hàng đợi trống thì bắt đầu phát chúng). */
+    fun playNext(tracks: List<Track>) {
+        if (tracks.isEmpty()) return
+        val q = queue.value
+        if (q.isEmpty() || exo.mediaItemCount != q.size) { play(tracks, 0); return }
+        val pos = QueueOps.playNextPos(q.size, index.value.coerceIn(0, q.lastIndex))
+        runCatching { exo.addMediaItems(pos, tracks.map { MediaItem.fromUri(Remote.toUri(it)) }) }.onFailure { AppLog.w("Player", "chèn vào hàng đợi lỗi: ${it.message}"); return }
+        queue.value = q.subList(0, pos) + tracks + q.subList(pos, q.size)
+        if (exo.shuffleModeEnabled) {
+            // Chế độ xáo trộn: bài mới chèn phải đứng ngay sau bài đang phát trong thứ tự xáo (ExoPlayer mặc định chèn ở vị trí ngẫu nhiên)
+            val n = exo.mediaItemCount; val cur = exo.currentMediaItemIndex; val ins = pos until pos + tracks.size
+            val rest = (0 until n).filter { it != cur && it !in ins }.shuffled()
+            applyShuffle((listOf(cur) + ins.toList() + rest).toIntArray())
+        } else shuffleIdx = IntArray(0)
+        updateNext()
+    }
+
     fun jump(i: Int) { if (i !in queue.value.indices || i >= exo.mediaItemCount) return; markSwitch(); clearFailure(); if (rc != null) loadRemote(i) else { ensureReady(); exo.seekTo(i, 0L); exo.play() } }
     fun toggle() {
         val c = rc

@@ -28,6 +28,22 @@ object UserPlaylists {
         list.add(0, P(name.trim().ifEmpty { "Playlist" }.take(60), tracks.map { it.path }, System.currentTimeMillis())); save()
     }
     @Synchronized fun remove(p: P) { list.remove(p); save() }
+    // ---- Quản lý playlist (logic danh sách: PlaylistOps, có test). P là bất biến: mỗi thay đổi trả về P MỚI thay thế P cũ trong [list]. ----
+    @Synchronized fun create(name: String, tracks: List<Track> = emptyList()): P {
+        val p = P(PlaylistOps.cleanName(name), PlaylistOps.addDistinct(emptyList(), tracks.map { it.path }), System.currentTimeMillis())
+        list.add(0, p); save(); return p
+    }
+    private fun replace(p: P, np: P): P { val i = list.indexOf(p); if (i < 0) return p; list[i] = np; save(); return np }
+    @Synchronized fun rename(p: P, name: String): P = replace(p, P(PlaylistOps.cleanName(name), p.paths, p.at))
+    @Synchronized fun addTracks(p: P, tracks: List<Track>): P = replace(p, P(p.name, PlaylistOps.addDistinct(p.paths, tracks.map { it.path }), p.at))
+    @Synchronized fun removeAt(p: P, i: Int): P = replace(p, P(p.name, PlaylistOps.removeAt(p.paths, i), p.at))
+    @Synchronized fun moveTrack(p: P, from: Int, to: Int): P = replace(p, P(p.name, PlaylistOps.move(p.paths, from, to), p.at))
+    /** File bị di chuyển/đổi tên (đối chiếu an toàn ở [Library.relink]): playlist trỏ tới đường dẫn mới, không xoá bài nào. */
+    @Synchronized fun remap(m: Map<String, String>) {
+        var changed = false
+        for (i in list.indices) { val p = list[i]; if (p.paths.any { it in m }) { list[i] = P(p.name, PlaylistOps.remap(p.paths, m), p.at); changed = true } }
+        if (changed) save()
+    }
     fun tracks(p: P, lib: List<Track>): List<Track> { val m = lib.associateBy { it.path }; return p.paths.mapNotNull { m[it] } }
 
     @Synchronized private fun save() {

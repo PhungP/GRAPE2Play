@@ -174,6 +174,7 @@ class MainActivity : ComponentActivity() {
                         if (DeviceCatalogStore.open.collectAsState().value) DeviceCatalogDialog()
                         if (DeviceCatalogStore.mine.collectAsState().value) MyAudioDevicesDialog()
                         DeviceConfirmDialog()
+                        TrackMenuHost()
                         androidx.compose.runtime.LaunchedEffect(permDone) { if (permDone) DeviceProfiles.check(applicationContext) }
                         if (Overlay.ai.value) AiHubDialog(onClose = { Overlay.ai.value = false }, onPlayed = { screen = Screen.NOW })
                         if (Overlay.exit.value) ExitDialog(onStay = { Overlay.exit.value = false }, onExit = { Overlay.exit.value = false; exitApp() })
