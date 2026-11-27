@@ -83,9 +83,9 @@ object DeviceProfiles {
         val remote = x.route == BitPerfect.Route.UPNP || x.route == BitPerfect.Route.CAST
         return DeviceVerification.Combo().also {
             it.catalogId = prof?.catalogId.orEmpty(); it.firmware = prof?.firmware.orEmpty(); it.conn = x.route; it.dsd = x.srcDsd
-            // Cast: app chỉ gửi file gốc, không có căn cứ rằng bộ nhận phát DSD gốc (Cast không công bố hỗ trợ DSD) → KHÔNG ghi nhãn NATIVE; UPnP gửi file DSD gốc mới là "native" (vẫn cần người dùng tự xác minh)
-            it.dsdMode = if (!x.srcDsd) DeviceCatalog.Dsd.UNDOCUMENTED else if (x.dopActive) DeviceCatalog.Dsd.DOP
-                else if (x.route == BitPerfect.Route.CAST) DeviceCatalog.Dsd.UNDOCUMENTED else if (remote) DeviceCatalog.Dsd.NATIVE else DeviceCatalog.Dsd.DSD_TO_PCM
+            // Nhãn mô tả HÀNH ĐỘNG CỦA APP trong phiên (gửi file DSD gốc tới thiết bị ngoài = "native"), nhất quán với form xác minh (VerifyPlaybackDialog điền sẵn đúng nhãn này).
+            // Thiết bị có thật sự phát DSD gốc hay không KHÔNG được suy ra từ nhãn này — chỉ kết quả người dùng tự xác minh cho đúng tổ hợp mới khẳng định điều đó.
+            it.dsdMode = DeviceVerification.sessionDsdMode(x.srcDsd, x.dopActive, remote)
             it.rate = x.srcRate; it.bits = x.srcBits
             it.dspOff = !x.dspActive; it.volumeFixed = x.volumeFixed || remote; it.resamplingOff = remote || (x.hasSink && x.sinkRate == x.srcRate)
         }

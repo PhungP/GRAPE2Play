@@ -498,7 +498,7 @@ private fun SfMenuItem(label: String, selected: Boolean, highlight: Boolean = fa
 
 @Composable
 private fun SfQueueRow(i: Int, t: Track, cur: Boolean, onClick: () -> Unit) =
-    Focusable(onClick, Modifier.fillMaxWidth(), ChamferShape(6.dp), selected = cur, ring = C.Text, selColor = C.Sel, onLong = { Favorites.toggle(t) }) { f ->
+    Focusable(onClick, Modifier.fillMaxWidth(), ChamferShape(6.dp), selected = cur, ring = C.Text, selColor = C.Sel, onLong = { TrackMenu.open(t, TrackMenu.Ctx.Queue(i)) }) { f ->
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             CoverImage(t, Modifier.size(40.dp).border(1.dp, C.Gold.copy(alpha = .35f)), 0)
             Column(Modifier.weight(1f)) {

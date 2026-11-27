@@ -225,4 +225,15 @@ public final class DeviceVerification {
             return v.profileKey.isEmpty() ? null : v;
         } catch (RuntimeException e) { return null; }
     }
+
+    /**
+     * Nhãn DSD của một PHIÊN PHÁT theo hành động của app (nguồn duy nhất cho cả so khớp xác minh [DeviceProfiles.comboOf] và form xác minh):
+     * không phải DSD → UNDOCUMENTED; DoP → DOP; gửi file DSD gốc tới thiết bị ngoài (UPnP/Cast) → NATIVE ("gửi gốc"); phát cục bộ → DSD_TO_PCM.
+     * Nhãn KHÔNG khẳng định thiết bị phát DSD gốc — việc đó chỉ do kết quả người dùng tự xác minh cho đúng tổ hợp khẳng định.
+     */
+    public static DeviceCatalog.Dsd sessionDsdMode(boolean srcDsd, boolean dopActive, boolean remote) {
+        if (!srcDsd) return DeviceCatalog.Dsd.UNDOCUMENTED;
+        if (dopActive) return DeviceCatalog.Dsd.DOP;
+        return remote ? DeviceCatalog.Dsd.NATIVE : DeviceCatalog.Dsd.DSD_TO_PCM;
+    }
 }

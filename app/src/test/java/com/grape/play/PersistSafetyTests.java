@@ -19,7 +19,7 @@ final class PersistSafetyTests {
 
     static Map<String, String> src(String id, String pass) { Map<String, String> m = new LinkedHashMap<>(); m.put("id", id); m.put("t", "smb"); m.put("n", "NAS \"nhà\""); m.put("h", "192.168.1.2"); m.put("s", "nhạc"); m.put("r", ""); m.put("u", ""); m.put("us", "u"); m.put("p", pass); return m; }
 
-    static void run() { sources(); tagfix(); devices(); }
+    static void run() { sources(); tagfix(); devices(); sessionLabels(); }
 
     static void sources() {
         List<Map<String, String>> l = Arrays.asList(src("a1", "p/w\\\"\néệ"), src("b2", ""));
@@ -92,4 +92,15 @@ final class PersistSafetyTests {
         check(s.load().status == SafeJsonStore.Status.ABSENT && s.write(text) && b.m.get("v").equals(text) && b.m.get("v.bak") == null, "PS20. chưa có dữ liệu: ghi lần đầu bình thường (kho mới không bị khoá)");
     }
 
+
+    static void sessionLabels() {
+        check(DeviceVerification.sessionDsdMode(false, false, false) == Dsd.UNDOCUMENTED && DeviceVerification.sessionDsdMode(false, true, true) == Dsd.UNDOCUMENTED, "PS21. nguồn PCM: nhãn DSD là 'chưa có tài liệu' bất kể đường truyền");
+        check(DeviceVerification.sessionDsdMode(true, true, false) == Dsd.DOP && DeviceVerification.sessionDsdMode(true, true, true) == Dsd.DOP, "PS22. DoP đang chạy: nhãn DOP");
+        check(DeviceVerification.sessionDsdMode(true, false, true) == Dsd.NATIVE, "PS23. gửi file DSD gốc tới thiết bị ngoài (UPnP và Cast như nhau): nhãn NATIVE = 'app gửi gốc', không khẳng định thiết bị phát gốc");
+        check(DeviceVerification.sessionDsdMode(true, false, false) == Dsd.DSD_TO_PCM, "PS24. phát cục bộ DSD không DoP: DSD→PCM");
+        // Một kết quả người dùng tự xác minh ghi từ form (nhãn lấy từ cùng hàm) phải khớp CHÍNH XÁC phiên phát tương ứng — kể cả Cast+DSD
+        DeviceVerification.UserVerification v = DeviceVerificationTests.uv(Route.CAST, true, DeviceVerification.sessionDsdMode(true, false, true), 0, 0, Result.PASS, TestMethod.DEVICE_INDICATOR, true, "đã thử");
+        DeviceVerification.Combo c = new DeviceVerification.Combo(); c.catalogId = "wiim-ultra"; c.conn = Route.CAST; c.dsd = true; c.dsdMode = DeviceVerification.sessionDsdMode(true, false, true); c.dspOff = c.volumeFixed = c.resamplingOff = true;
+        check(DeviceVerification.appliesTo(v, c).applies == DeviceVerification.Applies.EXACT, "PS25. xác minh Cast+DSD lưu từ form khớp EXACT với phiên Cast+DSD (không còn lệch nhãn giữa form và so khớp)");
+    }
 }

@@ -299,7 +299,7 @@ internal fun VerifyPlaybackDialog(p: DeviceRegistry.Profile, cur: BitPerfect.Inp
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { delay(150); runCatching { first.requestFocus() } }   // chờ cửa sổ hộp thoại dựng xong, nếu không tiêu điểm D-pad vẫn ở trang bên dưới
     var dsd by remember { mutableStateOf(live && cur!!.srcDsd) }
-    var mode by remember { mutableStateOf(if (live && cur!!.srcDsd && cur.dopActive) DeviceCatalog.Dsd.DOP else if (live && cur!!.srcDsd && cur.route != Route.UPNP && cur.route != Route.CAST) DeviceCatalog.Dsd.DSD_TO_PCM else DeviceCatalog.Dsd.NATIVE) }
+    var mode by remember { mutableStateOf(if (live && cur!!.srcDsd) DeviceVerification.sessionDsdMode(true, cur.dopActive, cur.route == Route.UPNP || cur.route == Route.CAST) else DeviceCatalog.Dsd.NATIVE) }   // cùng nguồn nhãn với comboOf: xác minh khớp đúng phiên phát
     var rate by remember { mutableStateOf(if (live && !cur!!.srcDsd && cur.srcRate in listOf(44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000)) cur.srcRate else 0) }
     var bits by remember { mutableStateOf(if (live && !cur!!.srcDsd && cur.srcBits in listOf(16, 24, 32)) cur.srcBits else 0) }
     var fw by remember { mutableStateOf(p.firmware) }

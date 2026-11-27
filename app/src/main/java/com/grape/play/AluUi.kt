@@ -286,7 +286,8 @@ internal fun AluQueue(queue: List<Track>, idx: Int, remoteActive: Boolean, onOut
         LazyColumn(state = st, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             itemsIndexed(queue) { i, t ->
                 val cur = i == idx
-                Focusable({ Playback.jump(i) }, Modifier.fillMaxWidth(), RoundedCornerShape(4.dp), selected = cur, ring = AluLit, selColor = AluTheme.g.selBg) { f ->
+                Focusable({ Playback.jump(i) }, Modifier.fillMaxWidth(), RoundedCornerShape(4.dp), selected = cur, ring = AluLit, selColor = AluTheme.g.selBg,
+                    onLong = { TrackMenu.open(t, TrackMenu.Ctx.Queue(i)) }) { f ->
                     val lit = cur || f
                     val main = if (lit) AluLit else AluAmberInk
                     val sub = if (lit) AluTheme.g.litSub else AluTheme.g.muted
